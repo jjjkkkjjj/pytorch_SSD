@@ -1,4 +1,4 @@
-from models import VGG11
+from models.vgg import VGG11
 from models.train.trainer import Trainer
 from datasets.imagenet import data
 from torch.nn import functional
@@ -10,6 +10,8 @@ if __name__ == '__main__':
     model = VGG11(3, class_nums=1000, load_model=True)
     print(model)
     print(models.vgg11())
+
+
     """
     train_loader, test_loader = data(256, 256)
 

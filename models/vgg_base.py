@@ -43,9 +43,14 @@ class VGG(nn.Module):
                 elif 'classifier' in key:
                     renamed.append((key.replace('classifier', 'fc'), value))
 
+            if len(renamed) == 0:
+                renamed = state_dict
+
+            if len(renamed) != len(state_dict):
+                raise ValueError('Invalid state_dict')
+
             state_dict = OrderedDict(renamed)
             self.load_state_dict(state_dict)
-            a = model_url.split('/')[-1]
             torch.save(self.state_dict(), os.path.join(model_dir, '{}'.format(model_url.split('/')[-1])))
 
         elif isinstance(load_model, str):

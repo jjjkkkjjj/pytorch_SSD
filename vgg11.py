@@ -1,6 +1,5 @@
 from models.vgg import VGG11
 from models.train.trainer import Trainer
-from datasets.imagenet import data
 from torch.nn import functional
 from torch import optim
 from torchvision import models

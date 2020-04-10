@@ -33,24 +33,20 @@ class VGG(nn.Module):
             model_url = get_model_url(self.model_name)
 
             model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'weights')
-            state_dict = load_state_dict_from_url(model_url, model_dir=model_dir)
+            pretrained_state_dict = load_state_dict_from_url(model_url, model_dir=model_dir)
+            model_state_dict = self.state_dict()
+
+            if len(model_state_dict) != len(pretrained_state_dict):
+                raise ValueError('cannot load model due to unsame model architecture')
 
             # rename
             renamed = []
-            for (key, value) in state_dict.items():
-                if 'features' in key:
-                    renamed.append((key.replace('features', 'conv_layers'), value))
-                elif 'classifier' in key:
-                    renamed.append((key.replace('classifier', 'fc'), value))
+            # note that model_state_dict and pretrained_state_dict are ordereddict
+            for (pre_key, mod_key) in zip(pretrained_state_dict.keys(), model_state_dict.keys()):
+                renamed.append((mod_key, pretrained_state_dict[pre_key]))
 
-            if len(renamed) == 0:
-                renamed = state_dict
-
-            if len(renamed) != len(state_dict):
-                raise ValueError('Invalid state_dict')
-
-            state_dict = OrderedDict(renamed)
-            self.load_state_dict(state_dict)
+            pretrained_state_dict = OrderedDict(renamed)
+            self.load_state_dict(pretrained_state_dict)
             torch.save(self.state_dict(), os.path.join(model_dir, '{}'.format(model_url.split('/')[-1])))
 
         elif isinstance(load_model, str):
@@ -81,35 +77,6 @@ class VGG(nn.Module):
         x = self.flatten(x)
         return self.fc(x)
 
-"""
-:return
-    list of layers
-"""
-def conv_block(block_num, in_channels, out_channels, batch_norm=True, **kwargs):
-    kernel_size = kwargs.pop('conv_k_size', (3, 3))
-    stride = kwargs.pop('conv_stride', (1, 1))
-    padding = kwargs.pop('conv_padding', 1)
-
-    in_c = in_channels
-    ret = []
-    # append conv block
-    for _ in range(block_num):
-        if not batch_norm:
-            ret += [nn.Conv2d(in_c, out_channels, kernel_size, stride=stride, padding=padding),
-                    nn.ReLU(True)]
-        else:
-            ret += [nn.Conv2d(in_c, out_channels, kernel_size, stride=stride, padding=padding),
-                    nn.BatchNorm2d(out_channels),
-                    nn.ReLU(True)]
-        in_c = out_channels
-
-    kernel_size = kwargs.pop('pool_k_size', (2, 2))
-    stride = kwargs.pop('pook_stride', (2, 2))
-
-    # append maxpooling
-    ret += [nn.MaxPool2d(kernel_size, stride)]
-
-    return ret
 
 def get_model_url(name):
     model_urls = {

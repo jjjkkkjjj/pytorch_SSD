@@ -23,11 +23,13 @@ class SSD300(nn.Module):
 
 
         ]
-"""
+
+
+def extra_conv_block(block_num, in_channels, out_channels, batch_norm=True, **kwargs):
+    """
     :return
         list of layers
     """
-def extra_conv_block(block_num, in_channels, out_channels, batch_norm=True, **kwargs):
     kernel_size = kwargs.pop('conv_k_size', (3, 3))
     stride = kwargs.pop('conv_stride', (1, 1))
     padding = kwargs.pop('conv_padding', 1)

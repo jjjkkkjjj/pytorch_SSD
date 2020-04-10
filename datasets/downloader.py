@@ -4,6 +4,7 @@ import os
 import pycurl
 import tarfile
 import glob
+import logging
 
 class Downloader:
     def __init__(self, url):
@@ -13,6 +14,7 @@ class Downloader:
         out_dir = os.path.join(out_base_dir, dirname)
 
         if len(glob.glob(os.path.join(out_dir, '*'))) > 0:
+            logging.warning('dataset may be already downloaded. If you haven\'t done yet, remove \"./datasets/{}\" directory'.format(os.path.basename(out_base_dir)))
             return
 
         curl = pycurl.Curl()

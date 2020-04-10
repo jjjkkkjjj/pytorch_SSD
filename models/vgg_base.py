@@ -85,10 +85,10 @@ class VGG(nn.Module):
 :return
     list of layers
 """
-def conv_block(block_num, in_channels, out_channels, batch_norm=True):
-    kernel_size = (3, 3)
-    stride = (1, 1)
-    padding = 1
+def conv_block(block_num, in_channels, out_channels, batch_norm=True, **kwargs):
+    kernel_size = kwargs.pop('conv_k_size', (3, 3))
+    stride = kwargs.pop('conv_stride', (1, 1))
+    padding = kwargs.pop('conv_padding', 1)
 
     in_c = in_channels
     ret = []
@@ -103,8 +103,8 @@ def conv_block(block_num, in_channels, out_channels, batch_norm=True):
                     nn.ReLU(True)]
         in_c = out_channels
 
-    kernel_size = (2, 2)
-    stride = (2, 2)
+    kernel_size = kwargs.pop('pool_k_size', (2, 2))
+    stride = kwargs.pop('pook_stride', (2, 2))
 
     # append maxpooling
     ret += [nn.MaxPool2d(kernel_size, stride)]

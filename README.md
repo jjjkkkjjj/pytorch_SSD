@@ -9,6 +9,7 @@ check "Collect run-time types information for code insight"
 - Anaconda
 
   ```bash
+  conda install -c anaconda pycurl
   conda install -c pytorch pytorch
   conda install -c conda-forge numpy opencv ffmpeg scipy 
   ```

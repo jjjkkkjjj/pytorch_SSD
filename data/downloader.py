@@ -14,7 +14,7 @@ class Downloader:
         out_dir = os.path.join(out_base_dir, dirname)
 
         if len(glob.glob(os.path.join(out_dir, '*'))) > 0:
-            logging.warning('dataset may be already downloaded. If you haven\'t done yet, remove \"./datasets/{}\" directory'.format(os.path.basename(out_base_dir)))
+            logging.warning('dataset may be already downloaded. If you haven\'t done yet, remove \"{}\" directory'.format(out_base_dir))
             return
 
         curl = pycurl.Curl()
@@ -44,12 +44,12 @@ class Downloader:
 
 def voc2007():
     train_downloader = Downloader('http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtrainval_06-Nov-2007.tar')
-    train_downloader.run('./datasets/voc2007', 'train')
+    train_downloader.run('./data/voc/voc2007', 'train')
 
     test_downloader = Downloader('http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtest_06-Nov-2007.tar')
-    test_downloader.run('./datasets/voc2007', 'test')
+    test_downloader.run('./data/voc/voc2007', 'test')
 
 def voc2012():
     traintest_downloader = Downloader('http://host.robots.ox.ac.uk/pascal/VOC/voc2012/VOCtrainval_11-May-2012.tar')
-    traintest_downloader.run('./datasets/voc2012', 'traintest')
+    traintest_downloader.run('./data/voc/voc2012', 'traintest')
 

@@ -69,8 +69,7 @@ class VOCBaseDataset(Dataset):
         img = cv2.imread(self._jpgpath(get_xml_et_value(root, 'filename')))
         # pytorch's image order is rgb
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        # convert ndarray into Tensor
-        return torch.from_numpy(img)
+        return img
 
     def _get_bbox_lind(self, index):
         """
@@ -94,5 +93,5 @@ class VOCBaseDataset(Dataset):
             flags.append({'difficult': get_xml_et_value(obj, 'difficult', int) == 1,
                           'partial': get_xml_et_value(obj, 'truncated', int) == 1})
 
-        return bboxes, linds, flags
+        return np.array(bboxes, dtype=np.float32), np.array(linds, dtype=np.float32), flags
 

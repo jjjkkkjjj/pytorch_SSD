@@ -1,5 +1,8 @@
 from .utils import *
 
+import torch
+import cv2
+
 class Compose(object):
     def __init__(self, transforms):
         self.transforms = transforms
@@ -17,16 +20,33 @@ class Compose(object):
         format_string += '\n)'
         return format_string
 
+"""
+bellow classes are consisted of
+    :param img: Tensor
+    :param bboxes: ndarray of bboxes
+    :param labels: ndarray of bboxes' indices
+    :param flags: list of flag's dict
+    :return: Tensor of img, ndarray of bboxes, ndarray of labels, dict of flags
+"""
+
+class ToTensor(object):
+    def __call__(self, img, bboxes, labels, flags):
+        # convert ndarray into Tensor
+        return torch.from_numpy(img), torch.from_numpy(bboxes), torch.from_numpy(labels), flags
+
+class Resize(object):
+    def __init__(self, size):
+        """
+        :param size: 2d-array-like, (height, width)
+        """
+        self._size = size
+
+    def __call__(self, img, bboxes, labels, flags):
+        return cv2.resize(img, self._size), bboxes, labels, flags
+
 class Normalize(object):
 
     def __call__(self, img, bboxes, labels, flags):
-        """
-        :param img: Tensor
-        :param bboxes: ndarray of bboxes
-        :param labels: ndarray of bboxes' indices
-        :param flags: list of flag's dict
-        :return: Tensor of img, ndarray of bboxes, ndarray of labels, dict of flags
-        """
         height, width, channel = img.shape
 
         # normalize
@@ -35,6 +55,14 @@ class Normalize(object):
         bboxes[:, 0::2] /= float(width)
         bboxes[:, 1::2] /= float(height)
 
+
+        return img, bboxes, labels, flags
+
+class Centered(object):
+    def __call__(self, img, bboxes, labels, flags):
+        # bbox = [xmin, ymin, xmax, ymax]
+        bboxes = np.concatenate(((bboxes[:, 2:] + bboxes[:, :2]) / 2,
+                                 (bboxes[:, 2:] - bboxes[:, :2])), axis=1)
 
         return img, bboxes, labels, flags
 
@@ -48,13 +76,6 @@ class Ignore(object):
         self._ignore_partial = ignore_partial
 
     def __call__(self, img, bboxes, labels, flags):
-        """
-        :param img: Tensor
-        :param bboxes: ndarray of bboxes
-        :param labels: ndarray of bboxes' indices
-        :param flags: list of flag's dict
-        :return: Tensor of img, ndarray of bboxes, ndarray of labels, dict of flags
-        """
         ret_bboxes = []
         ret_labels = []
         ret_flags = []
@@ -81,14 +102,6 @@ class OneHot(object):
         self._class_nums = class_nums
 
     def __call__(self, img, bboxes, labels, flags):
-        """
-        :param img: Tensor
-        :param bboxes: ndarray of bboxes
-        :param labels: ndarray of bboxes' indices
-        :param flags: list of flag's dict
-        :return: Tensor of img, ndarray of bboxes, ndarray of labels, dict of flags
-        """
-
         if labels.ndim != 1:
             raise ValueError('labels might have been already one-hotted or be invalid shape')
 

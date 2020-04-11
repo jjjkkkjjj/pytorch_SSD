@@ -10,8 +10,11 @@ from torch.optim.sgd import SGD
 if __name__ == '__main__':
     transform = transforms.Compose(
         [transforms.Ignore(ignore_difficult=True),
+         transforms.Resize((300, 300)),
          transforms.Normalize(),
-         transforms.OneHot(class_nums=VOC2007Dataset.class_nums)]
+         transforms.Centered(),
+         transforms.OneHot(class_nums=VOC2007Dataset.class_nums),
+         transforms.ToTensor()]
     )
     train_dataset = VOC2007Dataset(transform=transform).train
     train_loader = DataLoader(train_dataset,

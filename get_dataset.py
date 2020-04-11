@@ -1,4 +1,4 @@
-from datasets.downloader import *
+from data.downloader import *
 
 if __name__ == '__main__':
     #voc2007()

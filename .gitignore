@@ -2,7 +2,7 @@
 # torch weights file
 *.pth
 
-datasets/**/*
+data/**/*
 !*.py
 
 models/weights/*

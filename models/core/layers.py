@@ -1,4 +1,5 @@
 from torch import nn
+import torch
 
 class Flatten(nn.Module):
     def forward(self, x):
@@ -51,5 +52,17 @@ class Conv2dRelu(nn.Conv2d):
         return self.relu(x)
 
 class L2Normalization(nn.Module):
-    def __init__(self):
+    def __init__(self, channels, gamma=20):
         super().__init__()
+        self.gamma = gamma
+        self.in_channels = channels
+        self.out_channels = channels
+
+    # Note that pytorch's dimension order is batch_size, channels, height, width
+    def forward(self, x):
+        # |x|_2
+        # square element-wise, sum along channel and square element-wise
+        norm_x = torch.pow(x, 2).sum(dim=1, keepdim=True).sqrt()
+        # normalize (x^)
+        x = torch.div(x, norm_x)
+        return self.gamma * x

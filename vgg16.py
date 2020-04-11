@@ -1,6 +1,6 @@
 from models.vgg import VGG16
 #from models.train.trainer import Trainer
-#from datasets.mnist import data
+#from data.mnist import data
 from torchvision import models
 
 if __name__ == '__main__':

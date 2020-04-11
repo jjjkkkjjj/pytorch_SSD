@@ -2,8 +2,8 @@
 # torch weights file
 *.pth
 
-data/voc/**
-!data/voc/*.py
+data/**
+!*.py
 
 models/weights/*
 !.gitkeep

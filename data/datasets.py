@@ -2,10 +2,10 @@ from torch.utils.data import Dataset
 from .base import VOCBaseDataset
 
 class VOC2007Dataset(Dataset):
+    class_nums = VOCBaseDataset.class_nums
     def __init__(self, transform=None):
         self.train = VOC2007_TrainDataset(transform)
         self.test = VOC2007_TestDataset(transform)
-        self.class_nums = self.train.class_nums
 
     def __getitem__(self, index):
         if index < len(self.train):

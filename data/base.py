@@ -4,7 +4,7 @@ import cv2, glob, os
 import numpy as np
 from xml.etree import ElementTree as ET
 
-from ..utils import *
+from .utils import *
 
 
 """
@@ -24,9 +24,9 @@ _voc_classes = ['aeroplane', 'bicycle', 'bird', 'boat',
     'sheep', 'sofa', 'train', 'tvmonitor']
 
 class VOCBaseDataset(Dataset):
+    class_nums = len(_voc_classes)
     def __init__(self, voc_dir, transform=None):
         self.transform = transform
-        self.class_nums = len(_voc_classes)
         self._voc_dir = voc_dir
         self._annopaths = glob.glob(os.path.join(self._voc_dir, 'Annotations', '*.xml'))
 

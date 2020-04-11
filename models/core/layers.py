@@ -6,50 +6,55 @@ class Flatten(nn.Module):
         batch_size = x.shape[0]
         return x.view(batch_size, -1)
 
-class Conv2dRelu_block(nn.Module):
-    def __init__(self, block_num, in_channels, out_channels, batch_norm=True, **kwargs):
-        super().__init__()
+def conv2dRelu_block(order, block_num, in_channels, out_channels, batch_norm=True, **kwargs):
+    """
+    :param order: int or str
+    :param block_num: int, how many conv layers are sequenced
+    :param in_channels: int
+    :param out_channels: int
+    :param batch_norm: bool
+    :param kwargs:
+    :return: list of tuple is for OrderedDict
+    """
+    kernel_size = kwargs.pop('conv_k_size', (3, 3))
+    stride = kwargs.pop('conv_stride', (1, 1))
+    padding = kwargs.pop('conv_padding', 1)
 
-        self.in_channels = in_channels
-        self.out_channels = out_channels
+    in_c = in_channels
+    layers = []
+    # append conv block
+    for bnum in range(block_num):
+        postfix = '{0}_{1}'.format(order, bnum + 1)
+        if not batch_norm:
+            layers += [
+                ('conv{}'.format(postfix), nn.Conv2d(in_c, out_channels, kernel_size, stride=stride, padding=padding)),
+                ('relu{}'.format(postfix), nn.ReLU(True))
+            ]
+        else:
+            layers += [
+                ('conv{}'.format(postfix), nn.Conv2d(in_c, out_channels, kernel_size, stride=stride, padding=padding)),
+                ('bn{}'.format(postfix), nn.BatchNorm2d(out_channels)),
+                ('relu{}'.format(postfix), nn.ReLU(True))
+            ]
+        in_c = out_channels
 
-        kernel_size = kwargs.pop('conv_k_size', (3, 3))
-        stride = kwargs.pop('conv_stride', (1, 1))
-        padding = kwargs.pop('conv_padding', 1)
+    kernel_size = kwargs.pop('pool_k_size', (2, 2))
+    stride = kwargs.pop('pool_stride', (2, 2))
+    ceil_mode = kwargs.pop('pool_ceil_mode', False)
+    padding = kwargs.pop('pool_padding', 0)
+    # append maxpooling
+    layers += [
+        ('pool{}'.format(order), nn.MaxPool2d(kernel_size, stride=stride, ceil_mode=ceil_mode, padding=padding))
+    ]
 
-        in_c = in_channels
-        layers = []
-        # append conv block
-        for _ in range(block_num):
-            if not batch_norm:
-                layers += [nn.Conv2d(in_c, out_channels, kernel_size, stride=stride, padding=padding),
-                        nn.ReLU(True)]
-            else:
-                layers += [nn.Conv2d(in_c, out_channels, kernel_size, stride=stride, padding=padding),
-                        nn.BatchNorm2d(out_channels),
-                        nn.ReLU(True)]
-            in_c = out_channels
-
-        kernel_size = kwargs.pop('pool_k_size', (2, 2))
-        stride = kwargs.pop('pook_stride', (2, 2))
-
-        # append maxpooling
-        layers += [nn.MaxPool2d(kernel_size, stride)]
-
-        self.conv_block = nn.Sequential(*layers)
-
-    def forward(self, x):
-        return self.conv_block(x)
-
-class Conv2dRelu(nn.Conv2d):
-    def __init__(self, *args, relu_inplace=False, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.relu = nn.ReLU(relu_inplace)
+    return layers
 
 
-    def forward(self, x):
-        x = super().forward(x)
-        return self.relu(x)
+def conv2dRelu(postfix, *args, relu_inplace=False, **kwargs):
+    return [
+        ('conv{}'.format(postfix), nn.Conv2d(*args, **kwargs)),
+        ('relu{}'.format(postfix), nn.ReLU(inplace=relu_inplace))
+    ]
 
 class L2Normalization(nn.Module):
     def __init__(self, channels, gamma=20):

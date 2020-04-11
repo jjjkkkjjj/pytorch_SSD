@@ -24,7 +24,7 @@ _voc_classes = ['aeroplane', 'bicycle', 'bird', 'boat',
     'sheep', 'sofa', 'train', 'tvmonitor']
 
 class VOCBaseDataset(Dataset):
-    class_nums = len(_voc_classes)
+    class_nums = len(_voc_classes) + 1
     def __init__(self, voc_dir, transform=None):
         self.transform = transform
         self._voc_dir = voc_dir

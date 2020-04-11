@@ -41,7 +41,11 @@ class VOCBaseDataset(Dataset):
         """
         :param index: int
         :return:
-            rgb image(Tensor), list of bboxes, list of bboxes' label index
+            img : rgb image(Tensor or ndarray)
+            gt : Tensor or ndarray of bboxes and labels [box, label]
+            = [xmin, ymin, xmamx, ymax, label index(or one-hotted label)]
+            or
+            = [cx, cy, w, h, label index(or one-hotted label)]
         """
         img = self._get_image(index)
         bboxes, linds, flags = self._get_bbox_lind(index)
@@ -49,7 +53,13 @@ class VOCBaseDataset(Dataset):
         if self.transform:
             img, bboxes, linds, flags = self.transform(img, bboxes, linds, flags)
 
-        return img, bboxes, linds
+        # concatenate bboxes and linds
+        if isinstance(bboxes, torch.Tensor) and isinstance(linds, torch.Tensor):
+            gt = torch.cat((bboxes, linds), dim=1)
+        else:
+            gt = np.concatenate((bboxes, linds), axis=1)
+
+        return img, gt
 
     def __len__(self):
         return len(self._annopaths)

@@ -1,5 +1,6 @@
-from .utils import *
+from .utils import _one_hot_encode
 
+import numpy as np
 import torch
 import cv2
 
@@ -32,7 +33,7 @@ bellow classes are consisted of
 class ToTensor(object):
     def __call__(self, img, bboxes, labels, flags):
         # convert ndarray into Tensor
-        return torch.from_numpy(img), torch.from_numpy(bboxes), torch.from_numpy(labels), flags
+        return torch.from_numpy(img).float(), torch.from_numpy(bboxes).float(), torch.from_numpy(labels).float(), flags
 
 class Resize(object):
     def __init__(self, size):
@@ -105,7 +106,7 @@ class OneHot(object):
         if labels.ndim != 1:
             raise ValueError('labels might have been already one-hotted or be invalid shape')
 
-        labels = one_hot_encode(labels.astype(np.int), self._class_nums)
+        labels = _one_hot_encode(labels.astype(np.int), self._class_nums)
         labels = np.array(labels, dtype=np.float32)
 
         return img, bboxes, labels, flags

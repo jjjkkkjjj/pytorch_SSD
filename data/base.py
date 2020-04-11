@@ -4,7 +4,7 @@ import cv2, glob, os
 import numpy as np
 from xml.etree import ElementTree as ET
 
-from .utils import *
+from .utils import _get_xml_et_value
 
 
 """
@@ -59,6 +59,12 @@ class VOCBaseDataset(Dataset):
         else:
             gt = np.concatenate((bboxes, linds), axis=1)
 
+        # transpose img's tensor (h, w, c) to pytorch's format (c, h, w). (num, c, h, w)
+        if isinstance(img, torch.Tensor):
+            img = img.permute((2, 0, 1))
+        else:
+            img = np.transpose(img, (2, 0, 1))
+
         return img, gt
 
     def __len__(self):
@@ -76,7 +82,7 @@ class VOCBaseDataset(Dataset):
             rgb image(Tensor)
         """
         root = ET.parse(self._annopaths[index]).getroot()
-        img = cv2.imread(self._jpgpath(get_xml_et_value(root, 'filename')))
+        img = cv2.imread(self._jpgpath(_get_xml_et_value(root, 'filename')))
         # pytorch's image order is rgb
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         return img
@@ -93,15 +99,15 @@ class VOCBaseDataset(Dataset):
 
         root = ET.parse(self._annopaths[index]).getroot()
         for obj in root.iter('object'):
-            linds.append(_voc_classes.index(get_xml_et_value(obj, 'name')))
+            linds.append(_voc_classes.index(_get_xml_et_value(obj, 'name')))
 
             bndbox = obj.find('bndbox')
 
             # bbox = [xmin, ymin, xmax, ymax]
-            bboxes.append([get_xml_et_value(bndbox, 'xmin', int), get_xml_et_value(bndbox, 'ymin', int), get_xml_et_value(bndbox, 'xmax', int), get_xml_et_value(bndbox, 'ymax', int)])
+            bboxes.append([_get_xml_et_value(bndbox, 'xmin', int), _get_xml_et_value(bndbox, 'ymin', int), _get_xml_et_value(bndbox, 'xmax', int), _get_xml_et_value(bndbox, 'ymax', int)])
 
-            flags.append({'difficult': get_xml_et_value(obj, 'difficult', int) == 1,
-                          'partial': get_xml_et_value(obj, 'truncated', int) == 1})
+            flags.append({'difficult': _get_xml_et_value(obj, 'difficult', int) == 1,
+                          'partial': _get_xml_et_value(obj, 'truncated', int) == 1})
 
         return np.array(bboxes, dtype=np.float32), np.array(linds, dtype=np.float32), flags
 

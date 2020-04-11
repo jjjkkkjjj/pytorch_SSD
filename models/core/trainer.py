@@ -6,8 +6,12 @@ import time
     ref: https://nextjournal.com/gkoehler/pytorch-mnist
 """
 class Trainer(object):
-    def __init__(self, model, loss_func, optimizer):
-        self.model = model
+    def __init__(self, model, loss_func, optimizer, gpu=True):
+        self.gpu = gpu
+
+        self.model = model.cuda() if self.gpu else model
+        # convert to float
+        self.model = self.model.to(dtype=torch.float)
         self.loss_func = loss_func
         self.optimizer = optimizer
 
@@ -19,7 +23,6 @@ class Trainer(object):
 
         self.log_interval = 10
 
-
     def train(self, epochs, train_loader):
         self.model.train()
 
@@ -27,15 +30,19 @@ class Trainer(object):
 
         for epoch in range(epochs):
             start = time.time()
-            for batch_idx, (data, target) in enumerate(train_loader):
+            for batch_idx, (images, gts) in enumerate(train_loader):
                 self.optimizer.zero_grad()
-                output = self.model(data)
-                loss = self.loss_func(output, target)
+                if self.gpu:
+                    images = images.cuda()
+                    gts = gts.cuda()
+
+                output = self.model(images)
+                loss = self.loss_func(output, gts)
                 loss.backward()
                 self.optimizer.step()
                 if batch_idx % self.log_interval == 0:
                     print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                        epoch, batch_idx * len(data), len(train_loader.dataset),
+                        epoch, batch_idx * len(images), len(train_loader.dataset),
                                100. * batch_idx / len(train_loader), loss.item()))
                     self.train_losses.append(loss.item())
                     self.train_counter.append(

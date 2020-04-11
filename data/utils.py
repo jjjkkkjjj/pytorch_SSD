@@ -1,7 +1,27 @@
+import torch
 import os, fnmatch
 import numpy as np
 
-def get_recurrsive_paths(basedir, ext):
+def batch_ind_fn(batch):
+    """
+    concatenate image's index to gt
+    eg: gts = [[cx, cy, w, h, p_class,...],...] >  ret_gts = [[img's_ind, cx, cy, w, h, p_class,...],...]
+    """
+    imgs, gts = list(zip(*batch))
+
+    ret_gts = []
+    for ind, gt in enumerate(gts):
+        ret_gt = np.zeros((len(gt), gt.shape[1] + 1))
+        ret_gt[:, 1:] = gt
+        ret_gt[:, 0] = ind # concatenate image's index
+        ret_gts.append(ret_gt)
+
+    imgs = torch.stack(imgs)
+    ret_gts = torch.Tensor(np.concatenate(ret_gts))
+
+    return imgs, ret_gts
+
+def _get_recurrsive_paths(basedir, ext):
     """
     :param basedir:
     :param ext:
@@ -14,7 +34,7 @@ def get_recurrsive_paths(basedir, ext):
     return sorted(matches)
 
 
-def get_xml_et_value(xml_et, key, rettype=str):
+def _get_xml_et_value(xml_et, key, rettype=str):
     """
     :param element: Elementtree's element
     :param key:
@@ -26,7 +46,7 @@ def get_xml_et_value(xml_et, key, rettype=str):
     else:
         return rettype(xml_et.find(key).text)
 
-def one_hot_encode(indices, class_num):
+def _one_hot_encode(indices, class_num):
     """
     :param indices: list of index
     :param class_num:

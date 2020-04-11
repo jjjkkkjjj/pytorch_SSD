@@ -1,7 +1,4 @@
 from models.vgg import VGG11
-from models.train.trainer import Trainer
-from torch.nn import functional
-from torch import optim
 from torchvision import models
 
 if __name__ == '__main__':

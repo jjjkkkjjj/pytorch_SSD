@@ -1,7 +1,9 @@
 from data.datasets import VOC2007Dataset
-from data import transforms
+from data import transforms, utils
 
 from models.ssd300 import SSD300
+from models.core.loss import DefaultBoxLoss
+from models.core.trainer import Trainer
 
 #from torchvision import transforms > not import!!
 from torch.utils.data import DataLoader
@@ -19,11 +21,13 @@ if __name__ == '__main__':
     train_dataset = VOC2007Dataset(transform=transform).train
     train_loader = DataLoader(train_dataset,
                               batch_size=32,
-                              shuffle=True)
-    train_dataset[0]
+                              shuffle=True,
+                              collate_fn=utils.batch_ind_fn)
+
     model = SSD300(class_nums=train_dataset.class_nums)
     print(model)
 
     optimizer = SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
 
-    #trainer = Trainer(model, loss_func=, optimizer=optimizer)
+    trainer = Trainer(model, loss_func=DefaultBoxLoss(), optimizer=optimizer, gpu=True)
+    trainer.train(10, train_loader)

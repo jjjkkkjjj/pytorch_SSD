@@ -1,4 +1,5 @@
 from .core.layers import *
+from .core.utils import *
 
 from torch import nn
 import torch
@@ -57,33 +58,36 @@ class SSD300(nn.Module):
             if not source_name in _l2norm_names:
                 layers = [
                     *conv2dRelu(postfix, source.out_channels, dbox_num * (class_nums + 4), kernel_size=(3, 3), padding=1, relu_inplace=True),
-                    ('flatten{}'.format(postfix), Flatten())
+                    #('flatten{}'.format(postfix), Flatten())
                 ]
 
             else:
                 layers = [
                     ('l2norm{}'.format(postfix), L2Normalization(source.out_channels, gamma=20)),
                     *conv2dRelu(postfix, source.out_channels, dbox_num * (class_nums + 4), kernel_size=(3, 3), padding=1, relu_inplace=True),
-                    ('flatten{}'.format(postfix), Flatten())
+                    #('flatten{}'.format(postfix), Flatten())
                 ]
 
             postfix = postfix[1:]
             classifier_layers += [(postfix, nn.Sequential(OrderedDict(layers)))]
 
         self.classifier_layers = nn.ModuleDict(OrderedDict(classifier_layers))
-
+        self.defaultBox = DefaultBox()
+        self.classProb
 
     def forward(self, x):
         features = []
-        i = 0
+        i = 1
         for name, layer in self.feature_layers.items():
             x = layer(x)
             # get features by feature map convolution
             if name in _classifier_source_names:
-                features.append(self.classifier_layers['feature{0}'.format(i + 1)](x))
+                feature = self.classifier_layers['feature{0}'.format(i)](x)
+                features.append(feature)
                 #print(features[-1].shape)
                 i += 1
 
-        features = torch.cat(features, dim=1)
+        dboxes, features = self.defaultBox(features, _dbox_nums)
+
         return features
 

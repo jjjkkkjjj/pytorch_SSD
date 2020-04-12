@@ -36,9 +36,11 @@ class Trainer(object):
                     images = images.cuda()
                     gts = gts.cuda()
 
-                output = self.model(images)
-                loss = self.loss_func(output, gts)
-                loss.backward()
+                predicts, dboxes = self.model(images)
+                if self.gpu:
+                    dboxes = dboxes.cuda()
+                loss = self.loss_func(predicts, gts, dboxes=dboxes)
+                loss.backward() # calculate gradient for value with requires_grad=True
                 self.optimizer.step()
                 if batch_idx % self.log_interval == 0:
                     print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(

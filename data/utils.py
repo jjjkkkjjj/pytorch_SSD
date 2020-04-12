@@ -5,15 +5,20 @@ import numpy as np
 def batch_ind_fn(batch):
     """
     concatenate image's index to gt
-    eg: gts = [[cx, cy, w, h, p_class,...],...] >  ret_gts = [[img's_ind, cx, cy, w, h, p_class,...],...]
+    e.g.) gts = [[cx, cy, w, h, p_class,...],...] >  ret_gts = [[img's_box number!!!, cx, cy, w, h, p_class,...],...]
+
+    About img's box number...
+    e.g.) ret_gts[0] = (2,2,1,3,3,3,2,2,...)
+            shortly, box number value is arranged for each box number
     """
     imgs, gts = list(zip(*batch))
 
     ret_gts = []
     for ind, gt in enumerate(gts):
-        ret_gt = np.zeros((len(gt), gt.shape[1] + 1))
+        box_num = len(gt)
+        ret_gt = np.zeros((box_num, gt.shape[1] + 1))
         ret_gt[:, 1:] = gt
-        ret_gt[:, 0] = ind # concatenate image's index
+        ret_gt[:, 0] = box_num # concatenate image's index
         ret_gts.append(ret_gt)
 
     imgs = torch.stack(imgs)

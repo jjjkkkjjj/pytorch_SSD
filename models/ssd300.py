@@ -1,5 +1,4 @@
 from .core.layers import *
-from .core.utils import *
 
 from torch import nn
 import torch
@@ -13,13 +12,20 @@ _dbox_nums = [4, 6, 6, 6, 4, 4]
 _classifier_source_names = ['conv4_3', 'conv7', 'conv8_2', 'conv9_2', 'conv10_2', 'conv11_2']
 _l2norm_names = ['conv4_3']
 class SSD300(nn.Module):
-    def __init__(self, class_nums):
+    def __init__(self, class_nums, input_shape=(300, 300, 3)):
+        """
+        :param class_nums: int, class number
+        :param input_shape: tuple, 3d and (height, width, channel)
+        """
         super().__init__()
 
         self.class_nums = class_nums
+        assert len(input_shape) == 3, "input dimension must be 3"
+        assert input_shape[0] == input_shape[1], "input must be square size"
+        self.input_shape = input_shape
 
         vgg_layers = [
-            *conv2dRelu_block('1', 2, 3, 64, batch_norm=False),
+            *conv2dRelu_block('1', 2, self.input_channel, 64, batch_norm=False),
 
             *conv2dRelu_block('2', 2, 64, 128, batch_norm=False),
 
@@ -58,7 +64,7 @@ class SSD300(nn.Module):
             if not source_name in _l2norm_names:
                 layers = [
                     *conv2dRelu(postfix, source.out_channels, dbox_num * (class_nums + 4), kernel_size=(3, 3), padding=1, relu_inplace=True),
-                    #('flatten{}'.format(postfix), Flatten())
+                    #('flatten{}'.format(postfix), Flatten()) # if flatten is included, can't calculate feature map size in default box
                 ]
 
             else:
@@ -72,10 +78,16 @@ class SSD300(nn.Module):
             classifier_layers += [(postfix, nn.Sequential(OrderedDict(layers)))]
 
         self.classifier_layers = nn.ModuleDict(OrderedDict(classifier_layers))
-        self.defaultBox = DefaultBox()
-        self.classProb
+        self.defaultBox = DefaultBox(img_shape=self.input_shape).build(self.feature_layers, _classifier_source_names, self.classifier_layers, _dbox_nums)
+        self.predictor = Predictor(self.defaultBox.total_dboxes_nums, self.class_nums)
 
     def forward(self, x):
+        """
+        :param x: Tensor, input Tensor whose shape is (batch, c, h, w)
+        :return:
+            predicts: localization and confidence Tensor, shape is (batch, total_dbox_num, 4+class_nums)
+            dboxes: Tensor, default boxes Tensor whose shape is (total_dbox_nums, 4)`
+        """
         features = []
         i = 1
         for name, layer in self.feature_layers.items():
@@ -87,7 +99,17 @@ class SSD300(nn.Module):
                 #print(features[-1].shape)
                 i += 1
 
-        dboxes, features = self.defaultBox(features, _dbox_nums)
+        predicts = self.predictor(features)
 
-        return features
+        return predicts, self.defaultBox.dboxes
 
+
+    @property
+    def input_height(self):
+        return self.input_shape[0]
+    @property
+    def input_width(self):
+        return self.input_shape[1]
+    @property
+    def input_channel(self):
+        return self.input_shape[2]

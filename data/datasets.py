@@ -11,7 +11,7 @@ class VOC2007Dataset(Dataset):
         if index < len(self.train):
             return self.train[index]
         else:
-            return self.test[index - len(self.test)]
+            return self.test[index - len(self.train)]
 
     def __len__(self):
         return len(self.train) + len(self.test)

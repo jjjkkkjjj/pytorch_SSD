@@ -5,7 +5,7 @@
 data/**
 !*.py
 
-models/weights/*
+weights/*
 !.gitkeep
 
 # Created by https://www.gitignore.io/api/linux,python,pycharm

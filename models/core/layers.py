@@ -1,5 +1,6 @@
 from torch import nn
 import torch
+from torch.nn import init
 
 import numpy as np
 
@@ -15,6 +16,11 @@ class L2Normalization(nn.Module):
         self.gamma = gamma
         self.in_channels = channels
         self.out_channels = channels
+        self.scales = nn.Parameter(torch.Tensor(self.in_channels))
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        init.constant_(self.scales, self.gamma)
 
     # Note that pytorch's dimension order is batch_size, channels, height, width
     def forward(self, x):
@@ -23,7 +29,7 @@ class L2Normalization(nn.Module):
         norm_x = torch.pow(x, 2).sum(dim=1, keepdim=True).sqrt()
         # normalize (x^)
         x = torch.div(x, norm_x)
-        return self.gamma * x
+        return self.scales.unsqueeze(0).unsqueeze(2).unsqueeze(3).expand_as(x) * x
 
 
 class DefaultBox(object):
@@ -79,7 +85,7 @@ class DefaultBox(object):
 
     def build(self, feature_layers, classifier_source_names, classifier_layers, dbox_nums):
         # this x is pseudo Tensor to get feature's map size
-        x = torch.tensor((), dtype=torch.float).new_zeros((1, self.img_channels, self.img_height, self.img_width))
+        x = torch.tensor((), dtype=torch.float, requires_grad=False).new_zeros((1, self.img_channels, self.img_height, self.img_width))
 
         features = []
         i = 1
@@ -93,6 +99,7 @@ class DefaultBox(object):
                 i += 1
 
         self.dboxes = self.forward(features, dbox_nums)
+        self.dboxes.requires_grad_(False)
         return self
 
     def forward(self, features, dbox_nums):
@@ -108,6 +115,8 @@ class DefaultBox(object):
         dboxes = []
         # ret_features = []
         m = len(features)
+        assert m == len(dbox_nums), "default boxes number and feature layers number must be same"
+
         for k, feature, dbox_num in zip(range(1, m + 1), features, dbox_nums):
             _, _, fmap_h, fmap_w = feature.shape
             assert fmap_w == fmap_h, "feature map's height and width must be same"
@@ -133,7 +142,7 @@ class DefaultBox(object):
                 dboxes += [np.concatenate((cx, cy, box_w, box_h), axis=1)]
 
                 # reciprocal aspect
-                aspect = 1 / aspect
+                aspect = 1.0 / aspect
                 if aspect == 1:  # if aspect is 1, scale = sqrt(s_k * s_k+1)
                     scale = np.sqrt(scale * self.get_scale(k + 1, m))
                 box_w, box_h = scale * np.sqrt(aspect), scale / np.sqrt(aspect)
@@ -156,75 +165,93 @@ class DefaultBox(object):
 class Predictor(nn.Module):
     def __init__(self, total_dbox_nums, class_nums):
         super().__init__()
-        self.flatten = Flatten()
 
-        self._total_dox_nums = total_dbox_nums
+        self._total_dbox_nums = total_dbox_nums
         self._class_nums = class_nums
 
     def forward(self, features):
         """
         :param features: list of Tensor, Tensor's shape is (batch, c, h, w)
-        :return: predicts: localization and confidence Tensor, shape is (batch, total_dbox_num, 4+class_nums)
-
-                 below is deprecated
-                 localizations: Tensor, shape is (batch, total_dboxnum, 4)
-                 confidences: Tensor, shape is (batch, total_dboxnum, class_nums)
+        :return: predicts: localization and confidence Tensor, shape is (batch, total_dbox_num * (4+class_nums))
         """
         predicts = []
         for feature in features:
-            predicts += [self.flatten(feature)]
-        predicts = torch.cat(predicts, dim=1).reshape((-1, self._total_dox_nums, 4 + self._class_nums))
+            batch_num = feature.shape[0]
+
+            # original feature => (batch, (class_num + 4)*dboxnum, fmap_h, fmap_w)
+            # converted into (batch, fmap_h, fmap_w, (class_num + 4)*dboxnum)
+            # contiguous means aligning stored 1-d memory for given array
+            feature = feature.permute((0, 2, 3, 1)).contiguous()
+            predicts += [feature.reshape((batch_num, -1))]
+
+        predicts = torch.cat(predicts, dim=1).reshape((-1, self._total_dbox_nums, self._class_nums + 4))
 
         return predicts
-        # return predicts[:, :, :4], predicts[:, :, 4:]
 
-def conv2dRelu_block(order, block_num, in_channels, out_channels, batch_norm=True, **kwargs):
-    """
-    :param order: int or str
-    :param block_num: int, how many conv layers are sequenced
-    :param in_channels: int
-    :param out_channels: int
-    :param batch_norm: bool
-    :param kwargs:
-    :return: list of tuple is for OrderedDict
-    """
-    kernel_size = kwargs.pop('conv_k_size', (3, 3))
-    stride = kwargs.pop('conv_stride', (1, 1))
-    padding = kwargs.pop('conv_padding', 1)
+class Conv2dRelu:
+    batch_norm = True
 
-    in_c = in_channels
-    layers = []
-    # append conv block
-    for bnum in range(block_num):
-        postfix = '{0}_{1}'.format(order, bnum + 1)
+    @staticmethod
+    def block(order, block_num, in_channels, out_channels, **kwargs):
+        """
+        :param order: int or str
+        :param block_num: int, how many conv layers are sequenced
+        :param in_channels: int
+        :param out_channels: int
+        :param batch_norm: bool
+        :param kwargs:
+        :return: list of tuple is for OrderedDict
+        """
+        kernel_size = kwargs.pop('conv_k_size', (3, 3))
+        stride = kwargs.pop('conv_stride', (1, 1))
+        padding = kwargs.pop('conv_padding', 1)
+        relu_inplace = kwargs.pop('relu_inplace', False)# TODO relu inplace problem >>conv4
+        batch_norm = kwargs.pop('batch_norm', Conv2dRelu.batch_norm)
+
+        in_c = in_channels
+        layers = []
+        # append conv block
+        for bnum in range(block_num):
+            postfix = '{0}_{1}'.format(order, bnum + 1)
+            if not batch_norm:
+                layers += [
+                    ('conv{}'.format(postfix),
+                     nn.Conv2d(in_c, out_channels, kernel_size, stride=stride, padding=padding)),
+                    ('relu{}'.format(postfix), nn.ReLU(relu_inplace))
+                ]
+            else:
+                layers += [
+                    ('conv{}'.format(postfix),
+                     nn.Conv2d(in_c, out_channels, kernel_size, stride=stride, padding=padding)),
+                    ('bn{}'.format(postfix), nn.BatchNorm2d(out_channels)),
+                    ('relu{}'.format(postfix), nn.ReLU(relu_inplace))
+                ]
+            in_c = out_channels
+
+        kernel_size = kwargs.pop('pool_k_size', (2, 2))
+        stride = kwargs.pop('pool_stride', (2, 2))
+        ceil_mode = kwargs.pop('pool_ceil_mode', False)
+        padding = kwargs.pop('pool_padding', 0)
+        # append maxpooling
+        layers += [
+            ('pool{}'.format(order), nn.MaxPool2d(kernel_size, stride=stride, ceil_mode=ceil_mode, padding=padding))
+        ]
+
+        return layers
+
+    @staticmethod
+    def one(postfix, *args, relu_inplace=False, **kwargs):
+        batch_norm = kwargs.pop('batch_norm', Conv2dRelu.batch_norm)
         if not batch_norm:
-            layers += [
-                ('conv{}'.format(postfix), nn.Conv2d(in_c, out_channels, kernel_size, stride=stride, padding=padding)),
-                ('relu{}'.format(postfix), nn.ReLU(True))
+            return [
+                ('conv{}'.format(postfix), nn.Conv2d(*args, **kwargs)),
+                ('relu{}'.format(postfix), nn.ReLU(inplace=relu_inplace))
             ]
         else:
-            layers += [
-                ('conv{}'.format(postfix), nn.Conv2d(in_c, out_channels, kernel_size, stride=stride, padding=padding)),
+            out_channels = kwargs.pop('out_channels', args[1])
+            return [
+                ('conv{}'.format(postfix), nn.Conv2d(*args, **kwargs)),
                 ('bn{}'.format(postfix), nn.BatchNorm2d(out_channels)),
-                ('relu{}'.format(postfix), nn.ReLU(True))
+                ('relu{}'.format(postfix), nn.ReLU(inplace=relu_inplace))
             ]
-        in_c = out_channels
-
-    kernel_size = kwargs.pop('pool_k_size', (2, 2))
-    stride = kwargs.pop('pool_stride', (2, 2))
-    ceil_mode = kwargs.pop('pool_ceil_mode', False)
-    padding = kwargs.pop('pool_padding', 0)
-    # append maxpooling
-    layers += [
-        ('pool{}'.format(order), nn.MaxPool2d(kernel_size, stride=stride, ceil_mode=ceil_mode, padding=padding))
-    ]
-
-    return layers
-
-
-def conv2dRelu(postfix, *args, relu_inplace=False, **kwargs):
-    return [
-        ('conv{}'.format(postfix), nn.Conv2d(*args, **kwargs)),
-        ('relu{}'.format(postfix), nn.ReLU(inplace=relu_inplace))
-    ]
 

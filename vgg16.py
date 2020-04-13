@@ -4,7 +4,8 @@ from models.vgg import VGG16
 from torchvision import models
 
 if __name__ == '__main__':
-    model = VGG16(3, class_nums=1000, load_model=True)
+    model = VGG16(3, class_nums=1000)
+    model.load_weights()
     print(model)
 
 

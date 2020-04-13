@@ -12,19 +12,21 @@ from torch.optim.sgd import SGD
 if __name__ == '__main__':
     transform = transforms.Compose(
         [transforms.Ignore(ignore_difficult=True),
-         transforms.Resize((300, 300)),
          transforms.Normalize(),
          transforms.Centered(),
+         transforms.Resize((300, 300)), # if resizing first, can't be normalized
          transforms.OneHot(class_nums=VOC2007Dataset.class_nums),
          transforms.ToTensor()]
     )
-    train_dataset = VOC2007Dataset(transform=transform).train
+    train_dataset = VOC2007Dataset(transform=transform)
+
     train_loader = DataLoader(train_dataset,
                               batch_size=32,
                               shuffle=True,
                               collate_fn=utils.batch_ind_fn)
 
-    model = SSD300(class_nums=train_dataset.class_nums)
+    model = SSD300(class_nums=train_dataset.class_nums, batch_norm=False)
+    model.load_vgg_weights()
     print(model)
 
     optimizer = SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)

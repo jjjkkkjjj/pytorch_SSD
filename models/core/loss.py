@@ -1,7 +1,7 @@
-from torch import nn
+from torch.nn import functional as F
 import torch
 
-from .utils import matching_strategy, gt_boxes_converter
+from .utils import *
 
 class DefaultBoxLoss(nn.Module):
     def __init__(self, alpha=1, matching_func=None, loc_loss=None, conf_loss=None):
@@ -21,90 +21,24 @@ class DefaultBoxLoss(nn.Module):
         :return:
             loss: float
         """
-
-        # get box number per image
-        gt_boxnum_per_image = gts[:, 0]
-        # remove above information from gts
-        gts = gts[:, 1:]
-
-        # align shape of predicts, gts and dboxes respectively by using gt_boxnum_per_image.
-        gt_total_objects_num = gts.shape[0]
-        dbox_total_num = dboxes.shape[0]
-
-        predicts = _align_predicts(predicts, gt_boxnum_per_image)
-        gts = _align_gts(gts, dbox_total_num)
-        dboxes = _align_dboxes(dboxes, gt_total_objects_num)
-
-        # get localization and confidence for predicts and gts respectively
-        pred_loc, pred_conf = predicts[:, :4], predicts[:, 4:]
-        gt_loc, gt_conf = gts[:, :4], gts[:, 4:]
+        # get predict's localization and confidence
+        pred_loc, pred_conf = predicts[:, :, :4], predicts[:, :, 4:]
 
         # matching
-        indicator = self.matching_strategy(gt_loc, dboxes, threshold=0.5)
-        N = torch.sum(indicator).item()
+        pos_indicator, gt_loc, gt_conf = self.matching_strategy(gts, dboxes, batch_num=predicts.shape[0], threshold=0.5)
+
+        N = torch.sum(pos_indicator).item()
 
         # calculate ground truth value considering default boxes
-        gt_loc = gt_boxes_converter(gt_loc, dboxes)
+        gt_loc = gt_loc_converter(gt_loc, dboxes)
 
         # Localization loss
-        loc_lossval = self.loc_loss(indicator, pred_loc, gt_loc)
+        loc_lossval = self.loc_loss(pos_indicator, pred_loc, gt_loc)
 
         # Confidence loss
-        conf_lossval = self.conf_loss(indicator, pred_conf, gt_conf)
+        conf_lossval = self.conf_loss(pos_indicator, pred_conf, gt_conf)
 
         return (conf_lossval + self.alpha*loc_lossval) / N
-
-
-"""
-repeat_interleave is similar to numpy.repeat
->>> a = torch.Tensor([[1,2,3,4],[5,6,7,8]])
->>> a
-tensor([[1., 2., 3., 4.],
-        [5., 6., 7., 8.]])
->>> torch.repeat_interleave(a, 3, dim=0)
-tensor([[1., 2., 3., 4.],
-        [1., 2., 3., 4.],
-        [1., 2., 3., 4.],
-        [5., 6., 7., 8.],
-        [5., 6., 7., 8.],
-        [5., 6., 7., 8.]])
->>> torch.cat(3*[a])
-tensor([[1., 2., 3., 4.],
-        [5., 6., 7., 8.],
-        [1., 2., 3., 4.],
-        [5., 6., 7., 8.],
-        [1., 2., 3., 4.],
-        [5., 6., 7., 8.]])
-"""
-
-
-def _align_predicts(predicts, gt_boxnum_per_image):
-    """
-    :param predicts: Tensor, shape is (batch, total_dbox_nums, 4+class_nums=(cx, cy, w, h, p_class,...)
-    :param gt_boxnum_per_image: Tensor, shape is (batch*bbox_nums(batch))
-            e.g.) gt_boxnum_per_image = (2,2,1,3,3,3,2,2,...)
-            shortly, box number value is arranged for each box number
-    :return:
-        predicts: Tensor, shape
-    """
-    ret_predicts = []
-    batch_num = predicts.shape[0]
-    index = 0
-    for b in range(batch_num):
-        box_num = int(gt_boxnum_per_image[index].item())
-        ret_predicts += [torch.cat(box_num * [predicts[b]])]
-
-        index += box_num
-
-    return torch.cat(ret_predicts, dim=0)
-
-
-def _align_gts(gts, dbox_total_num):
-    return torch.repeat_interleave(gts, dbox_total_num, dim=0)
-
-
-def _align_dboxes(dboxes, gt_total_objects_num):
-    return torch.cat(gt_total_objects_num * [dboxes])
 
 
 class LocalizationLoss(nn.Module):
@@ -112,16 +46,52 @@ class LocalizationLoss(nn.Module):
         super().__init__()
         self.smoothL1Loss = nn.SmoothL1Loss(reduction='sum')
 
-    def forward(self, indicator, predicts, gts):
-        loss = self.smoothL1Loss(predicts[indicator], gts[indicator])
+    def forward(self, pos_indicator, predicts, gts):
+        loss = self.smoothL1Loss(predicts[pos_indicator], gts[pos_indicator])
 
         return loss
 
 class ConfidenceLoss(nn.Module):
-    def __init__(self):
+    def __init__(self, neg_factor=3):
+        """
+        :param neg_factor: int, the ratio(1(pos): neg_factor) to learn pos and neg for hard negative mining
+        """
         super().__init__()
-        self.logsoftmaxLoss = nn.LogSoftmax(dim=1)# need to check
+        self.logsoftmax = nn.LogSoftmax(dim=1)
+        self._neg_factor = neg_factor
 
-    def forward(self, indicator, predicts, gts):
+    def forward(self, pos_indicator, predicts, gts):
+        # calculate all loss
+        loss = -self.logsoftmax(predicts) # shape = (-1, class_num)
 
-        -self.logsoftmaxLoss() - self.logsoftmaxLoss()
+        # get positive loss
+        pos_loss = loss[pos_indicator]
+        pos_num = pos_loss.shape[0]
+        # get class
+        # print(gts[pos_indicator][0].bool())
+        # tensor([False, False, False, False, False, False, False, False, False, False,
+        #         False, False, False, False, False, False, False, False,  True, False,
+        #         False], device='cuda:0')
+        pos_mask = gts[pos_indicator].bool()
+
+        # calculate negative loss
+        neg_indicator = torch.logical_not(pos_indicator)
+        neg_loss = loss[neg_indicator] # shape = (-1, class_num)
+        neg_num = neg_loss.shape[0]
+
+        # hard negative mining
+        neg_num = min(pos_num * self._neg_factor, neg_num)
+        # -1 means last index. last index represents background which is negative
+        _, neg_loss_max_indices = neg_loss[:, -1].sort(dim=0, descending=True)
+        neg_topk_mask = neg_loss_max_indices < neg_num # shape = (neg_num)
+
+        #_, topk_mask = torch.topk(neg_loss, min(pos_num * self._neg_factor, neg_num), dim=1, sorted=False)
+        # error...
+        # RuntimeError: invalid argument 5: k not in range for dimension at /opt/conda/conda-bld/pytorch_1579022034529/work/aten/src/THC/generic/THCTensorTopK.cu:23
+
+        # -1 means last index. last index represents background which is negative
+        return pos_loss[pos_mask].sum() + neg_loss[neg_topk_mask, -1].sum()
+
+class Softmax(nn.Module):
+    def forward(self, x):
+        return torch.clamp(x, min=1e-15, max=1 - 1e-15)

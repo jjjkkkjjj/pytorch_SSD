@@ -1,11 +1,16 @@
+from .utils import _weights_path
+
 import torch
 import time
-
+import logging
+import os
+import matplotlib.pyplot as plt
+import math
 """
     ref: https://nextjournal.com/gkoehler/pytorch-mnist
 """
 class Trainer(object):
-    def __init__(self, model, loss_func, optimizer, iter_sheduler=None, gpu=True):
+    def __init__(self, model, loss_func, optimizer, iter_sheduler=None, gpu=True, log_interval=10, live_graph=False):
         self.gpu = gpu
 
         self.model = model.cuda() if self.gpu else model
@@ -13,24 +18,45 @@ class Trainer(object):
         self.model = self.model.to(dtype=torch.float)
         self.loss_func = loss_func
         self.optimizer = optimizer
+
         self.iter_scheduler = SSDIterSchedulerLR(optimizer) if iter_sheduler is None else iter_sheduler
+        if not isinstance(self.iter_scheduler, _IterLRScheduler):
+            raise ValueError('iter_scheduler must be inherited by \"_IterLRScheduler\"')
+
+        self.live_graph = live_graph
+        if self.live_graph:
+            logging.info("You should use jupyter notebook")
 
         self.train_losses = []
-        self.train_counter = []
-
+        self.train_losses_iter = []
         self.test_losses = []
-        self.test_counter = []
 
-        self.log_interval = 10
+        self.log_interval = log_interval
 
-    def train(self, epochs, train_loader):
+    def train(self, iterations, train_loader, savemodelname='ssd.pth', savegraphname='ssd-training-curve.png'):
         self.model.train()
+        total_iteration = 1
+
+        if self.live_graph:
+            # initialise the graph and settings
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            plt.ion()
+
+            fig.show()
+            fig.canvas.draw()
+
+        # calculate epochs
+        iter_per_epoch = math.ceil(len(train_loader.dataset) / float(iterations))
+        epochs = math.ceil(iterations / float(iter_per_epoch))
 
         template = 'Epoch {}, Loss: {:.5f}, Accuracy: {:.5f}, Test Loss: {:.5f}, Test Accuracy: {:.5f}, elapsed_time {:.5f}'
         iter_template = 'Training... Epoch: {}, Iter: {},\t [{}/{}\t ({:.0f}%)]\tLoss: {:.6f}'
-        for epoch in range(epochs):
+        for epoch in range(1, epochs + 1):
             start = time.time()
-            for batch_idx, (images, gts) in enumerate(train_loader):
+            for _iteration, (images, gts) in enumerate(train_loader):
+                now_iter = _iteration + 1
+
                 self.optimizer.zero_grad()
 
                 if self.gpu:
@@ -38,8 +64,8 @@ class Trainer(object):
                     gts = gts.cuda()
 
                 # set variable
-                images.requires_grad = True
-                gts.requires_grad = True
+                #images.requires_grad = True
+                #gts.requires_grad = True
 
                 predicts, dboxes = self.model(images)
                 if self.gpu:
@@ -51,15 +77,37 @@ class Trainer(object):
                 self.optimizer.step()
                 self.iter_scheduler.step()
                 #print([param_group['lr'] for param_group in self.optimizer.param_groups])
-                if batch_idx % self.log_interval == 0:
-                    print(iter_template.format(
-                        epoch, batch_idx, batch_idx * len(images), len(train_loader.dataset),
-                               100. * batch_idx / len(train_loader), loss.item()))
+                if now_iter % self.log_interval == 0 or total_iteration == 1 or total_iteration == iterations:
                     self.train_losses.append(loss.item())
-                    self.train_counter.append(
-                        (batch_idx * 64) + ((epoch - 1) * len(train_loader.dataset)))
-                    #torch.save(self.model.state_dict(), '/results/model.pth')
-                    #torch.save(self.optimizer.state_dict(), '/results/optimizer.pth')
+                    self.train_losses_iter.append(total_iteration)
+
+                    if self.live_graph:
+                        ax.clear()
+                        # plot
+                        ax.plot(self.train_losses_iter, self.train_losses)
+                        ax.axis(xmin=0, xmax=iterations)
+                        ax.title.set_text('Learning curve\nEpoch: {}, Iteration: {}, Loss: {}'.format(epoch, total_iteration, loss.item()))
+                        ax.set_xlabel('iteration')
+                        ax.set_ylabel('loss')
+                        ax.axis(xmin=1, xmax=iterations)
+                        # update
+                        fig.canvas.draw()
+
+                        """
+                        # not showing
+                        print(iter_template.format(
+                            epoch, now_iter, now_iter * len(images), len(train_loader.dataset),
+                                   100. * now_iter / len(train_loader), loss.item()))
+                        """
+                    else:
+                        print(iter_template.format(
+                            epoch, now_iter, now_iter * len(images), len(train_loader.dataset),
+                                   100. * now_iter / len(train_loader), loss.item()))
+
+                if total_iteration == iterations:
+                    break
+                total_iteration += 1
+
             elapsed_time = time.time() - start
             """
             for test_image, test_label in zip(test_images, test_labels):
@@ -72,10 +120,37 @@ class Trainer(object):
                                   self.test_acc.result() * 100,
                                   elapsed_time))
             """
+        print('Training finished')
+        savedir = _weights_path(__file__, _root_num=2, dirname='weights')
+        if savemodelname:
+            savepath = os.path.join(savedir, savemodelname)
+            torch.save(self.model.state_dict(), savepath)
+            print('Saved model to {}'.format(savepath))
 
-from torch.optim.lr_scheduler import MultiStepLR
+        if savegraphname:
+            savepath = os.path.join(savedir, savegraphname)
+            # initialise the graph and settings
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            plt.ion()
+            ax.clear()
+            # plot
+            ax.plot(self.train_losses_iter, self.train_losses)
+            ax.title.set_text('Learning curve')
+            ax.set_xlabel('iteration')
+            ax.set_ylabel('loss')
+            #ax.axis(xmin=1, xmax=iterations)
+            # save
+            fig.savefig(savepath)
 
-class SSDIterSchedulerLR(MultiStepLR):
+            print('Saved graph to {}'.format(savepath))
+
+from torch.optim.lr_scheduler import MultiStepLR, _LRScheduler
+
+class _IterLRScheduler(_LRScheduler):
+    pass
+
+class SSDIterSchedulerLR(MultiStepLR, _IterLRScheduler):
     def __init__(self, optimizer, milestones=(40000, 50000, 60000), gamma=0.1, last_iteration=-1, verbose=True):
         super().__init__(optimizer, milestones, gamma, last_epoch=last_iteration)
         self.last_iteration = last_iteration

@@ -2,7 +2,7 @@ from data.datasets import VOC2007Dataset
 from data import transforms, utils
 
 from models.ssd300 import SSD300
-from models.core.loss import DefaultBoxLoss
+from models.core.loss import SSDLoss
 from models.core.trainer import Trainer
 
 #from torchvision import transforms > not import!!
@@ -31,5 +31,5 @@ if __name__ == '__main__':
 
     optimizer = SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
 
-    trainer = Trainer(model, loss_func=DefaultBoxLoss(), optimizer=optimizer, gpu=True)
+    trainer = Trainer(model, loss_func=SSDLoss(), optimizer=optimizer, gpu=True)
     trainer.train(10, train_loader)

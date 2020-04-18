@@ -1,6 +1,8 @@
 from torch.utils.data import Dataset
 from .base import VOCBaseDataset
 
+from .utils import _thisdir
+
 class VOC2007Dataset(Dataset):
     class_nums = VOCBaseDataset.class_nums
     def __init__(self, transform=None):
@@ -18,8 +20,8 @@ class VOC2007Dataset(Dataset):
 
 class VOC2007_TrainDataset(VOCBaseDataset):
     def __init__(self, transform=None):
-        super().__init__('./data/voc/voc2007/train/VOCdevkit/VOC2007', transform)
+        super().__init__(_thisdir + '/voc/voc2007/train/VOCdevkit/VOC2007', transform)
 
 class VOC2007_TestDataset(VOCBaseDataset):
     def __init__(self, transform=None):
-        super().__init__('./data/voc/voc2007/test/VOCdevkit/VOC2007', transform)
+        super().__init__(_thisdir + '/voc/voc2007/test/VOCdevkit/VOC2007', transform)

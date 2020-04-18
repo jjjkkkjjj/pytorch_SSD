@@ -6,7 +6,7 @@ import tarfile
 import glob
 import logging
 
-class Downloader:
+class _Downloader:
     def __init__(self, url):
         self.url = url
 
@@ -42,14 +42,17 @@ class Downloader:
         # remove tmp.tar
         os.remove(tarpath)
 
-def voc2007():
-    train_downloader = Downloader('http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtrainval_06-Nov-2007.tar')
-    train_downloader.run('./data/voc/voc2007', 'train')
 
-    test_downloader = Downloader('http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtest_06-Nov-2007.tar')
-    test_downloader.run('./data/voc/voc2007', 'test')
+from .utils import _thisdir
+
+def voc2007():
+    train_downloader = _Downloader('http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtrainval_06-Nov-2007.tar')
+    train_downloader.run(_thisdir + '/voc/voc2007', 'train')
+
+    test_downloader = _Downloader('http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtest_06-Nov-2007.tar')
+    test_downloader.run(_thisdir + '/voc/voc2007', 'test')
 
 def voc2012():
-    traintest_downloader = Downloader('http://host.robots.ox.ac.uk/pascal/VOC/voc2012/VOCtrainval_11-May-2012.tar')
-    traintest_downloader.run('./data/voc/voc2012', 'traintest')
+    traintest_downloader = _Downloader('http://host.robots.ox.ac.uk/pascal/VOC/voc2012/VOCtrainval_11-May-2012.tar')
+    traintest_downloader.run(_thisdir + '/voc/voc2012', 'traintest')
 

@@ -1,4 +1,5 @@
 from .core.layers import *
+from .core.boxes import DefaultBox
 from .vgg_base import get_model_url
 
 from torch import nn
@@ -149,9 +150,11 @@ class SSD300(nn.Module):
             self.load_weights('./weights/vgg_bn_ssd.pth')
             return
         """
+        basepath = os.path.dirname(__file__)
+        model_dir = os.path.abspath(os.path.join(basepath, "..", "weights"))
 
         model_url = get_model_url('vgg16' if not self._batch_norm else 'vgg16_bn')
-        pretrained_state_dict = load_state_dict_from_url(model_url, model_dir='./weights')
+        pretrained_state_dict = load_state_dict_from_url(model_url, model_dir=model_dir)
 
         model_state_dict = self.state_dict()
 

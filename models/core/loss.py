@@ -1,9 +1,10 @@
-from torch.nn import functional as F
+from torch import nn
 import torch
+import logging
 
-from .utils import *
+from .boxes import *
 
-class DefaultBoxLoss(nn.Module):
+class SSDLoss(nn.Module):
     def __init__(self, alpha=1, matching_func=None, loc_loss=None, conf_loss=None):
         super().__init__()
 
@@ -28,6 +29,10 @@ class DefaultBoxLoss(nn.Module):
         pos_indicator, gt_loc, gt_conf = self.matching_strategy(gts, dboxes, batch_num=predicts.shape[0], threshold=0.5)
 
         N = torch.sum(pos_indicator).item()
+
+        if N == 0:
+            logging.warning('cannot assign object boxes!!!')
+            return torch.zeros((1), requires_grad=False)
 
         # calculate ground truth value considering default boxes
         gt_loc = gt_loc_converter(gt_loc, dboxes)
@@ -62,10 +67,10 @@ class ConfidenceLoss(nn.Module):
 
     def forward(self, pos_indicator, predicts, gts):
         # calculate all loss
-        loss = -self.logsoftmax(predicts) # shape = (-1, class_num)
+        #loss = -self.logsoftmax(predicts) # shape = (-1, class_num)
 
         # get positive loss
-        pos_loss = loss[pos_indicator]
+        pos_loss = -self.logsoftmax(predicts[pos_indicator]) # shape = (-1, class_num)
         pos_num = pos_loss.shape[0]
         # get class
         # print(gts[pos_indicator][0].bool())
@@ -76,7 +81,7 @@ class ConfidenceLoss(nn.Module):
 
         # calculate negative loss
         neg_indicator = torch.logical_not(pos_indicator)
-        neg_loss = loss[neg_indicator] # shape = (-1, class_num)
+        neg_loss = -self.logsoftmax(predicts[neg_indicator]) # shape = (-1, class_num)
         neg_num = neg_loss.shape[0]
 
         # hard negative mining
@@ -91,7 +96,3 @@ class ConfidenceLoss(nn.Module):
 
         # -1 means last index. last index represents background which is negative
         return pos_loss[pos_mask].sum() + neg_loss[neg_topk_mask, -1].sum()
-
-class Softmax(nn.Module):
-    def forward(self, x):
-        return torch.clamp(x, min=1e-15, max=1 - 1e-15)

@@ -10,7 +10,7 @@ import math
     ref: https://nextjournal.com/gkoehler/pytorch-mnist
 """
 class Trainer(object):
-    def __init__(self, model, loss_func, optimizer, iter_sheduler=None, gpu=True, log_interval=10, live_graph=False):
+    def __init__(self, model, loss_func, optimizer, iter_sheduler=None, gpu=True, log_interval=10, live_graph=False, plot_yrange=(0, 8)):
         self.gpu = gpu
 
         self.model = model.cuda() if self.gpu else model
@@ -26,6 +26,7 @@ class Trainer(object):
         self.live_graph = live_graph
         if self.live_graph:
             logging.info("You should use jupyter notebook")
+        self._plot_yrange = plot_yrange
 
         self.train_losses = []
         self.train_losses_iter = []
@@ -85,11 +86,12 @@ class Trainer(object):
                         ax.clear()
                         # plot
                         ax.plot(self.train_losses_iter, self.train_losses)
-                        ax.axis(xmin=0, xmax=iterations)
+                        #ax.axis(xmin=0, xmax=iterations) # too small to see!!
+                        if self._plot_yrange:
+                            ax.axis(ymin=self._plot_yrange[0], ymax=self._plot_yrange[1])
                         ax.title.set_text('Learning curve\nEpoch: {}, Iteration: {}, Loss: {}'.format(epoch, total_iteration, loss.item()))
                         ax.set_xlabel('iteration')
                         ax.set_ylabel('loss')
-                        ax.axis(xmin=1, xmax=iterations)
                         # update
                         fig.canvas.draw()
 

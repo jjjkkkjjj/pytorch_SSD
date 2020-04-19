@@ -32,4 +32,4 @@ if __name__ == '__main__':
     optimizer = SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
     iter_sheduler = SSDIterSchedulerLR(optimizer, milestones=(10000, 200000, 300000), gamma=0.1, verbose=True)
     trainer = Trainer(model, loss_func=SSDLoss(), optimizer=optimizer, iter_sheduler=iter_sheduler, gpu=True)
-    trainer.train(30, train_loader)
+    trainer.train(70, train_loader, checkpoints_interval=5)

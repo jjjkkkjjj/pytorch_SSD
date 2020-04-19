@@ -6,6 +6,10 @@ data/**
 !*.py
 
 weights/*
+!weights/checkpoints/
+!.gitkeep
+
+weights/checkpoints/*
 !.gitkeep
 
 # Created by https://www.gitignore.io/api/linux,python,pycharm

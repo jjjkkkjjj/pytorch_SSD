@@ -3,9 +3,11 @@ from .utils import _weights_path
 import torch
 import time
 import logging
-import os
+import os, re
 import matplotlib.pyplot as plt
 import math
+from glob import glob
+from datetime import date
 """
     ref: https://nextjournal.com/gkoehler/pytorch-mnist
 """
@@ -34,9 +36,45 @@ class Trainer(object):
 
         self.log_interval = log_interval
 
-    def train(self, iterations, train_loader, savemodelname='ssd.pth', savegraphname='ssd-training-curve.png'):
+    """
+    @property
+    def model_name(self):
+        return self.model.__class__.__name__.lower()
+    """
+
+    def train(self, iterations, train_loader, savemodelname='ssd300', checkpoints_interval=1000, max_checkpoints=5):
+        """
+        :param iterations: int, how many iterations during training
+        :param train_loader: Dataloader, must return Tensor of images and ground truthes
+        :param savemodelname: (Optional) str or None, saved model name. if it's None, model will not be saved after finishing training.
+        :param checkpoints_interval: (Optional) int or None, Whether to save for each designated iteration or not. if it's None, model will not be saved.
+        :param max_checkpoints: (Optional) int, how many models will be saved during training.
+        :return:
+        """
+        if savemodelname is None:
+            logging.warning('Training model will not be saved!!!')
+
+        if checkpoints_interval and max_checkpoints > 5:
+            logging.warning('One model size will be about 0.5 GB. Please take care your storage.')
+
         self.model.train()
         total_iteration = 1
+        savedir = _weights_path(__file__, _root_num=2, dirname='weights')
+        save_checkpoints_dir = os.path.join(savedir, 'checkpoints')
+        today = '{:%Y%m%d}'.format(date.today())
+
+        # check existing checkpoints file
+        filepaths = sorted(glob(os.path.join(save_checkpoints_dir, savemodelname + '_i[-]*_checkpoints{}.pth'.format(today))))
+        if len(filepaths) > 0:
+            logging.warning('Today\'s checkpoints is remaining. Remove them?\nInput any key. [n]/y')
+            i = input()
+            if re.match(r'y|yes', i, flags=re.IGNORECASE):
+                for file in filepaths:
+                    os.remove(file)
+                logging.warning('Removed {}'.format(filepaths))
+            else:
+                logging.warning('Please rename them.')
+                exit()
 
         if self.live_graph:
             # initialise the graph and settings
@@ -77,11 +115,36 @@ class Trainer(object):
 
                 self.optimizer.step()
                 self.iter_scheduler.step()
+
+                # save checkpoints
+                appx_info = ''
+                if total_iteration % checkpoints_interval == 0 and savemodelname and total_iteration != iterations:
+                    filepaths = sorted(glob(os.path.join(save_checkpoints_dir, savemodelname + '_i[-]*_checkpoints{}.pth'.format(today))))
+
+                    #filepaths = [path for path in os.listdir(save_checkpoints_dir) if re.search(savemodelname + '_i\-*_checkpoints{}.pth'.format(today), path)]
+                    #print(filepaths)
+                    removedinfo = ''
+                    # remove oldest checkpoints
+                    if len(filepaths) > max_checkpoints - 1:
+                        removedinfo += os.path.basename(filepaths[0])
+                        os.remove(filepaths[0])
+
+                    savepath = os.path.join(save_checkpoints_dir, savemodelname + '_i-{:07d}_checkpoints{}.pth'.format(total_iteration, today))
+                    torch.save(self.model.state_dict(), savepath)
+
+                    # append information for verbose
+                    appx_info += 'Saved model to {}'.format(savepath)
+                    if removedinfo != '':
+                        removedinfo = ' and removed {}'.format(removedinfo)
+
+                    appx_info = '\n' + 'Saved model as {}{}'.format(os.path.basename(savepath), removedinfo)
+
                 #print([param_group['lr'] for param_group in self.optimizer.param_groups])
-                if now_iter % self.log_interval == 0 or total_iteration == 1 or total_iteration == iterations:
+                if total_iteration % self.log_interval == 0 or total_iteration == 1 or total_iteration == iterations:
                     self.train_losses.append(loss.item())
                     self.train_losses_iter.append(total_iteration)
 
+                    # update information to show
                     if self.live_graph:
                         ax.clear()
                         # plot
@@ -89,7 +152,7 @@ class Trainer(object):
                         #ax.axis(xmin=0, xmax=iterations) # too small to see!!
                         if self._plot_yrange:
                             ax.axis(ymin=self._plot_yrange[0], ymax=self._plot_yrange[1])
-                        ax.title.set_text('Learning curve\nEpoch: {}, Iteration: {}, Loss: {}'.format(epoch, total_iteration, loss.item()))
+                        ax.title.set_text('Learning curve\nEpoch: {}, Iteration: {}, Loss: {}'.format(epoch, total_iteration, loss.item()) + appx_info)
                         ax.set_xlabel('iteration')
                         ax.set_ylabel('loss')
                         # update
@@ -104,11 +167,14 @@ class Trainer(object):
                     else:
                         print(iter_template.format(
                             epoch, now_iter, now_iter * len(images), len(train_loader.dataset),
-                                   100. * now_iter / len(train_loader), loss.item()))
+                                   100. * now_iter / len(train_loader), loss.item()) + appx_info)
+                elif appx_info != '':
+                    print(appx_info[1:])
 
                 if total_iteration == iterations:
                     break
                 total_iteration += 1
+
 
             elapsed_time = time.time() - start
             """
@@ -123,14 +189,12 @@ class Trainer(object):
                                   elapsed_time))
             """
         print('Training finished')
-        savedir = _weights_path(__file__, _root_num=2, dirname='weights')
         if savemodelname:
-            savepath = os.path.join(savedir, savemodelname)
+            savepath = os.path.join(savedir, savemodelname + '_i-{}.pth'.format(iterations))
             torch.save(self.model.state_dict(), savepath)
             print('Saved model to {}'.format(savepath))
 
-        if savegraphname:
-            savepath = os.path.join(savedir, savegraphname)
+            savepath = os.path.join(savedir, savemodelname + '_learning-curve_i-{}.png'.format(iterations))
             # initialise the graph and settings
             fig = plt.figure()
             ax = fig.add_subplot(111)

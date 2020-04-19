@@ -8,8 +8,8 @@ VOC_class_nums = VOCBaseDataset.class_nums
 class VOC2007Dataset(Dataset):
     class_nums = VOCBaseDataset.class_nums
     def __init__(self, transform=None):
-        self.trainval = VOC2007_TrainValDataset(transform)
-        self.test = VOC2007_TestDataset(transform)
+        self.trainval = VOC2007_TrainValDataset(transform=transform)
+        self.test = VOC2007_TestDataset(transform=transform)
 
     def __getitem__(self, index):
         if index < len(self.trainval):
@@ -22,20 +22,20 @@ class VOC2007Dataset(Dataset):
 
 
 class VOC2007_TrainValDataset(VOCBaseDataset):
-    def __init__(self, transform=None):
-        super().__init__(_thisdir + '/voc/voc2007/trainval/VOCdevkit/VOC2007', transform)
+    def __init__(self, focus='trainval', transform=None):
+        super().__init__(_thisdir + '/voc/voc2007/trainval/VOCdevkit/VOC2007', focus, transform)
 
 
 class VOC2007_TestDataset(VOCBaseDataset):
-    def __init__(self, transform=None):
-        super().__init__(_thisdir + '/voc/voc2007/test/VOCdevkit/VOC2007', transform)
+    def __init__(self, focus='test', transform=None):
+        super().__init__(_thisdir + '/voc/voc2007/test/VOCdevkit/VOC2007', focus, transform)
 
 
 class VOC2012Dataset(Dataset):
     class_nums = VOCBaseDataset.class_nums
     def __init__(self, transform=None):
-        self.trainval = VOC2012_TrainValDataset(transform)
-        self.test = VOC2012_TestDataset(transform)
+        self.trainval = VOC2012_TrainValDataset(transform=transform)
+        self.test = VOC2012_TestDataset(transform=transform)
 
     def __getitem__(self, index):
         if index < len(self.trainval):
@@ -47,13 +47,13 @@ class VOC2012Dataset(Dataset):
         return len(self.trainval) + len(self.test)
 
 class VOC2012_TrainValDataset(VOCBaseDataset):
-    def __init__(self, transform=None):
-        super().__init__(_thisdir + '/voc/voc2012/trainval/VOCdevkit/VOC2012', transform)
+    def __init__(self, focus='trainval', transform=None):
+        super().__init__(_thisdir + '/voc/voc2012/trainval/VOCdevkit/VOC2012', focus, transform)
 
 
 class VOC2012_TestDataset(VOCBaseDataset):
-    def __init__(self, transform=None):
-        super().__init__(_thisdir + '/voc/voc2012/test/VOCdevkit/VOC2012', transform)
+    def __init__(self, focus='test', transform=None):
+        super().__init__(_thisdir + '/voc/voc2012/test/VOCdevkit/VOC2012', focus, transform)
 
 
 class Compose(Dataset):
@@ -64,7 +64,7 @@ class Compose(Dataset):
         _datasets, _lens = [], []
         for dataset in datasets:
             # initialization
-            _datasets += [dataset(transform)]
+            _datasets += [dataset(transform=transform)]
 
             _lens += [len(_datasets[-1])]
 

@@ -25,10 +25,18 @@ _voc_classes = ['aeroplane', 'bicycle', 'bird', 'boat',
 
 class VOCBaseDataset(Dataset):
     class_nums = len(_voc_classes) + 1
-    def __init__(self, voc_dir, transform=None):
+    def __init__(self, voc_dir, focus, transform=None):
         self.transform = transform
         self._voc_dir = voc_dir
-        self._annopaths = glob.glob(os.path.join(self._voc_dir, 'Annotations', '*.xml'))
+        self._focus = focus
+        layouttxt_path = os.path.join(self._voc_dir, 'ImageSets', 'Main', self._focus + '.txt')
+        if os.path.exists(layouttxt_path):
+            with open(layouttxt_path, 'r') as f:
+                filenames = f.read().splitlines()
+                filenames = [filename.split()[0] for filename in filenames]
+                self._annopaths = [os.path.join(self._voc_dir, 'Annotations', '{}.xml'.format(filename)) for filename in filenames]
+        else:
+            raise FileNotFoundError('layout: {} was invalid arguments'.format(focus))
 
     def _jpgpath(self, filename):
         """

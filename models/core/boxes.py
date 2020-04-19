@@ -283,6 +283,7 @@ def gt_loc_converter(gt_boxes, default_boxes):
         gt_boxes: Tensor, calculate ground truth value considering default boxes. The formula is below;
                   gt_cx = (gt_cx - dbox_cx)/dbox_w, gt_cy = (gt_cy - dbox_cy)/dbox_h,
                   gt_w = log(gt_w / dbox_w), gt_h = log(gt_h / dbox_h)
+                  shape = (batch, default boxes num, 4)
     """
     assert gt_boxes.shape[1:] == default_boxes.shape, "gt_boxes and default_boxes must be same shape"
 

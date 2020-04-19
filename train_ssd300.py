@@ -18,6 +18,7 @@ if __name__ == '__main__':
          transforms.OneHot(class_nums=datasets.VOC_class_nums),
          transforms.ToTensor()]
     )
+
     train_dataset = datasets.Compose(datasets.VOC_class_nums, datasets=(datasets.VOC2007Dataset, datasets.VOC2012_TrainValDataset), transform=transform)
     #train_dataset = datasets.VOC2007Dataset(transform=transform)
     train_loader = DataLoader(train_dataset,

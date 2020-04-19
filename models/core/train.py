@@ -1,3 +1,5 @@
+__all__ = ['Trainer', 'SSDIterMultiStepLR', 'SSDIterStepLR']
+
 from .utils import _weights_path
 
 import torch
@@ -11,8 +13,10 @@ from datetime import date
 """
     ref: https://nextjournal.com/gkoehler/pytorch-mnist
 """
+
+
 class Trainer(object):
-    def __init__(self, model, loss_func, optimizer, iter_sheduler=None, gpu=True, log_interval=10, live_graph=False, plot_yrange=(0, 8)):
+    def __init__(self, model, loss_func, optimizer, iter_sheduler=None, gpu=True, log_interval=100, live_graph=False, plot_yrange=(0, 8)):
         self.gpu = gpu
 
         self.model = model.cuda() if self.gpu else model
@@ -91,7 +95,11 @@ class Trainer(object):
 
         template = 'Epoch {}, Loss: {:.5f}, Accuracy: {:.5f}, Test Loss: {:.5f}, Test Accuracy: {:.5f}, elapsed_time {:.5f}'
         iter_template = 'Training... Epoch: {}, Iter: {},\t [{}/{}\t ({:.0f}%)]\tLoss: {:.6f}'
+        _finish = False
         for epoch in range(1, epochs + 1):
+            if _finish:
+                break
+
             start = time.time()
             for _iteration, (images, gts) in enumerate(train_loader):
                 now_iter = _iteration + 1
@@ -135,11 +143,15 @@ class Trainer(object):
                     # append information for verbose
                     appx_info += 'Saved model to {}'.format(savepath)
                     if removedinfo != '':
-                        removedinfo = ' and removed {}'.format(removedinfo)
+                        if self.live_graph:
+                            removedinfo = '\nRemoved {}'.format(removedinfo)
+                        else:
+                            removedinfo = ' and removed {}'.format(removedinfo)
 
                     appx_info = '\n' + 'Saved model as {}{}'.format(os.path.basename(savepath), removedinfo)
 
                 #print([param_group['lr'] for param_group in self.optimizer.param_groups])
+                # store log
                 if total_iteration % self.log_interval == 0 or total_iteration == 1 or total_iteration == iterations:
                     self.train_losses.append(loss.item())
                     self.train_losses_iter.append(total_iteration)
@@ -152,7 +164,10 @@ class Trainer(object):
                         #ax.axis(xmin=0, xmax=iterations) # too small to see!!
                         if self._plot_yrange:
                             ax.axis(ymin=self._plot_yrange[0], ymax=self._plot_yrange[1])
-                        ax.title.set_text('Learning curve\nEpoch: {}, Iteration: {}, Loss: {}'.format(epoch, total_iteration, loss.item()) + appx_info)
+                        if appx_info == '':
+                            ax.set_title('Learning curve\nEpoch: {}, Iteration: {}, Loss: {}'.format(epoch, total_iteration, loss.item()) + appx_info)
+                        else:
+                            ax.set_title('Learning curve\nEpoch: {}, Iteration: {}, Loss: {}'.format(epoch, total_iteration, loss.item()) + appx_info, fontsize=8)
                         ax.set_xlabel('iteration')
                         ax.set_ylabel('loss')
                         # update
@@ -168,10 +183,12 @@ class Trainer(object):
                         print(iter_template.format(
                             epoch, now_iter, now_iter * len(images), len(train_loader.dataset),
                                    100. * now_iter / len(train_loader), loss.item()) + appx_info)
-                elif appx_info != '':
+
+                elif not self.live_graph and appx_info != '':
                     print(appx_info[1:])
 
                 if total_iteration == iterations:
+                    _finish = True
                     break
                 total_iteration += 1
 
@@ -202,7 +219,7 @@ class Trainer(object):
             ax.clear()
             # plot
             ax.plot(self.train_losses_iter, self.train_losses)
-            ax.title.set_text('Learning curve')
+            ax.set_title('Learning curve')
             ax.set_xlabel('iteration')
             ax.set_ylabel('loss')
             #ax.axis(xmin=1, xmax=iterations)

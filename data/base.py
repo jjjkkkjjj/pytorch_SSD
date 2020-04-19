@@ -106,8 +106,8 @@ class VOCBaseDataset(Dataset):
             # bbox = [xmin, ymin, xmax, ymax]
             bboxes.append([_get_xml_et_value(bndbox, 'xmin', int), _get_xml_et_value(bndbox, 'ymin', int), _get_xml_et_value(bndbox, 'xmax', int), _get_xml_et_value(bndbox, 'ymax', int)])
 
-            flags.append({'difficult': _get_xml_et_value(obj, 'difficult', int) == 1,
-                          'partial': _get_xml_et_value(obj, 'truncated', int) == 1})
+            flags.append({'difficult': _get_xml_et_value(obj, 'difficult', int) == 1})#,
+                          #'partial': _get_xml_et_value(obj, 'truncated', int) == 1})
 
         return np.array(bboxes, dtype=np.float32), np.array(linds, dtype=np.float32), flags
 

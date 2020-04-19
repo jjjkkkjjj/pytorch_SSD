@@ -68,13 +68,16 @@ class Centered(object):
         return img, bboxes, labels, flags
 
 class Ignore(object):
-    def __init__(self, ignore_difficult=True, ignore_partial=False):
+    def __init__(self, difficult=True, **kwargs):
         """
-        :param ignore_difficult: if true, difficult bbox will be ignored, otherwise the one will be kept
-        :param ignore_partial: if true, an object being visible partially will be ignored
+        :param difficult: if true, difficult bbox will be ignored, otherwise the one will be kept
+        :param kwargs: if true, specific keyword will be ignored
         """
-        self._ignore_difficult = ignore_difficult
-        self._ignore_partial = ignore_partial
+        self.difficult = difficult
+        self.kwargs = kwargs
+        if len(kwargs) > 0:
+            import logging
+            logging.warning('Unsupported arguments: {}'.format(self.kwargs))
 
     def __call__(self, img, bboxes, labels, flags):
         ret_bboxes = []
@@ -82,11 +85,19 @@ class Ignore(object):
         ret_flags = []
 
         for bbox, label, flag in zip(bboxes, labels, flags):
-            if self._ignore_difficult and flag['difficult']:
+            if self.difficult and flag['difficult']:
                 continue
-            if self._ignore_partial and flag['partial']:
+            """
+            isIgnore = False
+            for key, value in self.kwargs.items():
+                if value and key in flag and flag[key]:
+                    isIgnore = True
+                    break
+            if isIgnore:
                 continue
-
+            #if self._ignore_partial and flag['partial']:
+            #    continue
+            """
             # normalize
             # bbox = [xmin, ymin, xmax, ymax]
             ret_bboxes += [bbox]

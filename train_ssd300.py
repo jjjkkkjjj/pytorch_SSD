@@ -1,4 +1,4 @@
-from data.datasets import VOC2007Dataset
+from data import datasets
 from data import transforms, utils
 
 from models.ssd300 import SSD300
@@ -11,15 +11,15 @@ from torch.optim.sgd import SGD
 
 if __name__ == '__main__':
     transform = transforms.Compose(
-        [transforms.Ignore(ignore_difficult=True),
+        [transforms.Ignore(difficult=True),
          transforms.Normalize(),
          transforms.Centered(),
          transforms.Resize((300, 300)), # if resizing first, can't be normalized
-         transforms.OneHot(class_nums=VOC2007Dataset.class_nums),
+         transforms.OneHot(class_nums=datasets.VOC_class_nums),
          transforms.ToTensor()]
     )
-    train_dataset = VOC2007Dataset(transform=transform)
-
+    train_dataset = datasets.Compose(datasets.VOC_class_nums, datasets=(datasets.VOC2007Dataset, datasets.VOC2012_TrainValDataset), transform=transform)
+    #train_dataset = datasets.VOC2007Dataset(transform=transform)
     train_loader = DataLoader(train_dataset,
                               batch_size=32,
                               shuffle=True,

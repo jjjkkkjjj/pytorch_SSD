@@ -3,7 +3,7 @@ from data import transforms, utils
 
 from models.ssd300 import SSD300
 from models.core.loss import SSDLoss
-from models.core.train import Trainer, SSDIterSchedulerLR
+from models.core.train import *
 
 #from torchvision import transforms > not import!!
 from torch.utils.data import DataLoader
@@ -30,6 +30,7 @@ if __name__ == '__main__':
     print(model)
 
     optimizer = SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
-    iter_sheduler = SSDIterSchedulerLR(optimizer, milestones=(10000, 200000, 300000), gamma=0.1, verbose=True)
+    #iter_sheduler = SSDIterMultiStepLR(optimizer, milestones=(10, 20, 30), gamma=0.1, verbose=True)
+    iter_sheduler = SSDIterStepLR(optimizer, step_size=20, gamma=0.1, verbose=True)
     trainer = Trainer(model, loss_func=SSDLoss(), optimizer=optimizer, iter_sheduler=iter_sheduler, gpu=True)
-    trainer.train(70, train_loader, checkpoints_interval=5)
+    trainer.train(70, train_loader, checkpoints_interval=10)

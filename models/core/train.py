@@ -21,7 +21,7 @@ class Trainer(object):
         self.loss_func = loss_func
         self.optimizer = optimizer
 
-        self.iter_scheduler = SSDIterSchedulerLR(optimizer) if iter_sheduler is None else iter_sheduler
+        self.iter_scheduler = SSDIterMultiStepLR(optimizer) if iter_sheduler is None else iter_sheduler
         if not isinstance(self.iter_scheduler, _IterLRScheduler):
             raise ValueError('iter_scheduler must be inherited by \"_IterLRScheduler\"')
 
@@ -42,7 +42,7 @@ class Trainer(object):
         return self.model.__class__.__name__.lower()
     """
 
-    def train(self, iterations, train_loader, savemodelname='ssd300', checkpoints_interval=1000, max_checkpoints=5):
+    def train(self, iterations, train_loader, savemodelname='ssd300', checkpoints_interval=1000, max_checkpoints=15):
         """
         :param iterations: int, how many iterations during training
         :param train_loader: Dataloader, must return Tensor of images and ground truthes
@@ -54,8 +54,8 @@ class Trainer(object):
         if savemodelname is None:
             logging.warning('Training model will not be saved!!!')
 
-        if checkpoints_interval and max_checkpoints > 5:
-            logging.warning('One model size will be about 0.5 GB. Please take care your storage.')
+        if checkpoints_interval and max_checkpoints > 15:
+            logging.warning('One model size will be about 0.1 GB. Please take care your storage.')
 
         self.model.train()
         total_iteration = 1
@@ -211,14 +211,37 @@ class Trainer(object):
 
             print('Saved graph to {}'.format(savepath))
 
-from torch.optim.lr_scheduler import MultiStepLR, _LRScheduler
+from torch.optim.lr_scheduler import MultiStepLR, StepLR, _LRScheduler
 
 class _IterLRScheduler(_LRScheduler):
     pass
 
-class SSDIterSchedulerLR(MultiStepLR, _IterLRScheduler):
+class SSDIterMultiStepLR(MultiStepLR, _IterLRScheduler):
     def __init__(self, optimizer, milestones=(40000, 50000, 60000), gamma=0.1, last_iteration=-1, verbose=True):
         super().__init__(optimizer, milestones, gamma, last_epoch=last_iteration)
+        self.last_iteration = last_iteration
+        self.verbose = verbose
+        self._prev_lr = [group['lr'] for group in self.optimizer.param_groups]
+
+    def get_lr(self):
+        ret = super().get_lr()
+        self.last_iteration = self.last_epoch
+        if self.last_iteration in self.milestones:
+            print("\nIteration reached milestone: {}. Change lr={} to {}\n".format(self.last_iteration, self._prev_lr, ret))
+
+        self._prev_lr = ret
+        return self._prev_lr
+
+class SSDIterStepLR(SSDIterMultiStepLR, _IterLRScheduler):
+    def __init__(self, optimizer, step_size=60000, gamma=0.1, last_iteration=-1, verbose=True):
+        max_size = 10000000000
+        if step_size > max_size:
+            logging.critical('Unsupported step_size is greater than {}'.format(max_size))
+        super().__init__(optimizer, (step_size, max_size), gamma, last_iteration=last_iteration, verbose=verbose)
+
+    """
+    def __init__(self, optimizer, step_size=60000, gamma=0.1, last_iteration=-1, verbose=True):
+        super().__init__(optimizer, step_size, gamma, last_epoch=last_iteration)
         self.last_iteration = last_iteration
         self.verbose = verbose
         self._prev_lr = [group['lr'] for group in self.optimizer.param_groups]
@@ -231,8 +254,8 @@ class SSDIterSchedulerLR(MultiStepLR, _IterLRScheduler):
 
         self._prev_lr = ret
         return self._prev_lr
-
-
+    #>> UnboundLocalError: local variable 'values' referenced before assignment
+    """
 # ref > https://github.com/pytorch/pytorch/blob/master/torch/optim/lr_scheduler.py
 """
 from torch.optim.optimizer import Optimizer
@@ -388,7 +411,7 @@ class _IterLRScheduler(object):
 from bisect import bisect_right
 
 # custom scheduler (same as MultiStepLR)
-class SSDIterSchedulerLR(_IterLRScheduler):
+class SSDIterMultiStepLR(_IterLRScheduler):
     def __init__(self, optimizer, milestones=(40000, 50000, 60000), gamma=0.1, last_iteration=-1, verbose=True):
         super().__init__(optimizer, last_iteration)
         self.milestones = Counter(milestones)

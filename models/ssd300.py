@@ -1,6 +1,7 @@
 from .core.layers import *
 from .core.boxes import DefaultBox
 from .core.utils import _weights_path
+from .core.inference import InferenceBox, toVisualizeImg
 from .vgg_base import get_model_url
 
 from torch import nn
@@ -87,6 +88,7 @@ class SSD300(nn.Module):
         self.classifier_layers = nn.ModuleDict(OrderedDict(classifier_layers))
         self.defaultBox = DefaultBox(img_shape=self.input_shape).build(self.feature_layers, _classifier_source_names, self.classifier_layers, _dbox_nums)
         self.predictor = Predictor(self.defaultBox.total_dboxes_nums, self.class_nums)
+        self.inferenceBox = None
     """
         self._init_weights()
 
@@ -135,6 +137,47 @@ class SSD300(nn.Module):
     def input_channel(self):
         return self.input_shape[2]
 
+    def build_test(self, path):
+        # set test mode
+        self.eval()
+        self.load_weights(path)
+        self.inferenceBox = InferenceBox(conf_threshold=0.01, iou_threshold=0.45, topk=200)
+        # print(self.training)
+        # >> False
+        return self
+    def build_train(self, path=None):
+        # set train mode
+        self.train()
+        if path:
+            self.load_weights(path)
+
+        return self
+
+    def inference(self, image, visualize=False, convert_torch=False):
+        if self.training:
+            raise NotImplementedError("model hasn\'t built as test. Call \'build_test\'")
+        if isinstance(image, list):
+            img = torch.stack(image)
+        elif isinstance(image, np.ndarray):
+            img = torch.tensor(image, requires_grad=False)
+        elif not isinstance(image, torch.Tensor):
+            raise ValueError('Invalid image type')
+
+        if img.ndim == 3:
+            img = img.unsqueeze(0) # shape = (1, ?, ?, ?)
+        if convert_torch:
+            img = img.permute((0, 3, 1, 2))
+
+        input_shape = np.array(self.input_shape)[np.array([2, 0, 1])]
+        if list(img.shape[1:]) != input_shape.tolist():
+            raise ValueError('image shape was not same as input shape: {}, but got {}'.format(input_shape.tolist(), list(img.shape[1:])))
+
+        # predict
+        predicts, dboxes = self(img)
+        infers = self.inferenceBox(predicts, dboxes)
+
+        if visualize:
+            return
 
     def load_vgg_weights(self):
         """

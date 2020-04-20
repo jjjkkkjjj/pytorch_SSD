@@ -63,6 +63,8 @@ class VOCBaseDataset(Dataset):
 
         # concatenate bboxes and linds
         if isinstance(bboxes, torch.Tensor) and isinstance(linds, torch.Tensor):
+            if linds.ndim == 1:
+                linds = linds.unsqueeze(1)
             gt = torch.cat((bboxes, linds), dim=1)
         else:
             gt = np.concatenate((bboxes, linds), axis=1)

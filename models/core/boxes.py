@@ -305,19 +305,19 @@ def pred_loc_converter(pred_boxes, default_boxes):
     :param default_boxes: Tensor, shape = (default boxes num, 4)
     Note that 4 means (cx, cy, w, h)
     :return:
-        inferred_boxes: Tensor, calculate ground truth value considering default boxes. The formula is below;
-                  inferred_cx = pred_cx * dbox_w + dbox_cx, inferred_cy = pred_cy * dbox_h + dbox_cy,
-                  inferred_w = exp(pred_w) * dbox_w, inferred_h = exp(pred_h) * dbox_h
+        inf_boxes: Tensor, calculate ground truth value considering default boxes. The formula is below;
+                  inf_cx = pred_cx * dbox_w + dbox_cx, inf_cy = pred_cy * dbox_h + dbox_cy,
+                  inf_w = exp(pred_w) * dbox_w, inf_h = exp(pred_h) * dbox_h
                   shape = (batch, default boxes num, 4)
     """
     assert pred_boxes.shape[1:] == default_boxes.shape, "pred_boxes and default_boxes must be same shape"
 
-    inferred_cx = pred_boxes[:, :, 0] * default_boxes[:, 2] + default_boxes[:, 0]
-    inferred_cy = pred_boxes[:, :, 1] * default_boxes[:, 3] + default_boxes[:, 1]
-    inferred_w = torch.exp(pred_boxes[:, :, 2]) * default_boxes[:, 2]
-    inferred_h = torch.exp(pred_boxes[:, :, 3]) * default_boxes[:, 3]
+    inf_cx = pred_boxes[:, :, 0] * default_boxes[:, 2] + default_boxes[:, 0]
+    inf_cy = pred_boxes[:, :, 1] * default_boxes[:, 3] + default_boxes[:, 1]
+    inf_w = torch.exp(pred_boxes[:, :, 2]) * default_boxes[:, 2]
+    inf_h = torch.exp(pred_boxes[:, :, 3]) * default_boxes[:, 3]
 
-    return torch.cat((inferred_cx.unsqueeze(2),
-                      inferred_cy.unsqueeze(2),
-                      inferred_w.unsqueeze(2),
-                      inferred_h.unsqueeze(2)), dim=2)
+    return torch.cat((inf_cx.unsqueeze(2),
+                      inf_cy.unsqueeze(2),
+                      inf_w.unsqueeze(2),
+                      inf_h.unsqueeze(2)), dim=2)

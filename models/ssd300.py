@@ -138,10 +138,11 @@ class SSD300(nn.Module):
         return self.input_shape[2]
 
     def build_test(self, path):
-        # set test mode
-        self.eval()
         self.load_weights(path)
         self.inferenceBox = InferenceBox(conf_threshold=0.01, iou_threshold=0.45, topk=200)
+
+        # set test mode
+        self.eval()
         # print(self.training)
         # >> False
         return self

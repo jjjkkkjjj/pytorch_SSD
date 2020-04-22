@@ -15,7 +15,7 @@ if __name__ == '__main__':
          transforms.ToTensor()]
     )
 
-    test_dataset = datasets.VOC2007_TestDataset(transform=transform)
+    test_dataset = datasets.VOC2007_TrainValDataset(transform=transform)
     test_loader = DataLoader(test_dataset,
                               batch_size=32,
                               shuffle=False,

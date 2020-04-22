@@ -1,6 +1,9 @@
-from torch.nn import Module
+from .boxes import iou, center2minmax, minmax2center, pred_loc_converter
 
-from .boxes import pred_loc_converter
+from torch.nn import Module
+from torch.nn import functional as F
+import torch
+import numpy as np
 
 class InferenceBox(Module):
     def __init__(self, conf_threshold=0.01, iou_threshold=0.45, topk=200):
@@ -8,6 +11,8 @@ class InferenceBox(Module):
         self.conf_threshold = conf_threshold
         self.iou_threshold = iou_threshold
         self.topk = topk
+
+        self.softmax = F.softmax
 
     def forward(self, predicts, dboxes):
         """
@@ -17,76 +22,87 @@ class InferenceBox(Module):
         """
 
         """
-        pred_loc, inf_loc: shape = (batch number, default boxes number, 4)
+        pred_loc, inf_cand_loc: shape = (batch number, default boxes number, 4)
         pred_conf: shape = (batch number, default boxes number, class number)
         """
         pred_loc, pred_conf = predicts[:, :, :4], predicts[:, :, 4:]
+        inf_cand_loc, inf_cand_conf = pred_loc_converter(pred_loc, dboxes), self.softmax(pred_conf, dim=2)
 
         batch_num = predicts.shape[0]
         class_num = pred_conf.shape[2]
 
-        inf_loc = pred_loc_converter(pred_loc, dboxes)
-        indicator = pred_conf > self.conf_threshold
-
+        ret_boxes = []
         for b in range(batch_num):
-            pass
+            ret_box = []
+            inf_conf = inf_cand_conf[b] # shape = (default boxes number, class number)
+            inf_loc = inf_cand_loc[b]
+            for c in range(class_num - 1): # last index means background
+                # filter out less than threshold
+                indicator = inf_conf[:, c] > self.conf_threshold
+                conf = inf_conf[indicator, c] # shape = (filtered default boxes num)
+                if conf.nelement() == 0:
+                    continue
+                loc = inf_loc[indicator, :] # shape = (filtered default boxes num, 4)
 
-def non_maximum_suppression():
+                # list of Tensor, shape = (1, 4=(cx, cy, w, h))
+                inferred_boxes = non_maximum_suppression(conf, loc, self.iou_threshold, self.topk)
+                if len(inferred_boxes) == 0:
+                    continue
+                else:
+                    # shape = (inferred boxes num, 4)
+                    inferred_boxes = torch.cat(inferred_boxes, dim=0)
+
+                    # append class flag
+                    # shape = (inferred boxes num, 1)
+                    flag = np.broadcast_to([c], shape=(len(inferred_boxes), 1))
+                    flag = torch.from_numpy(flag).float()
+
+                    # shape = (inferred box num, 5=(class index, cx, cy, w, h))
+                    ret_box += [torch.cat((flag, inferred_boxes), dim=1)]
+
+            ret_boxes += [torch.cat(ret_box, dim=0)]
+
+        # list of tensor, shape = (box num, 5=(class index, cx, cy, w, h))
+        return ret_boxes
+
+
+def non_maximum_suppression(conf, loc, iou_threshold=0.45, topk=200):
     """
-    keep = scores.new(scores.size(0)).zero_().long()
-    if boxes.numel() == 0:
-        return keep
-    x1 = boxes[:, 0]
-    y1 = boxes[:, 1]
-    x2 = boxes[:, 2]
-    y2 = boxes[:, 3]
-    area = torch.mul(x2 - x1, y2 - y1)
-    v, idx = scores.sort(0)  # sort in ascending order
-    # I = I[v >= 0.01]
-    idx = idx[-top_k:]  # indices of the top-k largest vals
-    xx1 = boxes.new()
-    yy1 = boxes.new()
-    xx2 = boxes.new()
-    yy2 = boxes.new()
-    w = boxes.new()
-    h = boxes.new()
+    :param conf: tensor, shape = (filtered default boxes num)
+    :param loc: tensor, shape = (filtered default boxes num, 4)
+    Note that filtered default boxes number must be more than 1
+    :param iou_threshold: int
+    :return: inferred_boxes: list of inferred boxes(Tensor). inferred boxes' Tensor shape = (inferred boxes number, 4)
+    """
+    # sort confidence and default boxes with descending order
+    c, conf_des_inds = conf.sort(dim=0, descending=True)
+    # get topk indices
+    conf_des_inds = conf_des_inds[:topk]
+    # converted into minmax coordinates
+    loc_mm = center2minmax(loc)
 
-    # keep = torch.Tensor()
-    count = 0
-    while idx.numel() > 0:
-        i = idx[-1]  # index of current largest val
-        # keep.append(i)
-        keep[count] = i
-        count += 1
-        if idx.size(0) == 1:
+    inferred_boxes = []
+    while conf_des_inds.nelement() > 0:
+        largest_conf_index = conf_des_inds[0]
+        largest_conf_loc = loc[largest_conf_index, :].unsqueeze(0)  # shape = (1, 4=(xmin, ymin, xmax, ymax))
+        # append to result
+        inferred_boxes.append(largest_conf_loc)
+
+        # remove largest element
+        conf_des_inds = conf_des_inds[1:]
+
+        if conf_des_inds.nelement() == 0:
             break
-        idx = idx[:-1]  # remove kept element from view
-        # load bboxes of next highest vals
-        torch.index_select(x1, 0, idx, out=xx1)
-        torch.index_select(y1, 0, idx, out=yy1)
-        torch.index_select(x2, 0, idx, out=xx2)
-        torch.index_select(y2, 0, idx, out=yy2)
-        # store element-wise max with next highest score
-        xx1 = torch.clamp(xx1, min=x1[i])
-        yy1 = torch.clamp(yy1, min=y1[i])
-        xx2 = torch.clamp(xx2, max=x2[i])
-        yy2 = torch.clamp(yy2, max=y2[i])
-        w.resize_as_(xx2)
-        h.resize_as_(yy2)
-        w = xx2 - xx1
-        h = yy2 - yy1
-        # check sizes of xx1 and xx2.. after each iteration
-        w = torch.clamp(w, min=0.0)
-        h = torch.clamp(h, min=0.0)
-        inter = w*h
-        # IoU = i / (area(a) + area(b) - i)
-        rem_areas = torch.index_select(area, 0, idx)  # load remaining areas)
-        union = (rem_areas - inter) + area[i]
-        IoU = inter/union  # store result in iou
-        # keep only elements with an IoU <= overlap
-        idx = idx[IoU.le(overlap)]
-    return keep, count
-    """
+
+        # get iou, shape = (1, loc_des num)
+        overlap = iou(center2minmax(largest_conf_loc), loc_mm[conf_des_inds])
+        # filter out overlapped boxes for box with largest conf, shape = (loc_des num)
+        indicator = overlap.reshape((overlap.nelement())) <= iou_threshold
+
+        conf_des_inds = conf_des_inds[indicator]
+
+    return inferred_boxes
+
 
 def toVisualizeImg():
     pass

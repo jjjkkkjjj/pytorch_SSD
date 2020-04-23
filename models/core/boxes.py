@@ -52,7 +52,7 @@ class DefaultBox(object):
     def get_scale(self, k, m):
         return self.scale_min + (self.scale_max - self.scale_min) * (k - 1) / (m - 1)
 
-    def build(self, feature_layers, classifier_source_names, classifier_layers, dbox_nums):
+    def build(self, feature_layers, classifier_source_names, localization_layers, dbox_nums):
         # this x is pseudo Tensor to get feature's map size
         x = torch.tensor((), dtype=torch.float, requires_grad=False).new_zeros((1, self.img_channels, self.img_height, self.img_width))
 
@@ -62,7 +62,7 @@ class DefaultBox(object):
             x = layer(x)
             # get features by feature map convolution
             if name in classifier_source_names:
-                feature = classifier_layers['feature{0}'.format(i)](x)
+                feature = localization_layers['loc{0}'.format(i)](x)
                 features.append(feature)
                 # print(features[-1].shape)
                 i += 1

@@ -65,31 +65,44 @@ class SSD300(nn.Module):
 
         self.feature_layers = nn.ModuleDict(OrderedDict(vgg_layers + extra_layers))
 
-        classifier_layers = []
+        localization_layers, confidence_layers = [], []
         for i, (source_name, dbox_num) in enumerate(zip(_classifier_source_names, _dbox_nums)):
             source = self.feature_layers[source_name]
-            postfix = '_feature{}'.format(i + 1)
+            loc_postfix = '_loc{}'.format(i + 1)
+            conf_postfix = '_conf{}'.format(i + 1)
             if not source_name in _l2norm_names:
-                layers = [
-                    *Conv2dRelu.one(postfix, source.out_channels, dbox_num * (class_nums + 4), kernel_size=(3, 3), padding=1, batch_norm=False),
+                loc_layers = [
+                    *Conv2dRelu.one(loc_postfix, source.out_channels, dbox_num * (4), kernel_size=(3, 3), padding=1, batch_norm=False),
                     #('flatten{}'.format(postfix), Flatten()) # if flatten is included, can't calculate feature map size in default box
                 ]
-
+                conf_layers = [
+                    *Conv2dRelu.one(conf_postfix, source.out_channels, dbox_num * (class_nums), kernel_size=(3, 3), padding=1, batch_norm=False),
+                    # ('flatten{}'.format(postfix), Flatten()) # if flatten is included, can't calculate feature map size in default box
+                ]
             else:
-                layers = [
-                    ('l2norm{}'.format(postfix), L2Normalization(source.out_channels, gamma=20)),
-                    *Conv2dRelu.one(postfix, source.out_channels, dbox_num * (class_nums + 4), kernel_size=(3, 3), padding=1, batch_norm=False),
+                loc_layers = [
+                    ('l2norm{}'.format(loc_postfix), L2Normalization(source.out_channels, gamma=20)),
+                    *Conv2dRelu.one(loc_postfix, source.out_channels, dbox_num * (4), kernel_size=(3, 3), padding=1, batch_norm=False),
                     #('flatten{}'.format(postfix), Flatten())
                 ]
+                conf_layers = [
+                    ('l2norm{}'.format(conf_postfix), L2Normalization(source.out_channels, gamma=20)),
+                    *Conv2dRelu.one(conf_postfix, source.out_channels, dbox_num * (class_nums), kernel_size=(3, 3), padding=1, batch_norm=False),
+                    # ('flatten{}'.format(postfix), Flatten())
+                ]
+            loc_postfix = loc_postfix[1:]
+            conf_postfix = conf_postfix[1:]
 
-            postfix = postfix[1:]
-            classifier_layers += [(postfix, nn.Sequential(OrderedDict(layers)))]
+            localization_layers += [(loc_postfix, nn.Sequential(OrderedDict(loc_layers)))]
+            confidence_layers += [(conf_postfix, nn.Sequential(OrderedDict(conf_layers)))]
 
-        self.classifier_layers = nn.ModuleDict(OrderedDict(classifier_layers))
-        self.defaultBox = DefaultBox(img_shape=self.input_shape).build(self.feature_layers, _classifier_source_names, self.classifier_layers, _dbox_nums)
+        self.localization_layers = nn.ModuleDict(OrderedDict(localization_layers))
+        self.confidence_layers = nn.ModuleDict(OrderedDict(confidence_layers))
+
+        self.defaultBox = DefaultBox(img_shape=self.input_shape).build(self.feature_layers, _classifier_source_names, self.localization_layers, _dbox_nums)
         self.predictor = Predictor(self.defaultBox.total_dboxes_nums, self.class_nums)
         self.inferenceBox = None
-    """
+        """
         self._init_weights()
 
     def _init_weights(self):
@@ -104,7 +117,7 @@ class SSD300(nn.Module):
             elif isinstance(module, nn.Linear):
                 nn.init.normal_(module.weight, 0, 1e-2)
                 nn.init.constant_(module.bias, 0)
-    """
+        """
     def forward(self, x):
         """
         :param x: Tensor, input Tensor whose shape is (batch, c, h, w)
@@ -112,18 +125,21 @@ class SSD300(nn.Module):
             predicts: localization and confidence Tensor, shape is (batch, total_dbox_num, 4+class_nums)
             dboxes: Tensor, default boxes Tensor whose shape is (total_dbox_nums, 4)`
         """
-        features = []
+        locs, confs = [], []
         i = 1
         for name, layer in self.feature_layers.items():
             x = layer(x)
             # get features by feature map convolution
             if name in _classifier_source_names:
-                feature = self.classifier_layers['feature{0}'.format(i)](x)
-                features.append(feature)
+                loc = self.localization_layers['loc{0}'.format(i)](x)
+                locs.append(loc)
+
+                conf = self.confidence_layers['conf{0}'.format(i)](x)
+                confs.append(conf)
                 #print(features[-1].shape)
                 i += 1
 
-        predicts = self.predictor(features)
+        predicts = self.predictor(locs, confs)
 
         return predicts, self.defaultBox.dboxes.clone()
 

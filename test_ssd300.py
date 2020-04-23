@@ -21,6 +21,6 @@ if __name__ == '__main__':
                               shuffle=False,
                               collate_fn=utils.batch_ind_fn)
 
-    model = SSD300(class_nums=test_dataset.class_nums, batch_norm=False).build_test('./weights/ssd300-voc2007_i-60000.pth')
+    model = SSD300(class_nums=test_dataset.class_nums, batch_norm=False).build_test('./weights/ssd300-voc2007-separated_i-60000.pth')
     images = [test_dataset[i][0] for i in range(50)]
     model.inference(images)

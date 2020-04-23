@@ -22,7 +22,7 @@ _voc_classes = ['aeroplane', 'bicycle', 'bird', 'boat',
     'cow', 'diningtable', 'dog', 'horse',
     'motorbike', 'person', 'pottedplant',
     'sheep', 'sofa', 'train', 'tvmonitor']
-#target transformに変更
+#target transformに変更?
 class VOCBaseDataset(Dataset):
     class_nums = len(_voc_classes) + 1
     def __init__(self, voc_dir, focus, transform=None):

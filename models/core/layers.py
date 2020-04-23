@@ -39,24 +39,31 @@ class Predictor(nn.Module):
         self._total_dbox_nums = total_dbox_nums
         self._class_nums = class_nums
 
-    def forward(self, features):
+    def forward(self, locs, confs):
         """
-        :param features: list of Tensor, Tensor's shape is (batch, c, h, w)
+        :param locs: list of Tensor, Tensor's shape is (batch, c, h, w)
+        :param confs: list of Tensor, Tensor's shape is (batch, c, h, w)
         :return: predicts: localization and confidence Tensor, shape is (batch, total_dbox_num * (4+class_nums))
         """
-        predicts = []
-        for feature in features:
-            batch_num = feature.shape[0]
+        locs_reshaped, confs_reshaped = [], []
+        for loc, conf in zip(locs, confs):
+            batch_num = loc.shape[0]
 
-            # original feature => (batch, (class_num + 4)*dboxnum, fmap_h, fmap_w)
-            # converted into (batch, fmap_h, fmap_w, (class_num + 4)*dboxnum)
+            # original feature => (batch, (class_num or 4)*dboxnum, fmap_h, fmap_w)
+            # converted into (batch, fmap_h, fmap_w, (class_num or 4)*dboxnum)
             # contiguous means aligning stored 1-d memory for given array
-            feature = feature.permute((0, 2, 3, 1)).contiguous()
-            predicts += [feature.reshape((batch_num, -1))]
+            loc = loc.permute((0, 2, 3, 1)).contiguous()
+            locs_reshaped += [loc.reshape((batch_num, -1))]
 
-        predicts = torch.cat(predicts, dim=1).reshape((-1, self._total_dbox_nums, self._class_nums + 4))
+            conf = conf.permute((0, 2, 3, 1)).contiguous()
+            confs_reshaped += [conf.reshape((batch_num, -1))]
 
-        return predicts
+
+
+        locs_reshaped = torch.cat(locs_reshaped, dim=1).reshape((-1, self._total_dbox_nums, 4))
+        confs_reshaped = torch.cat(confs_reshaped, dim=1).reshape((-1, self._total_dbox_nums, self._class_nums))
+
+        return torch.cat((locs_reshaped, confs_reshaped), dim=2)
 
 class Conv2dRelu:
     batch_norm = True

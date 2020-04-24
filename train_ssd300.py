@@ -32,6 +32,6 @@ if __name__ == '__main__':
 
     optimizer = SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
     #iter_sheduler = SSDIterMultiStepLR(optimizer, milestones=(10, 20, 30), gamma=0.1, verbose=True)
-    iter_sheduler = SSDIterStepLR(optimizer, step_size=20, gamma=0.1, verbose=True)
+    iter_sheduler = SSDIterStepLR(optimizer, step_size=500, gamma=0.1, verbose=True)
     trainer = Trainer(model, loss_func=SSDLoss(), optimizer=optimizer, iter_sheduler=iter_sheduler, log_interval=10, gpu=True)
-    trainer.train(70, train_loader, checkpoints_interval=10)
+    trainer.train(500, train_loader, checkpoints_interval=100)

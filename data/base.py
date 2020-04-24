@@ -67,6 +67,8 @@ class VOCBaseDataset(Dataset):
                 linds = linds.unsqueeze(1)
             gt = torch.cat((bboxes, linds), dim=1)
         else:
+            if linds.ndim == 1:
+                linds = linds[:, np.newaxis]
             gt = np.concatenate((bboxes, linds), axis=1)
 
         # transpose img's tensor (h, w, c) to pytorch's format (c, h, w). (num, c, h, w)

@@ -21,6 +21,8 @@ class DefaultBox(object):
         self._clip = clip
 
         self.dboxes = None
+        self.fmap_sizes = []
+        self.boxes_num = []
 
     @property
     def scale_min(self):
@@ -89,6 +91,7 @@ class DefaultBox(object):
         for k, feature, dbox_num in zip(range(1, m + 1), features, dbox_nums):
             _, _, fmap_h, fmap_w = feature.shape
             assert fmap_w == fmap_h, "feature map's height and width must be same"
+            self.fmap_sizes += [[fmap_h, fmap_w]]
             # f_k = np.sqrt(fmap_w * fmap_h)
 
             # get cx and cy
@@ -118,7 +121,7 @@ class DefaultBox(object):
                 box_w, box_h = np.broadcast_to([box_w], (total_dbox_num, 1)), np.broadcast_to([box_h],
                                                                                               (total_dbox_num, 1))
                 dboxes += [np.concatenate((cx, cy, box_w, box_h), axis=1)]
-
+            self.boxes_num += [total_dbox_num]
             # ret_features += [self.flatten(feature)]
 
         dboxes = np.concatenate(dboxes, axis=0)

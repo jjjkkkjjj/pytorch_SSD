@@ -52,6 +52,8 @@ class LocalizationLoss(nn.Module):
         self.smoothL1Loss = nn.SmoothL1Loss(reduction='sum')
 
     def forward(self, pos_indicator, predicts, gts):
+        batch_num = predicts.shape[0]
+
         loss = self.smoothL1Loss(predicts[pos_indicator], gts[pos_indicator])
 
         return loss
@@ -62,13 +64,34 @@ class ConfidenceLoss(nn.Module):
         :param neg_factor: int, the ratio(1(pos): neg_factor) to learn pos and neg for hard negative mining
         """
         super().__init__()
-        self.logsoftmax = nn.LogSoftmax(dim=1)
+        self.logsoftmax = LogSoftmax(dim=-1)
         self._neg_factor = neg_factor
 
     def forward(self, pos_indicator, predicts, gts):
         # calculate all loss
         #loss = -self.logsoftmax(predicts) # shape = (-1, class_num)
+        batch_num = predicts.shape[0]
 
+        loss = -self.logsoftmax(predicts, gts)
+
+        # positive loss
+        pos_loss = loss[pos_indicator]
+        pos_num = pos_loss.shape[0]
+
+        # negative loss
+        neg_indicator = torch.logical_not(pos_indicator)
+
+        neg_loss = loss[neg_indicator]
+        neg_num = neg_loss.shape[0]
+
+        # hard negative mining
+        neg_num = min(pos_num * self._neg_factor, neg_num)
+        neg_loss = neg_loss[gts[neg_indicator].bool()]
+        _, indices = neg_loss.sort(descending=True)
+
+        return (pos_loss.sum() + neg_loss[indices[:neg_num]].sum()) / batch_num
+
+        """
         # get positive loss
         pos_loss = -self.logsoftmax(predicts[pos_indicator]) # shape = (-1, class_num)
         pos_num = pos_loss.shape[0]
@@ -96,3 +119,17 @@ class ConfidenceLoss(nn.Module):
 
         # -1 means last index. last index represents background which is negative
         return pos_loss[pos_mask].sum() + neg_loss[neg_topk_mask, -1].sum()
+        """
+
+class LogSoftmax(nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.dim = dim
+
+    def forward(self, predicts, targets):
+        exp = torch.exp(predicts)
+        softmax = exp / torch.sum(exp, dim=self.dim, keepdim=True)
+
+        softmax = softmax.clamp(min=1e-15, max=1-1e-15)
+
+        return targets * torch.log(softmax)

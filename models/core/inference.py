@@ -2,7 +2,7 @@ from .boxes import iou, center2minmax, minmax2center, pred_loc_converter
 
 from torch.nn import Module
 from torch.nn import functional as F
-import torch
+import torch, cv2
 import numpy as np
 
 class InferenceBox(Module):
@@ -103,6 +103,83 @@ def non_maximum_suppression(conf, loc, iou_threshold=0.45, topk=200):
 
     return inferred_boxes
 
+def tensor2cvimg(img):
+    return img.numpy().transpose((1, 2, 0)).astype(np.uint8)
 
-def toVisualizeImg():
-    pass
+def toVisualizeRectangleimg(img, locs, thickness=2, rgb=(255, 0, 0), verbose=False):
+    # convert (c, h, w) to (h, w, c)
+    img = tensor2cvimg(img)
+
+    # print(locs)
+    locs_mm = center2minmax(locs).numpy()
+
+    h, w, c = img.shape
+    locs_mm[:, ::2] *= w
+    locs_mm[:, 1::2] *= h
+    locs_mm = np.clip(locs_mm, 0, w).astype(np.int)
+
+    if verbose:
+        print(locs_mm)
+    for bnum in range(locs_mm.shape[0]):
+        topleft = locs_mm[bnum, :2]
+        bottomright = locs_mm[bnum, 2:]
+
+        if verbose:
+            print(tuple(topleft), tuple(bottomright))
+
+        cv2.rectangle(img, tuple(topleft), tuple(bottomright), rgb, thickness)
+
+    return img
+
+def toVisualizeImg(img, locs, conf_indices, classes, verbose=False):
+    # convert (c, h, w) to (h, w, c)
+    img = tensor2cvimg(img)
+
+    class_num = len(classes)
+
+    # color
+    angles = np.linspace(0, 255, class_num).astype(np.uint8)
+    # print(angles.shape)
+    hsvs = np.array((0, 255, 255))[np.newaxis, np.newaxis, :].astype(np.uint8)
+    hsvs = np.repeat(hsvs, class_num, axis=0)
+    # print(hsvs.shape)
+    hsvs[:, 0, 0] += angles
+    rgbs = cv2.cvtColor(hsvs, cv2.COLOR_HSV2RGB).astype(np.int)
+
+    # Line thickness of 2 px
+    thickness = 1
+
+
+
+    h, w, c = img.shape
+    # print(locs)
+    locs_mm = center2minmax(locs).numpy()
+    locs_mm[:, ::2] *= w
+    locs_mm[:, 1::2] *= h
+    locs_mm = locs_mm
+    locs_mm = np.clip(locs_mm, 0, w).astype(np.int)
+
+    if verbose:
+        print(locs_mm)
+    for bnum in range(locs_mm.shape[0]):
+        topleft = locs_mm[bnum, :2]
+        bottomright = locs_mm[bnum, 2:]
+
+        if verbose:
+            print(tuple(topleft), tuple(bottomright))
+
+        index = conf_indices[bnum]
+
+        labelSize = cv2.getTextSize(classes[index], cv2.FONT_HERSHEY_COMPLEX, 0.5, 2)
+        _x2 = topleft[0] + labelSize[0][0]
+        _y2 = topleft[1] - int(labelSize[0][1])
+
+        topleft = tuple(topleft)
+        bottomright = tuple(bottomright)
+        rgb = tuple(rgbs[index, 0].tolist())
+
+        cv2.rectangle(img, topleft, (_x2, _y2), rgb, cv2.FILLED)
+        cv2.putText(img, classes[index], topleft, cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 1)
+        cv2.rectangle(img, topleft, bottomright, rgb, thickness)
+
+    return img

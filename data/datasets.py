@@ -1,9 +1,8 @@
 from torch.utils.data import Dataset
-from .base import VOCBaseDataset
+from .base import VOCBaseDataset, VOC_classes, VOC_class_nums
 
 from .utils import _thisdir
 
-VOC_class_nums = VOCBaseDataset.class_nums
 
 class VOC2007Dataset(Dataset):
     class_nums = VOCBaseDataset.class_nums

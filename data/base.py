@@ -6,7 +6,6 @@ from xml.etree import ElementTree as ET
 
 from .utils import _get_xml_et_value
 
-
 """
 ref > https://pytorch.org/tutorials/beginner/data_loading_tutorial.html
 
@@ -16,15 +15,16 @@ __len__ so that len(dataset) returns the size of the dataset.
 __getitem__ to support the indexing such that dataset[i] can be used to get ith sample
 
 """
-
-_voc_classes = ['aeroplane', 'bicycle', 'bird', 'boat',
+VOC_classes = ['aeroplane', 'bicycle', 'bird', 'boat',
     'bottle', 'bus', 'car', 'cat', 'chair',
     'cow', 'diningtable', 'dog', 'horse',
     'motorbike', 'person', 'pottedplant',
     'sheep', 'sofa', 'train', 'tvmonitor']
+VOC_class_nums = len(VOC_classes)
+
 #target transformに変更?
 class VOCBaseDataset(Dataset):
-    class_nums = len(_voc_classes) + 1
+    class_nums = len(VOC_classes) + 1
     def __init__(self, voc_dir, focus, transform=None):
         self.transform = transform
         self._voc_dir = voc_dir
@@ -111,7 +111,7 @@ class VOCBaseDataset(Dataset):
 
         root = ET.parse(self._annopaths[index]).getroot()
         for obj in root.iter('object'):
-            linds.append(_voc_classes.index(_get_xml_et_value(obj, 'name')))
+            linds.append(VOC_classes.index(_get_xml_et_value(obj, 'name')))
 
             bndbox = obj.find('bndbox')
 

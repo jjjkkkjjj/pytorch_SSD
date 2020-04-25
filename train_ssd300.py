@@ -29,9 +29,14 @@ if __name__ == '__main__':
     model = SSD300(class_nums=train_dataset.class_nums, batch_norm=False)
     model.load_vgg_weights()
     print(model)
-
+    """
+    imgs, gts = utils.batch_ind_fn((train_dataset[2000],))
+    p, d = model(imgs)
+    from models.core.boxes import matching_strategy
+    matching_strategy(gts, d, batch_num=1)
+    """
     optimizer = SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
     #iter_sheduler = SSDIterMultiStepLR(optimizer, milestones=(10, 20, 30), gamma=0.1, verbose=True)
-    iter_sheduler = SSDIterStepLR(optimizer, step_size=500, gamma=0.1, verbose=True)
+    iter_sheduler = SSDIterStepLR(optimizer, step_size=10000, gamma=0.1, verbose=True)
     trainer = Trainer(model, loss_func=SSDLoss(), optimizer=optimizer, iter_sheduler=iter_sheduler, log_interval=10, gpu=True)
-    trainer.train(500, train_loader, checkpoints_interval=100)
+    trainer.train(10000, train_loader, checkpoints_interval=100)

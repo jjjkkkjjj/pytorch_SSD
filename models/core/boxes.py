@@ -156,7 +156,6 @@ def matching_strategy(gts, dboxes, **kwargs):
 
     dboxes_num = dboxes.shape[0]
     # minus 'box number per image' and 'localization=(cx, cy, w, h)'
-    # this class_num is without back ground
     class_num = gts.shape[1] - 1 - 4
 
     # convert centered coordinated to minmax coordinates
@@ -173,11 +172,32 @@ def matching_strategy(gts, dboxes, **kwargs):
 
         # overlaps' shape = (object num, default box num)
         overlaps = iou(center2minmax(gt_loc_per_img), dboxes_mm)
+        """
+        best_overlap_per_object, best_dbox_ind_per_object = overlaps.max(dim=1)
+        best_overlap_per_dbox, best_object_ind_per_dbox = overlaps.max(dim=0)
+        for object_ind, dbox_ind in enumerate(best_dbox_ind_per_object):
+            best_object_ind_per_dbox[dbox_ind] = object_ind
+        best_overlap_per_dbox.index_fill_(0, best_dbox_ind_per_object, 999)
 
+        pos_ind = best_overlap_per_dbox > threshold
+        pos_indicator[b] = pos_ind
+        gt_loc[b], gt_conf[b] = gt_loc_per_img[best_object_ind_per_dbox], gt_conf_per_img[best_object_ind_per_dbox]
+
+        neg_ind = torch.logical_not(pos_ind)
+        gt_conf[b, neg_ind] = 0
+        gt_conf[b, neg_ind, -1] = 1
+        """
         # get maximum overlap value for each default box
-        overlaps, object_indices = overlaps.max(dim=0)
+        overlaps_per_dbox, object_indices = overlaps.max(dim=0)
         object_indices = object_indices.long() # for fancy indexing
-        pos_ind = overlaps > threshold
+
+        # get maximum overlap values for each object
+        overlaps_per_object, dbox_indices = overlaps.max(dim=1)
+        for obj_ind, dbox_ind in enumerate(dbox_indices):
+            object_indices[dbox_ind] = obj_ind
+        overlaps_per_dbox.index_fill_(0, dbox_indices, threshold + 1)# ensure N!=0
+
+        pos_ind = overlaps_per_dbox > threshold
 
         # assign boxes
         gt_loc[b], gt_conf[b] = gt_loc_per_img[object_indices], gt_conf_per_img[object_indices]
@@ -189,6 +209,8 @@ def matching_strategy(gts, dboxes, **kwargs):
         gt_conf[b, neg_ind, -1] = 1
 
         index += box_num
+
+
 
     return pos_indicator.bool(), gt_loc, gt_conf
 

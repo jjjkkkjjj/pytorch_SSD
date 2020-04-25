@@ -136,6 +136,8 @@ def toVisualizeImg(img, locs, conf_indices, classes, verbose=False):
     img = tensor2cvimg(img)
 
     class_num = len(classes)
+    box_num = locs.shape[0]
+    assert box_num == conf_indices.shape[0], 'must be same boxes number'
 
     # color
     angles = np.linspace(0, 255, class_num).astype(np.uint8)
@@ -161,14 +163,14 @@ def toVisualizeImg(img, locs, conf_indices, classes, verbose=False):
 
     if verbose:
         print(locs_mm)
-    for bnum in range(locs_mm.shape[0]):
+    for bnum in range(box_num):# box num
         topleft = locs_mm[bnum, :2]
         bottomright = locs_mm[bnum, 2:]
 
         if verbose:
             print(tuple(topleft), tuple(bottomright))
 
-        index = conf_indices[bnum]
+        index = int(conf_indices[bnum].item())
 
         labelSize = cv2.getTextSize(classes[index], cv2.FONT_HERSHEY_COMPLEX, 0.5, 2)
         _x2 = topleft[0] + labelSize[0][0]

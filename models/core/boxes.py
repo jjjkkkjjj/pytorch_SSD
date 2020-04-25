@@ -155,7 +155,9 @@ def matching_strategy(gts, dboxes, **kwargs):
     gt_boxnum_per_image = gts[:, 0]
 
     dboxes_num = dboxes.shape[0]
-    class_num = gts.shape[1] - 1 - 4 # minus 'box number per image' and 'localization=(cx, cy, w, h)'
+    # minus 'box number per image' and 'localization=(cx, cy, w, h)'
+    # this class_num is without back ground
+    class_num = gts.shape[1] - 1 - 4
 
     # convert centered coordinated to minmax coordinates
     dboxes_mm = center2minmax(dboxes)

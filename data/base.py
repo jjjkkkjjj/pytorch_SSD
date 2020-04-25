@@ -20,7 +20,7 @@ VOC_classes = ['aeroplane', 'bicycle', 'bird', 'boat',
     'cow', 'diningtable', 'dog', 'horse',
     'motorbike', 'person', 'pottedplant',
     'sheep', 'sofa', 'train', 'tvmonitor']
-VOC_class_nums = len(VOC_classes)
+VOC_class_nums = len(VOC_classes) + 1
 
 #target transformに変更?
 class VOCBaseDataset(Dataset):

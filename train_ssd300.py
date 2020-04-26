@@ -15,6 +15,7 @@ if __name__ == '__main__':
          transforms.Normalize(),
          transforms.Centered(),
          transforms.Resize((300, 300)), # if resizing first, can't be normalized
+         transforms.SubtractMean((123.68, 116.779, 103.939)),
          transforms.OneHot(class_nums=datasets.VOC_class_nums),
          transforms.ToTensor()]
     )

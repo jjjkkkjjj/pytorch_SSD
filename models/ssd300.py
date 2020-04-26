@@ -93,8 +93,8 @@ class SSD300(nn.Module):
             loc_postfix = loc_postfix[1:]
             conf_postfix = conf_postfix[1:]
 
-            #loc_layers = loc_layers[:-1]
-            #conf_layers = conf_layers[:-1]
+            loc_layers = loc_layers[:-1]
+            conf_layers = conf_layers[:-1]
 
             localization_layers += [(loc_postfix, nn.Sequential(OrderedDict(loc_layers)))]
             confidence_layers += [(conf_postfix, nn.Sequential(OrderedDict(conf_layers)))]

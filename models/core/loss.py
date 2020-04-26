@@ -38,7 +38,7 @@ class SSDLoss(nn.Module):
         # Confidence loss
         conf_loss = self.conf_loss(pos_indicator, pred_conf, gt_conf)
 
-        return (conf_loss + self.alpha * loc_loss).mean(dim=0)
+        return conf_loss + self.alpha * loc_loss
 
 
 class LocalizationLoss(nn.Module):
@@ -47,19 +47,32 @@ class LocalizationLoss(nn.Module):
         self.smoothL1Loss = nn.SmoothL1Loss(reduction='none')
 
     def forward(self, pos_indicator, predicts, gts):
+        N = pos_indicator.sum()
+
+        total_loss = self.smoothL1Loss(predicts, gts).sum(dim=-1) # shape = (batch num, dboxes num)
+        loss = total_loss.masked_select(pos_indicator)
+
+        return loss.sum() / N
+        """
         batch_num = predicts.shape[0]
-        loss = torch.zeros((batch_num))
+
+        total_loss = self.smoothL1Loss(predicts, gts).sum(dim=-1) # shape = (batch num, dboxes num)
+
+        loss = torch.zeros((batch_num), device=predicts.device, requires_grad=False)
         for b in range(batch_num):
             mask = pos_indicator[b] # shape = (dboxes num)
             N = mask.sum()
 
             if N.item() == 0:
-                #logging.warning('cannot assign object boxes!!!')
+                logging.warning('cannot assign object boxes!!!')
                 loss[b] = torch.zeros((1))
-            else:
-                loss[b] = self.smoothL1Loss(predicts[b, mask], gts[b, mask]).sum() / N
+                continue
+
+            pn_loss = total_loss[b]
+            loss[b] = pn_loss.masked_select(mask).sum() / N
 
         return loss
+        """
 
 class ConfidenceLoss(nn.Module):
     def __init__(self, neg_factor=3):
@@ -67,37 +80,63 @@ class ConfidenceLoss(nn.Module):
         :param neg_factor: int, the ratio(1(pos): neg_factor) to learn pos and neg for hard negative mining
         """
         super().__init__()
-        self.logsoftmax = LogSoftmax(dim=-1)
+        self.logsoftmax = nn.LogSoftmax(dim=-1)
         self._neg_factor = neg_factor
 
     def forward(self, pos_indicator, predicts, gts):
+
+        loss, _ = (-gts * self.logsoftmax(predicts)).max(dim=-1) # shape = (batch num, dboxes num)
+
+        N = pos_indicator.sum()
+        neg_indicator = torch.logical_not(pos_indicator)
+
+        pos_loss = loss.masked_select(pos_indicator)
+        neg_loss = loss.masked_select(neg_indicator)
+
+        neg_num = neg_loss.shape[0]
+        neg_num = min(neg_num, self._neg_factor * N)
+
+        _, indices = torch.sort(neg_loss)
+        _, rank = torch.sort(indices)
+        neg_mask = rank < neg_num
+        neg_loss = neg_loss.masked_select(neg_mask)
+
+        return (pos_loss.sum() + neg_loss.sum()) / N
+
+
+        """
         batch_num = predicts.shape[0]
-        loss = torch.zeros((batch_num))
+
+        total_loss, _  = (-gts * self.logsoftmax(predicts)).max(dim=-1) # shape = (batch num, dboxes num)
+
+        loss = torch.zeros((batch_num), device=predicts.device, requires_grad=False)
         for b in range(batch_num):
             p_mask = pos_indicator[b]  # shape = (dboxes num)
             n_mask = torch.logical_not(p_mask)
             N = p_mask.sum()
 
             if N.item() == 0:
-                #logging.warning('cannot assign object boxes!!!')
+                logging.warning('cannot assign object boxes!!!')
                 loss[b] = torch.zeros((1))
                 continue
 
-            pn_loss = -self.logsoftmax(predicts[b], gts[b]).sum(dim=1)
-            p_loss = pn_loss[p_mask]
-            n_loss = pn_loss[n_mask]
+            pn_loss = total_loss[b]
+            p_loss = pn_loss.masked_select(p_mask)
+            n_loss = pn_loss.masked_select(n_mask)
 
             # hard negative mining
             # -1 means negative which represents background
             neg_num = n_loss.shape[0]
             _, neg_indices = n_loss.sort(descending=True)
+            _, rank = neg_indices.sort()
+
             neg_num = min(neg_num, N * self._neg_factor)
-            neg_indices = neg_indices[:neg_num]
+            neg_mask = rank < neg_num
 
-            loss[b] = (p_loss.sum() + n_loss[neg_indices].sum()) / N
-
+            loss[b] = (p_loss.sum() + n_loss.masked_select(neg_mask).sum()) / N
 
         return loss
+        """
         """
         # get positive loss
         pos_loss = -self.logsoftmax(predicts[pos_indicator], gts[pos_indicator]) # shape = (-1, class_num)
@@ -134,9 +173,9 @@ class LogSoftmax(nn.Module):
         self.dim = dim
 
     def forward(self, predicts, targets):
-        exp = torch.exp(predicts)
+        exp = torch.exp(predicts.clamp(min=1e-15, max=1-1e-15))
         softmax = exp / torch.sum(exp, dim=self.dim, keepdim=True)
 
-        softmax = softmax.clamp(min=1e-15, max=1-1e-15)
+        #softmax = softmax.clamp(min=1e-15, max=1-1e-15)
 
         return targets * torch.log(softmax)

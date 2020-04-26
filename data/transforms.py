@@ -45,6 +45,14 @@ class Resize(object):
     def __call__(self, img, bboxes, labels, flags):
         return cv2.resize(img, self._size), bboxes, labels, flags
 
+class SubtractMean(object):
+    def __init__(self, bgr_mean=(123.68, 116.779, 103.939)):
+        self.mean = np.array(bgr_mean, dtype=np.float32)
+
+    def __call__(self, img, bboxes, labels, flags):
+        img = img.astype(np.float32) - self.mean
+        return img, bboxes, labels, flags
+
 class Normalize(object):
 
     def __call__(self, img, bboxes, labels, flags):

@@ -107,6 +107,14 @@ def tensor2cvimg(img):
     return img.numpy().transpose((1, 2, 0)).astype(np.uint8)
 
 def toVisualizeRectangleimg(img, locs, thickness=2, rgb=(255, 0, 0), verbose=False):
+    """
+    :param img: Tensor, shape = ()
+    :param locs: Tensor, centered coordinates, shape = ()
+    :param thickness: int
+    :param rgb: tuple of int, order is rgb and range is 0~255
+    :param verbose: bool, whether to show information
+    :return:
+    """
     # convert (c, h, w) to (h, w, c)
     img = tensor2cvimg(img)
 

@@ -1,6 +1,6 @@
 from torch import nn
 import torch
-import logging
+import logging, math
 import torch.nn.functional as F
 
 from .boxes import *
@@ -44,15 +44,15 @@ class SSDLoss(nn.Module):
 class LocalizationLoss(nn.Module):
     def __init__(self):
         super().__init__()
-        self.smoothL1Loss = nn.SmoothL1Loss(reduction='none')
 
     def forward(self, pos_indicator, predicts, gts):
         N = pos_indicator.sum()
 
-        total_loss = self.smoothL1Loss(predicts, gts).sum(dim=-1) # shape = (batch num, dboxes num)
-        loss = total_loss.masked_select(pos_indicator)
+        predicts = predicts[pos_indicator]
+        gts = gts[pos_indicator]
+        loss = F.smooth_l1_loss(predicts, gts, reduction='sum') # shape = (batch num, dboxes num)
 
-        return loss.sum() / N
+        return loss / N
         """
         batch_num = predicts.shape[0]
 
@@ -80,28 +80,31 @@ class ConfidenceLoss(nn.Module):
         :param neg_factor: int, the ratio(1(pos): neg_factor) to learn pos and neg for hard negative mining
         """
         super().__init__()
-        self.logsoftmax = nn.LogSoftmax(dim=-1)
         self._neg_factor = neg_factor
 
     def forward(self, pos_indicator, predicts, gts):
 
-        loss, _ = (-gts * self.logsoftmax(predicts)).max(dim=-1) # shape = (batch num, dboxes num)
+        background_loss = -F.log_softmax(predicts, dim=-1)[:, :, -1] # shape = (batch num, dboxes num)
+        background_loss[pos_indicator] = -math.inf
 
         N = pos_indicator.sum()
-        neg_indicator = torch.logical_not(pos_indicator)
 
-        pos_loss = loss.masked_select(pos_indicator)
-        neg_loss = loss.masked_select(neg_indicator)
-
-        neg_num = neg_loss.shape[0]
+        neg_num = predicts.shape[0] - N
         neg_num = min(neg_num, self._neg_factor * N)
 
-        _, indices = torch.sort(neg_loss)
+        _, indices = torch.sort(background_loss)
         _, rank = torch.sort(indices)
-        neg_mask = rank < neg_num
-        neg_loss = neg_loss.masked_select(neg_mask)
+        neg_indicator = rank < neg_num
+        mask = pos_indicator | neg_indicator
 
-        return (pos_loss.sum() + neg_loss.sum()) / N
+        labels = gts.argmax(dim=-1)
+
+        predicts = predicts[mask]
+        labels = labels[mask]
+
+        loss = F.cross_entropy(predicts, labels, reduction='sum')
+
+        return loss / N
 
 
         """

@@ -162,7 +162,7 @@ class _LogManager(object):
         iter_template = '\rTraining... Epoch: {}, Iter: {},\t [{}/{}\t ({:.0f}%)]\tLoss: {:.6f}'
 
         sys.stdout.write(iter_template.format(
-            epoch, iteration, iteration * batch_num, data_num,
+            epoch, self.total_iteration, iteration * batch_num, data_num,
                               100. * iteration / iter_per_epoch, lossval))
         sys.stdout.flush()
 

@@ -178,6 +178,7 @@ class _LogManager(object):
         if self.total_iteration % self.log_interval == 0 or self.total_iteration == 1:
             if self.live_graph:
                 self.live_graph.redraw(epoch, self.total_iteration, self.train_losses_iteration, self.train_losses)
+                #print('')
             else:
                 print('')
                 #iter_template = 'Training... Epoch: {}, Iter: {},\tLoss: {:.6f}'

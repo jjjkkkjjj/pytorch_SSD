@@ -38,7 +38,7 @@ class SSDLoss(nn.Module):
         # Confidence loss
         conf_loss = self.conf_loss(pos_indicator, pred_conf, gt_conf)
 
-        return conf_loss + self.alpha * loc_loss
+        return conf_loss, loc_loss
 
 
 class LocalizationLoss(nn.Module):
@@ -46,7 +46,7 @@ class LocalizationLoss(nn.Module):
         super().__init__()
 
     def forward(self, pos_indicator, predicts, gts):
-        N = pos_indicator.sum()
+        N = pos_indicator.float().sum()
 
         predicts = predicts[pos_indicator]
         gts = gts[pos_indicator]

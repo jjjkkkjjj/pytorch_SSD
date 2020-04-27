@@ -79,7 +79,8 @@ class Trainer(object):
                 if self.gpu:
                     dboxes = dboxes.cuda()
 
-                loss = self.loss_func(predicts, targets, dboxes=dboxes)
+                confloss, locloss = self.loss_func(predicts, targets, dboxes=dboxes)
+                loss = confloss + self.loss_func.alpha * locloss
                 loss.backward()  # calculate gradient for value with requires_grad=True, shortly back propagation
                 # print(self.model.feature_layers.conv1_1.weight.grad)
 
@@ -88,9 +89,8 @@ class Trainer(object):
                     self.scheduler.step()
 
                 # update log
-                log_manager.update_log(self.model, epoch, _iteration + 1, batch_num=len(images),
-                                       data_num=len(train_loader.dataset),
-                                       iter_per_epoch=len(train_loader), lossval=loss.item())
+                log_manager.update_log(self.model, epoch, _iteration + 1, batch_num=len(images), data_num=len(train_loader.dataset),
+                                       iter_per_epoch=len(train_loader), loclossval=locloss.item(), conflossval=confloss.item())
 
                 if log_manager.isFinish:
                     break
@@ -149,6 +149,8 @@ class _LogManager(object):
         self.live_graph = live_graph
 
         self.train_losses = []
+        self.train_loc_losses = []
+        self.train_conf_losses = []
         self.train_losses_iteration = []
         self.total_iteration = 0
 
@@ -157,27 +159,32 @@ class _LogManager(object):
         return self.total_iteration == self.max_iterations
 
     def update_log(self, model, epoch, iteration, batch_num,
-                   data_num, iter_per_epoch, lossval):
-        #template = 'Epoch {}, Loss: {:.5f}, Accuracy: {:.5f}, Test Loss: {:.5f}, Test Accuracy: {:.5f}, elapsed_time {:.5f}'
-        iter_template = '\rTraining... Epoch: {}, Iter: {},\t [{}/{}\t ({:.0f}%)]\tLoss: {:.6f}'
-
-        sys.stdout.write(iter_template.format(
-            epoch, self.total_iteration, iteration * batch_num, data_num,
-                              100. * iteration / iter_per_epoch, lossval))
-        sys.stdout.flush()
+                   data_num, iter_per_epoch, loclossval, conflossval):
 
         self.total_iteration += 1
         self.train_losses_iteration += [self.total_iteration]
-        self.train_losses += [lossval]
+        self.train_loc_losses += [loclossval]
+        self.train_conf_losses += [conflossval]
+        self.train_losses += [loclossval + conflossval]
 
         self._update_log_iteration(epoch)
         self._save_checkpoints_model(iteration, model)
+
+        # template = 'Epoch {}, Loss: {:.5f}, Accuracy: {:.5f}, Test Loss: {:.5f}, Test Accuracy: {:.5f}, elapsed_time {:.5f}'
+        iter_template = '\rTraining... Epoch: {}, Iter: {},\t [{}/{}\t ({:.0f}%)]\tLoss: {:.6f}, Loc Loss: {:.6f}, Conf Loss: {:.6f}'
+
+        sys.stdout.write(iter_template.format(
+            epoch, self.total_iteration, iteration * batch_num, data_num,
+                                         100. * iteration / iter_per_epoch, loclossval + conflossval, loclossval,
+            conflossval))
+        sys.stdout.flush()
 
     def _update_log_iteration(self, epoch):
 
         if self.total_iteration % self.log_interval == 0 or self.total_iteration == 1:
             if self.live_graph:
-                self.live_graph.redraw(epoch, self.total_iteration, self.train_losses_iteration, self.train_losses)
+                self.live_graph.redraw(epoch, self.total_iteration, self.train_losses_iteration,
+                                       self.train_losses, loc=self.train_loc_losses, conf=self.train_conf_losses)
                 #print('')
             else:
                 print('')
@@ -221,20 +228,23 @@ class _LogManager(object):
     def save_model(self, model):
         if self.savemodelname:
             # model
-            savepath = os.path.join(self.savedir, self.savemodelname + '_i-{}.pth'.format(self.epochs))
+            savepath = os.path.join(self.savedir, self.savemodelname + '_i-{}.pth'.format(self.total_iteration))
             torch.save(model.state_dict(), savepath)
             print('Saved model to {}'.format(savepath))
 
 
             # graph
-            savepath = os.path.join(self.savedir, self.savemodelname + '_learning-curve_i-{}.png'.format(self.epochs))
+            savepath = os.path.join(self.savedir, self.savemodelname + '_learning-curve_i-{}.png'.format(self.total_iteration))
             # initialise the graph and settings
             fig = plt.figure()
             ax = fig.add_subplot(111)
             plt.ion()
             ax.clear()
             # plot
-            ax.plot(self.train_losses_iteration, self.train_losses)
+            ax.plot(self.train_losses_iteration, self.train_losses, label='total')
+            ax.plot(self.train_losses_iteration, self.train_loc_losses, label='loc')
+            ax.plot(self.train_losses_iteration, self.train_conf_losses, label='conf')
+            ax.legend()
             ax.set_title('Learning curve')
             ax.set_xlabel('iteration')
             ax.set_ylabel('loss')

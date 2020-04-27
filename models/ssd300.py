@@ -16,7 +16,7 @@ _dbox_nums = [4, 6, 6, 6, 4, 4]
 # classifier's source layers
 # consists of conv4_3, conv7, conv8_2, conv9_2, conv10_2, conv11_2
 _classifier_source_names = ['conv4_3', 'conv7', 'conv8_2', 'conv9_2', 'conv10_2', 'conv11_2']
-_l2norm_names = ['conv4_3']
+_l2norm_source_names = ['conv4_3']
 class SSD300(nn.Module):
     def __init__(self, class_nums, input_shape=(300, 300, 3), batch_norm=False):
         """
@@ -65,31 +65,28 @@ class SSD300(nn.Module):
 
         self.feature_layers = nn.ModuleDict(OrderedDict(vgg_layers + extra_layers))
 
+        # l2norm
+        l2norm_layers = []
+        for i, sourcename in enumerate(_l2norm_source_names):
+            l2norm_layers += [('l2norm_{}'.format(i + 1), L2Normalization(self.feature_layers[sourcename].out_channels, gamma=20))]
+        self.l2norm_layers = nn.ModuleDict(OrderedDict(l2norm_layers))
+
+        # loc and conf
         localization_layers, confidence_layers = [], []
         for i, (source_name, dbox_num) in enumerate(zip(_classifier_source_names, _dbox_nums)):
             source = self.feature_layers[source_name]
             loc_postfix = '_loc{}'.format(i + 1)
             conf_postfix = '_conf{}'.format(i + 1)
-            if not source_name in _l2norm_names:
-                loc_layers = [
-                    *Conv2dRelu.one(loc_postfix, source.out_channels, dbox_num * (4), kernel_size=(3, 3), padding=1, batch_norm=False),
-                    #('flatten{}'.format(postfix), Flatten()) # if flatten is included, can't calculate feature map size in default box
+
+            loc_layers = [
+                *Conv2dRelu.one(loc_postfix, source.out_channels, dbox_num * (4), kernel_size=(3, 3), padding=1,
+                                batch_norm=False),
                 ]
-                conf_layers = [
-                    *Conv2dRelu.one(conf_postfix, source.out_channels, dbox_num * (class_nums), kernel_size=(3, 3), padding=1, batch_norm=False),
-                    # ('flatten{}'.format(postfix), Flatten()) # if flatten is included, can't calculate feature map size in default box
+            conf_layers = [
+                *Conv2dRelu.one(conf_postfix, source.out_channels, dbox_num * (class_nums), kernel_size=(3, 3),
+                                padding=1, batch_norm=False),
                 ]
-            else:
-                loc_layers = [
-                    ('l2norm{}'.format(loc_postfix), L2Normalization(source.out_channels, gamma=20)),
-                    *Conv2dRelu.one(loc_postfix, source.out_channels, dbox_num * (4), kernel_size=(3, 3), padding=1, batch_norm=False),
-                    #('flatten{}'.format(postfix), Flatten())
-                ]
-                conf_layers = [
-                    ('l2norm{}'.format(conf_postfix), L2Normalization(source.out_channels, gamma=20)),
-                    *Conv2dRelu.one(conf_postfix, source.out_channels, dbox_num * (class_nums), kernel_size=(3, 3), padding=1, batch_norm=False),
-                    # ('flatten{}'.format(postfix), Flatten())
-                ]
+
             loc_postfix = loc_postfix[1:]
             conf_postfix = conf_postfix[1:]
 
@@ -129,18 +126,23 @@ class SSD300(nn.Module):
             dboxes: Tensor, default boxes Tensor whose shape is (total_dbox_nums, 4)`
         """
         locs, confs = [], []
-        i = 1
+
+        feature_i, l2norm_i = 1, 1
         for name, layer in self.feature_layers.items():
             x = layer(x)
+            # l2norm
+            if name in _l2norm_source_names:
+                x = self.l2norm_layers['l2norm_{}'.format(l2norm_i)](x)
+
             # get features by feature map convolution
             if name in _classifier_source_names:
-                loc = self.localization_layers['loc{0}'.format(i)](x)
+                loc = self.localization_layers['loc{0}'.format(feature_i)](x)
                 locs.append(loc)
 
-                conf = self.confidence_layers['conf{0}'.format(i)](x)
+                conf = self.confidence_layers['conf{0}'.format(feature_i)](x)
                 confs.append(conf)
                 #print(features[-1].shape)
-                i += 1
+                feature_i += 1
 
         predicts = self.predictor(locs, confs)
 

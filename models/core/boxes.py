@@ -188,10 +188,12 @@ def matching_strategy(gts, dboxes, **kwargs):
         gt_conf[b, neg_ind, -1] = 1
         """
         # get maximum overlap value for each default box
+        # shape = (batch num, dboxes num)
         overlaps_per_dbox, object_indices = overlaps.max(dim=0)
-        object_indices = object_indices.long() # for fancy indexing
+        #object_indices = object_indices.long() # for fancy indexing
 
         # get maximum overlap values for each object
+        # shape = (batch num, object num)
         overlaps_per_object, dbox_indices = overlaps.max(dim=1)
         for obj_ind, dbox_ind in enumerate(dbox_indices):
             object_indices[dbox_ind] = obj_ind

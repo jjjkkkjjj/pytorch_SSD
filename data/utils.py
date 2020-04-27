@@ -22,7 +22,7 @@ def batch_ind_fn(batch):
         ret_gts.append(ret_gt)
 
     imgs = torch.stack(imgs)
-    ret_gts = torch.Tensor(np.concatenate(ret_gts))
+    ret_gts = torch.from_numpy(np.concatenate(ret_gts).astype(np.float32))
 
     return imgs, ret_gts
 

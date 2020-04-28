@@ -56,7 +56,7 @@ class Trainer(object):
 
         self.model.train()
 
-        log_manager = _LogManager(savemodelname, checkpoints_iteration_interval, self.log_interval, max_checkpoints, epochs,
+        log_manager = _LogManager(savemodelname, checkpoints_iteration_interval, self.log_interval, max_checkpoints, iterations,
                                   live_graph)
 
         for epoch in range(1, epochs + 1):
@@ -96,7 +96,7 @@ class Trainer(object):
                     break
 
 
-        print('Training finished')
+        print('\nTraining finished')
         log_manager.save_model(self.model)
 
 
@@ -133,7 +133,7 @@ class _LogManager(object):
                 raise ValueError('live_graph must inherit LivaGraph')
 
             # initialise the graph and settings
-            live_graph.initialize()
+            live_graph.initialize(loss_names=['total', 'loc', 'conf'])
 
         # log's info
         self.savedir = savedir
@@ -148,6 +148,7 @@ class _LogManager(object):
         self.max_iterations = iterations
         self.live_graph = live_graph
 
+        # stored property
         self.train_losses = []
         self.train_loc_losses = []
         self.train_conf_losses = []
@@ -161,14 +162,14 @@ class _LogManager(object):
     def update_log(self, model, epoch, iteration, batch_num,
                    data_num, iter_per_epoch, loclossval, conflossval):
 
+        if self.isFinish:
+            return
+
         self.total_iteration += 1
         self.train_losses_iteration += [self.total_iteration]
         self.train_loc_losses += [loclossval]
         self.train_conf_losses += [conflossval]
         self.train_losses += [loclossval + conflossval]
-
-        self._update_log_iteration(epoch)
-        self._save_checkpoints_model(iteration, model)
 
         # template = 'Epoch {}, Loss: {:.5f}, Accuracy: {:.5f}, Test Loss: {:.5f}, Test Accuracy: {:.5f}, elapsed_time {:.5f}'
         iter_template = '\rTraining... Epoch: {}, Iter: {},\t [{}/{}\t ({:.0f}%)]\tLoss: {:.6f}, Loc Loss: {:.6f}, Conf Loss: {:.6f}'
@@ -179,12 +180,15 @@ class _LogManager(object):
             conflossval))
         sys.stdout.flush()
 
+        self._update_log_iteration(epoch)
+        self._save_checkpoints_model(iteration, model)
+
     def _update_log_iteration(self, epoch):
 
         if self.total_iteration % self.log_interval == 0 or self.total_iteration == 1:
             if self.live_graph:
                 self.live_graph.redraw(epoch, self.total_iteration, self.train_losses_iteration,
-                                       self.train_losses, loc=self.train_loc_losses, conf=self.train_conf_losses)
+                                       total=self.train_losses, loc=self.train_loc_losses, conf=self.train_conf_losses)
                 #print('')
             else:
                 print('')

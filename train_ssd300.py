@@ -39,9 +39,9 @@ if __name__ == '__main__':
     from models.core.boxes import matching_strategy
     matching_strategy(gts, d, batch_num=1)
     """
-    optimizer = SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
+    #optimizer = SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
     optimizer = Adam(model.parameters(), lr=1e-3, weight_decay=5e-4)
     #iter_sheduler = SSDIterMultiStepLR(optimizer, milestones=(10, 20, 30), gamma=0.1, verbose=True)
     iter_sheduler = SSDIterStepLR(optimizer, step_size=10000, gamma=0.1, verbose=True)
     trainer = Trainer(model, loss_func=SSDLoss(), optimizer=optimizer, scheduler=iter_sheduler, log_interval=10, gpu=True)
-    trainer.train(10000, train_loader, checkpoints_iteration_interval=100, live_graph=None)
+    trainer.train(1000, train_loader, checkpoints_iteration_interval=100, live_graph=None)

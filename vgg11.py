@@ -15,6 +15,6 @@ if __name__ == '__main__':
 
     loss_func = functional.nll_loss
     optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-    trainer = Trainer(model, loss_func, optimizer)
+    trainer = TrainLogger(model, loss_func, optimizer)
     trainer.train(100, train_loader)
     """

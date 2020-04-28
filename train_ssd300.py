@@ -3,13 +3,11 @@ from data import transforms, utils
 
 from models.ssd300 import SSD300
 from models.core.loss import SSDLoss
-from models.core.train import *
-from models.core.graph import LiveGraph
+from models.train import *
 from models.core.scheduler import *
 
 #from torchvision import transforms > not import!!
 from torch.utils.data import DataLoader
-from torch.optim.sgd import SGD
 from torch.optim.adam import Adam
 
 if __name__ == '__main__':
@@ -43,5 +41,9 @@ if __name__ == '__main__':
     optimizer = Adam(model.parameters(), lr=1e-3, weight_decay=5e-4)
     #iter_sheduler = SSDIterMultiStepLR(optimizer, milestones=(10, 20, 30), gamma=0.1, verbose=True)
     iter_sheduler = SSDIterStepLR(optimizer, step_size=10000, gamma=0.1, verbose=True)
-    trainer = Trainer(model, loss_func=SSDLoss(), optimizer=optimizer, scheduler=iter_sheduler, log_interval=10, gpu=True)
-    trainer.train(1000, train_loader, checkpoints_iteration_interval=100, live_graph=None)
+
+    save_manager = SaveManager(modelname='ssd300', interval=10, max_checkpoints=3)
+    log_manager = LogManager(interval=10, save_manager=save_manager, live_graph=None)
+    trainer = TrainLogger(model, loss_func=SSDLoss(), optimizer=optimizer, scheduler=iter_sheduler, log_manager=log_manager, gpu=True)
+
+    trainer.train(70, train_loader)

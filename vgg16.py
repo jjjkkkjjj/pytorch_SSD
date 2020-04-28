@@ -1,5 +1,5 @@
 from models.vgg import VGG16
-#from models.train.trainer import Trainer
+#from models.train.trainer import TrainLogger
 #from data.mnist import data
 from torchvision import models
 
@@ -12,5 +12,5 @@ if __name__ == '__main__':
     """
     train_images, train_labels, test_images, test_labels = data()
 
-    a = Trainer(model=model, loss_func=)
+    a = TrainLogger(model=model, loss_func=)
     """

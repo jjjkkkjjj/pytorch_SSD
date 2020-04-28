@@ -24,7 +24,7 @@ class LiveGraph(object):
             self.losses[name] = []
         self.main_name = loss_names[0]
 
-    def redraw(self, epoch, iteration, losses_iteration, **losses):
+    def update(self, epoch, iteration, losses_iteration, **losses):
         if self.fig is None or self.ax is None:
             raise NotImplementedError('Call initialize first!')
 

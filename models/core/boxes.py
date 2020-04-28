@@ -1,7 +1,8 @@
 import numpy as np
 import torch
+from torch import nn
 
-class DefaultBox(object):
+class DefaultBox(nn.Module):
     def __init__(self, img_shape=(300, 300, 3), scale_range=(0.2, 0.9), aspect_ratios=(1, 2, 3), clip=True):
         """
         :param img_shape: tuple, must be 3d
@@ -121,7 +122,7 @@ class DefaultBox(object):
                 box_w, box_h = np.broadcast_to([box_w], (total_dbox_num, 1)), np.broadcast_to([box_h],
                                                                                               (total_dbox_num, 1))
                 dboxes += [np.concatenate((cx, cy, box_w, box_h), axis=1)]
-            self.boxes_num += [total_dbox_num]
+            self.boxes_num += [total_dbox_num * dbox_num]
             # ret_features += [self.flatten(feature)]
 
         dboxes = np.concatenate(dboxes, axis=0)
@@ -162,7 +163,7 @@ def matching_strategy(gts, dboxes, **kwargs):
     dboxes_mm = center2minmax(dboxes)
 
     # create returned empty Tensor
-    pos_indicator, gt_loc, gt_conf = torch.empty((batch_num, dboxes_num), device=device), torch.empty((batch_num, dboxes_num, 4), device=device), torch.empty((batch_num, dboxes_num, class_num), device=device)
+    pos_indicator, gt_loc, gt_conf = torch.empty((batch_num, dboxes_num), device=device, dtype=torch.bool), torch.empty((batch_num, dboxes_num, 4), device=device), torch.empty((batch_num, dboxes_num, class_num), device=device)
 
     # matching for each batch
     index = 0
@@ -303,50 +304,65 @@ tensor([[1., 2., 3., 4.],
 def tensor_tile(a, repeat, dim=0):
     return torch.cat([a]*repeat, dim=dim)
 
+class Encoder(nn.Module):
+    def __init__(self, norm_means=(0, 0, 0, 0), norm_stds=(0.1, 0.1, 0.2, 0.2)):
+        super().__init__()
+        # shape = (1, 1, 4=(cx, cy, w, h)) or (1, 1, 1)
+        self.norm_means = torch.tensor(norm_means, requires_grad=False).unsqueeze(0).unsqueeze(0)
+        self.norm_stds = torch.tensor(norm_stds, requires_grad=False).unsqueeze(0).unsqueeze(0)
 
-def gt_loc_converter(gt_boxes, default_boxes):
-    """
-    :param gt_boxes: Tensor, shape = (batch, default boxes num, 4)
-    :param default_boxes: Tensor, shape = (default boxes num, 4)
-    Note that 4 means (cx, cy, w, h)
-    :return:
-        gt_boxes: Tensor, calculate ground truth value considering default boxes. The formula is below;
-                  gt_cx = (gt_cx - dbox_cx)/dbox_w, gt_cy = (gt_cy - dbox_cy)/dbox_h,
-                  gt_w = log(gt_w / dbox_w), gt_h = log(gt_h / dbox_h)
-                  shape = (batch, default boxes num, 4)
-    """
-    assert gt_boxes.shape[1:] == default_boxes.shape, "gt_boxes and default_boxes must be same shape"
 
-    gt_cx = (gt_boxes[:, :, 0] - default_boxes[:, 0])/default_boxes[:, 2]
-    gt_cy = (gt_boxes[:, :, 1] - default_boxes[:, 1])/default_boxes[:, 3]
-    gt_w = torch.log(gt_boxes[:, :, 2] / default_boxes[:, 2])
-    gt_h = torch.log(gt_boxes[:, :, 3] / default_boxes[:, 3])
+    def forward(self, gt_boxes, default_boxes):
+        """
+        :param gt_boxes: Tensor, shape = (batch, default boxes num, 4)
+        :param default_boxes: Tensor, shape = (default boxes num, 4)
+        Note that 4 means (cx, cy, w, h)
+        :return:
+            encoded_boxes: Tensor, calculate ground truth value considering default boxes. The formula is below;
+                           gt_cx = (gt_cx - dbox_cx)/dbox_w, gt_cy = (gt_cy - dbox_cy)/dbox_h,
+                           gt_w = log(gt_w / dbox_w), gt_h = log(gt_h / dbox_h)
+                           shape = (batch, default boxes num, 4)
+        """
+        assert gt_boxes.shape[1:] == default_boxes.shape, "gt_boxes and default_boxes must be same shape"
 
-    return torch.cat((gt_cx.unsqueeze(2),
-                      gt_cy.unsqueeze(2),
-                      gt_w.unsqueeze(2),
-                      gt_h.unsqueeze(2)), dim=2)
+        gt_cx = (gt_boxes[:, :, 0] - default_boxes[:, 0]) / default_boxes[:, 2]
+        gt_cy = (gt_boxes[:, :, 1] - default_boxes[:, 1]) / default_boxes[:, 3]
+        gt_w = torch.log(gt_boxes[:, :, 2] / default_boxes[:, 2])
+        gt_h = torch.log(gt_boxes[:, :, 3] / default_boxes[:, 3])
 
-def pred_loc_converter(pred_boxes, default_boxes):
-    """
-    Opposite to above procession
-    :param pred_boxes: Tensor, shape = (batch, default boxes num, 4)
-    :param default_boxes: Tensor, shape = (default boxes num, 4)
-    Note that 4 means (cx, cy, w, h)
-    :return:
-        inf_boxes: Tensor, calculate ground truth value considering default boxes. The formula is below;
-                  inf_cx = pred_cx * dbox_w + dbox_cx, inf_cy = pred_cy * dbox_h + dbox_cy,
-                  inf_w = exp(pred_w) * dbox_w, inf_h = exp(pred_h) * dbox_h
-                  shape = (batch, default boxes num, 4)
-    """
-    assert pred_boxes.shape[1:] == default_boxes.shape, "pred_boxes and default_boxes must be same shape"
+        encoded_boxes = torch.cat((gt_cx.unsqueeze(2),
+                          gt_cy.unsqueeze(2),
+                          gt_w.unsqueeze(2),
+                          gt_h.unsqueeze(2)), dim=2)
 
-    inf_cx = pred_boxes[:, :, 0] * default_boxes[:, 2] + default_boxes[:, 0]
-    inf_cy = pred_boxes[:, :, 1] * default_boxes[:, 3] + default_boxes[:, 1]
-    inf_w = torch.exp(pred_boxes[:, :, 2]) * default_boxes[:, 2]
-    inf_h = torch.exp(pred_boxes[:, :, 3]) * default_boxes[:, 3]
+        # normalization
+        return (encoded_boxes - self.norm_means.to(gt_boxes.device)) / self.norm_stds.to(gt_boxes.device)
 
-    return torch.cat((inf_cx.unsqueeze(2),
-                      inf_cy.unsqueeze(2),
-                      inf_w.unsqueeze(2),
-                      inf_h.unsqueeze(2)), dim=2)
+
+class Decoder(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, pred_boxes, default_boxes):
+        """
+        Opposite to above procession
+        :param pred_boxes: Tensor, shape = (batch, default boxes num, 4)
+        :param default_boxes: Tensor, shape = (default boxes num, 4)
+        Note that 4 means (cx, cy, w, h)
+        :return:
+            inf_boxes: Tensor, calculate ground truth value considering default boxes. The formula is below;
+                      inf_cx = pred_cx * dbox_w + dbox_cx, inf_cy = pred_cy * dbox_h + dbox_cy,
+                      inf_w = exp(pred_w) * dbox_w, inf_h = exp(pred_h) * dbox_h
+                      shape = (batch, default boxes num, 4)
+        """
+        assert pred_boxes.shape[1:] == default_boxes.shape, "pred_boxes and default_boxes must be same shape"
+
+        inf_cx = pred_boxes[:, :, 0] * default_boxes[:, 2] + default_boxes[:, 0]
+        inf_cy = pred_boxes[:, :, 1] * default_boxes[:, 3] + default_boxes[:, 1]
+        inf_w = torch.exp(pred_boxes[:, :, 2]) * default_boxes[:, 2]
+        inf_h = torch.exp(pred_boxes[:, :, 3]) * default_boxes[:, 3]
+
+        return torch.cat((inf_cx.unsqueeze(2),
+                          inf_cy.unsqueeze(2),
+                          inf_w.unsqueeze(2),
+                          inf_h.unsqueeze(2)), dim=2)

@@ -6,14 +6,14 @@ import torch.nn.functional as F
 from .boxes import *
 
 class SSDLoss(nn.Module):
-    def __init__(self, alpha=1, matching_func=None, loc_loss=None, conf_loss=None):
+    def __init__(self, alpha=1, matching_func=None, loc_loss=None, conf_loss=None, encoder=None):
         super().__init__()
 
         self.alpha = alpha
         self.matching_strategy = matching_strategy if matching_func is None else matching_func
         self.loc_loss = LocalizationLoss() if loc_loss is None else loc_loss
         self.conf_loss = ConfidenceLoss() if conf_loss is None else conf_loss
-
+        self.encoder = Encoder() if encoder is None else encoder
 
     def forward(self, predicts, gts, dboxes):
         """
@@ -30,7 +30,7 @@ class SSDLoss(nn.Module):
         pos_indicator, gt_loc, gt_conf = self.matching_strategy(gts, dboxes, batch_num=predicts.shape[0], threshold=0.5)
 
         # calculate ground truth value considering default boxes
-        gt_loc = gt_loc_converter(gt_loc, dboxes)
+        gt_loc = self.encoder(gt_loc, dboxes)
 
         # Localization loss
         loc_loss = self.loc_loss(pos_indicator, pred_loc, gt_loc)
@@ -83,18 +83,19 @@ class ConfidenceLoss(nn.Module):
         self._neg_factor = neg_factor
 
     def forward(self, pos_indicator, predicts, gts):
-
+        """
         background_loss = -F.log_softmax(predicts, dim=-1)[:, :, -1] # shape = (batch num, dboxes num)
         background_loss[pos_indicator] = -math.inf
 
-        N = pos_indicator.sum()
+        pos_num = pos_indicator.sum(dim=-1) # shape = (dboxes num)
+        N = pos_num.sum()
 
-        neg_num = predicts.shape[0] - N
-        neg_num = min(neg_num, self._neg_factor * N)
+        neg_num = predicts.shape[1] - pos_num
+        neg_num = torch.min(neg_num, self._neg_factor * pos_num) # shape = (dboxes num)
 
-        _, indices = torch.sort(background_loss)
-        _, rank = torch.sort(indices)
-        neg_indicator = rank < neg_num
+        _, indices = torch.sort(background_loss, dim=-1, descending=True)
+        _, rank = torch.sort(indices, dim=-1)
+        neg_indicator = rank < neg_num.unsqueeze(1).expand_as(rank)
         mask = pos_indicator | neg_indicator
 
         labels = gts.argmax(dim=-1)
@@ -105,7 +106,7 @@ class ConfidenceLoss(nn.Module):
         loss = F.cross_entropy(predicts, labels, reduction='sum')
 
         return loss / N
-
+        """
 
         """
         batch_num = predicts.shape[0]
@@ -140,35 +141,25 @@ class ConfidenceLoss(nn.Module):
 
         return loss
         """
-        """
+        neg_indicator = torch.logical_not(pos_indicator)
+
+        # all loss
+        loss = -gts * F.log_softmax(predicts, dim=-1) # shape = (batch num, dboxes num, class_num)
         # get positive loss
-        pos_loss = -self.logsoftmax(predicts[pos_indicator], gts[pos_indicator]) # shape = (-1, class_num)
-        pos_num = pos_loss.shape[0]
-        # get class
-        # print(gts[pos_indicator][0].bool())
-        # tensor([False, False, False, False, False, False, False, False, False, False,
-        #         False, False, False, False, False, False, False, False,  True, False,
-        #         False], device='cuda:0')
-        pos_mask = gts[pos_indicator].bool()
+        pos_loss = loss[pos_indicator].sum()
+        N = pos_indicator.float().sum()
 
         # calculate negative loss
-        neg_indicator = torch.logical_not(pos_indicator)
-        neg_loss = -self.logsoftmax(predicts[neg_indicator], gts[neg_indicator]) # shape = (-1, class_num)
-        neg_num = neg_loss.shape[0]
+        neg_loss = loss[neg_indicator][:, -1]
+        neg_num = neg_indicator.float().sum()
 
         # hard negative mining
-        neg_num = min(pos_num * self._neg_factor, neg_num)
+        neg_num = int(min(N * self._neg_factor, neg_num).item())
         # -1 means last index. last index represents background which is negative
-        _, neg_loss_max_indices = neg_loss[:, -1].sort(dim=0, descending=True)
-        neg_topk_mask = neg_loss_max_indices[:neg_num] # shape = (neg_num)
+        neg_loss, neg_loss_max_indices = neg_loss.topk(neg_num)
 
-        #_, topk_mask = torch.topk(neg_loss, min(pos_num * self._neg_factor, neg_num), dim=1, sorted=False)
-        # error...
-        # RuntimeError: invalid argument 5: k not in range for dimension at /opt/conda/conda-bld/pytorch_1579022034529/work/aten/src/THC/generic/THCTensorTopK.cu:23
+        return (pos_loss.sum() + neg_loss.sum()) / N
 
-        # -1 means last index. last index represents background which is negative
-        return pos_loss[pos_mask].sum() + neg_loss[neg_topk_mask, -1].sum()
-        """
 
 class LogSoftmax(nn.Module):
     def __init__(self, dim):

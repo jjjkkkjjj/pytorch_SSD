@@ -1,4 +1,4 @@
-from .boxes import iou, center2minmax, minmax2center, pred_loc_converter
+from .boxes import iou, center2minmax, minmax2center, Decoder
 
 from torch.nn import Module
 from torch.nn import functional as F
@@ -6,11 +6,13 @@ import torch, cv2
 import numpy as np
 
 class InferenceBox(Module):
-    def __init__(self, conf_threshold=0.01, iou_threshold=0.45, topk=200):
+    def __init__(self, conf_threshold=0.01, iou_threshold=0.45, topk=200, decoder=None):
         super().__init__()
         self.conf_threshold = conf_threshold
         self.iou_threshold = iou_threshold
         self.topk = topk
+
+        self.decoder = Decoder() if decoder is None else decoder
 
         self.softmax = F.softmax
 
@@ -26,7 +28,7 @@ class InferenceBox(Module):
         pred_conf: shape = (batch number, default boxes number, class number)
         """
         pred_loc, pred_conf = predicts[:, :, :4], predicts[:, :, 4:]
-        inf_cand_loc, inf_cand_conf = pred_loc_converter(pred_loc, dboxes), self.softmax(pred_conf, dim=2)
+        inf_cand_loc, inf_cand_conf = self.decoder(pred_loc, dboxes), self.softmax(pred_conf, dim=2)
 
         batch_num = predicts.shape[0]
         class_num = pred_conf.shape[2]

@@ -67,6 +67,9 @@ class VOCBaseDataset(Dataset):
         bboxes[:, 0::2] /= float(width)
         bboxes[:, 1::2] /= float(height)
 
+        if self.augmentation:
+            img, bboxes, linds, flags = self.augmentation(img, bboxes, linds, flags)
+
         if self.transform:
             img, bboxes, linds, flags = self.transform(img, bboxes, linds, flags)
 

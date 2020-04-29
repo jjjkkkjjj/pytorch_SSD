@@ -1,5 +1,5 @@
 from data import datasets
-from data import transforms, utils
+from data import transforms, target_transforms, utils
 
 from ssd.models.ssd300 import SSD300
 from ssd.core.loss import SSDLoss
@@ -12,16 +12,20 @@ from torch.optim.adam import Adam
 
 if __name__ == '__main__':
     transform = transforms.Compose(
-        [transforms.Ignore(difficult=True),
-         transforms.Normalize(),
-         transforms.Centered(),
-         transforms.Resize((300, 300)), # if resizing first, can't be normalized
-         transforms.SubtractMean((123.68, 116.779, 103.939)),
-         transforms.OneHot(class_nums=datasets.VOC_class_nums),
+        [transforms.Normalize(bgr_means=(123.68, 116.779, 103.939), bgr_stds=1),
+         transforms.Resize((300, 300)),
          transforms.ToTensor()]
     )
+    target_transform = target_transforms.Compose(
+        [target_transforms.Ignore(difficult=True),
+         target_transforms.ToCentroids(),
+         target_transforms.OneHot(class_nums=datasets.VOC_class_nums),
+         target_transforms.ToTensor()]
+    )
 
-    train_dataset = datasets.Compose(datasets.VOC_class_nums, datasets=(datasets.VOC2007Dataset, datasets.VOC2012_TrainValDataset), transform=transform)
+
+    train_dataset = datasets.Compose(datasets.VOC_class_nums, datasets=(datasets.VOC2007Dataset, datasets.VOC2012_TrainValDataset),
+                                     transform=transform, target_transform=target_transform)
     #train_dataset = datasets.VOC2007Dataset(transform=transform)
     train_loader = DataLoader(train_dataset,
                               batch_size=32,

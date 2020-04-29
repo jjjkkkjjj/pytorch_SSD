@@ -24,8 +24,11 @@ VOC_class_nums = len(VOC_classes) + 1
 
 class VOCBaseDataset(Dataset):
     class_nums = len(VOC_classes) + 1
-    def __init__(self, voc_dir, focus, transform=None):
+    def __init__(self, voc_dir, focus, transform=None, target_transform=None, augmentation=None):
         self.transform = transform
+        self.target_transform = target_transform
+        self.augmentation = augmentation
+
         self._voc_dir = voc_dir
         self._focus = focus
         layouttxt_path = os.path.join(self._voc_dir, 'ImageSets', 'Main', self._focus + '.txt')
@@ -57,8 +60,18 @@ class VOCBaseDataset(Dataset):
         img = self._get_image(index)
         bboxes, linds, flags = self._get_bbox_lind(index)
 
+        # To Percent mode
+        height, width, channel = img.shape
+        # bbox = [xmin, ymin, xmax, ymax]
+        # [bbox[0] / width, bbox[1] / height, bbox[2] / width, bbox[3] / height]
+        bboxes[:, 0::2] /= float(width)
+        bboxes[:, 1::2] /= float(height)
+
         if self.transform:
             img, bboxes, linds, flags = self.transform(img, bboxes, linds, flags)
+
+        if self.target_transform:
+            bboxes, linds, flags = self.target_transform(bboxes, linds, flags)
 
         # concatenate bboxes and linds
         if isinstance(bboxes, torch.Tensor) and isinstance(linds, torch.Tensor):
@@ -70,11 +83,6 @@ class VOCBaseDataset(Dataset):
                 linds = linds[:, np.newaxis]
             gt = np.concatenate((bboxes, linds), axis=1)
 
-        # transpose img's tensor (h, w, c) to pytorch's format (c, h, w). (num, c, h, w)
-        if isinstance(img, torch.Tensor):
-            img = img.permute((2, 0, 1))
-        else:
-            img = np.transpose(img, (2, 0, 1))
 
         return img, gt
 

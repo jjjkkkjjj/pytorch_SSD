@@ -9,7 +9,7 @@ if __name__ == '__main__':
     transform = transforms.Compose(
         [transforms.Ignore(difficult=True),
          transforms.Normalize(),
-         transforms.Centered(),
+         transforms.ToCentroids(),
          transforms.Resize((300, 300)),  # if resizing first, can't be normalized
          transforms.OneHot(class_nums=datasets.VOC_class_nums),
          transforms.ToTensor()]

@@ -60,7 +60,7 @@ class LogManager(object):
         sys.stdout.flush()
 
         self._update_log_iteration(epoch)
-        saved_path, removed_path = self.save_manager.update_iteration(model, iteration)
+        saved_path, removed_path = self.save_manager.update_iteration(model, self.now_iteration)
 
         if saved_path == '':
             return

@@ -46,10 +46,10 @@ class SaveManager(object):
     def initialize(self, max_iterations):
         self.max_iterations = max_iterations
 
-    def update_iteration(self, model, iteration):
+    def update_iteration(self, model, now_iteration):
         saved_path = ''
         removed_path = ''
-        if iteration % self.interval == 0 and self.modelname and iteration != self.max_iterations:
+        if now_iteration % self.interval == 0 and self.modelname and now_iteration != self.max_iterations:
             filepaths = sorted(
                 glob(os.path.join(self.save_checkpoints_dir,
                                   self.modelname + '_i[-]*_checkpoints{}.pth'.format(self.today))))
@@ -64,7 +64,7 @@ class SaveManager(object):
 
             # save model
             saved_path = os.path.join(self.save_checkpoints_dir,
-                                    self.modelname + '_i-{:07d}_checkpoints{}.pth'.format(iteration, self.today))
+                                      self.modelname + '_i-{:07d}_checkpoints{}.pth'.format(now_iteration, self.today))
             torch.save(model.state_dict(), saved_path)
 
 

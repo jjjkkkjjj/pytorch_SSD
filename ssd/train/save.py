@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from ssd._utils import weights_path
 
 class SaveManager(object):
-    def __init__(self, modelname, interval, max_checkpoints):
+    def __init__(self, modelname, interval, max_checkpoints, plot_yrange=(0, 14)):
         """
         :param modelname: str, saved model name.
         :param interval: int, save for each designated iteration
@@ -38,6 +38,7 @@ class SaveManager(object):
         self.modelname = modelname
         self.today = today
         self.interval = interval
+        self.plot_yrange = plot_yrange
 
         self.max_iterations = -1
         self.max_checkpoints = max_checkpoints
@@ -88,6 +89,9 @@ class SaveManager(object):
         ax.plot(loss_manager.iterations, loss_manager.locs, label='loc')
         ax.plot(loss_manager.iterations, loss_manager.confs, label='conf')
         ax.legend()
+        if self.plot_yrange:
+            ax.axis(ymin=self.plot_yrange[0], ymax=self.plot_yrange[1])
+
         ax.set_title('Learning curve')
         ax.set_xlabel('iteration')
         ax.set_ylabel('loss')

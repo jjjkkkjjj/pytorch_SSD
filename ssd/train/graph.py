@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 
 
 class LiveGraph(object):
-    def __init__(self, yrange=(0, 8)):
+    def __init__(self, yrange=(0, 14)):
         self.yrange = yrange
 
         self.fig = None

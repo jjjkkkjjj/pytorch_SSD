@@ -107,7 +107,7 @@ class VOCBaseDataset(Dataset):
         img = cv2.imread(self._jpgpath(_get_xml_et_value(root, 'filename')))
         # pytorch's image order is rgb
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        return img
+        return img.astype(np.float32)
 
     def _get_bbox_lind(self, index):
         """

@@ -53,123 +53,59 @@ class LocalizationLoss(nn.Module):
         loss = F.smooth_l1_loss(predicts, gts, reduction='sum') # shape = (batch num, dboxes num)
 
         return loss / N
-        """
-        batch_num = predicts.shape[0]
 
-        total_loss = self.smoothL1Loss(predicts, gts).sum(dim=-1) # shape = (batch num, dboxes num)
-
-        loss = torch.zeros((batch_num), device=predicts.device, requires_grad=False)
-        for b in range(batch_num):
-            mask = pos_indicator[b] # shape = (dboxes num)
-            N = mask.sum()
-
-            if N.item() == 0:
-                logging.warning('cannot assign object boxes!!!')
-                loss[b] = torch.zeros((1))
-                continue
-
-            pn_loss = total_loss[b]
-            loss[b] = pn_loss.masked_select(mask).sum() / N
-
-        return loss
-        """
 
 class ConfidenceLoss(nn.Module):
-    def __init__(self, neg_factor=3):
+    def __init__(self, neg_factor=3, hnm_batch=True):
         """
         :param neg_factor: int, the ratio(1(pos): neg_factor) to learn pos and neg for hard negative mining
+        :param hnm_batch: bool, whether to do hard negative mining for each batch
         """
         super().__init__()
         self._neg_factor = neg_factor
+        self.hnm_batch = hnm_batch
 
     def forward(self, pos_indicator, predicts, gts):
-        """
-        background_loss = -F.log_softmax(predicts, dim=-1)[:, :, -1] # shape = (batch num, dboxes num)
-        background_loss[pos_indicator] = -math.inf
+        if self.hnm_batch:
+            background_loss = -F.log_softmax(predicts, dim=-1)[:, :, -1] # shape = (batch num, dboxes num)
+            background_loss[pos_indicator] = -math.inf
 
-        pos_num = pos_indicator.sum(dim=-1) # shape = (dboxes num)
-        N = pos_num.sum()
+            pos_num = pos_indicator.sum(dim=-1) # shape = (dboxes num)
+            N = pos_num.sum()
 
-        neg_num = predicts.shape[1] - pos_num
-        neg_num = torch.min(neg_num, self._neg_factor * pos_num) # shape = (dboxes num)
+            neg_num = predicts.shape[1] - pos_num
+            neg_num = torch.min(neg_num, self._neg_factor * pos_num) # shape = (dboxes num)
 
-        _, indices = torch.sort(background_loss, dim=-1, descending=True)
-        _, rank = torch.sort(indices, dim=-1)
-        neg_indicator = rank < neg_num.unsqueeze(1).expand_as(rank)
-        mask = pos_indicator | neg_indicator
+            _, indices = torch.sort(background_loss, dim=-1, descending=True)
+            _, rank = torch.sort(indices, dim=-1)
+            neg_indicator = rank < neg_num.unsqueeze(1).expand_as(rank)
+            mask = pos_indicator | neg_indicator
 
-        labels = gts.argmax(dim=-1)
+            labels = gts.argmax(dim=-1)
 
-        predicts = predicts[mask]
-        labels = labels[mask]
+            predicts = predicts[mask]
+            labels = labels[mask]
 
-        loss = F.cross_entropy(predicts, labels, reduction='sum')
+            loss = F.cross_entropy(predicts, labels, reduction='sum')
 
-        return loss / N
-        """
+            return loss / N
 
-        """
-        batch_num = predicts.shape[0]
+        else:
+            neg_indicator = torch.logical_not(pos_indicator)
 
-        total_loss, _  = (-gts * self.logsoftmax(predicts)).max(dim=-1) # shape = (batch num, dboxes num)
+            # all loss
+            loss = -gts * F.log_softmax(predicts, dim=-1)  # shape = (batch num, dboxes num, class_num)
+            # get positive loss
+            pos_loss = loss[pos_indicator].sum()
+            N = pos_indicator.float().sum()
 
-        loss = torch.zeros((batch_num), device=predicts.device, requires_grad=False)
-        for b in range(batch_num):
-            p_mask = pos_indicator[b]  # shape = (dboxes num)
-            n_mask = torch.logical_not(p_mask)
-            N = p_mask.sum()
-
-            if N.item() == 0:
-                logging.warning('cannot assign object boxes!!!')
-                loss[b] = torch.zeros((1))
-                continue
-
-            pn_loss = total_loss[b]
-            p_loss = pn_loss.masked_select(p_mask)
-            n_loss = pn_loss.masked_select(n_mask)
+            # calculate negative loss
+            neg_loss = loss[neg_indicator][:, -1]
+            neg_num = neg_indicator.float().sum()
 
             # hard negative mining
-            # -1 means negative which represents background
-            neg_num = n_loss.shape[0]
-            _, neg_indices = n_loss.sort(descending=True)
-            _, rank = neg_indices.sort()
+            neg_num = int(min(N * self._neg_factor, neg_num).item())
+            # -1 means last index. last index represents background which is negative
+            neg_loss, neg_loss_max_indices = neg_loss.topk(neg_num)
 
-            neg_num = min(neg_num, N * self._neg_factor)
-            neg_mask = rank < neg_num
-
-            loss[b] = (p_loss.sum() + n_loss.masked_select(neg_mask).sum()) / N
-
-        return loss
-        """
-        neg_indicator = torch.logical_not(pos_indicator)
-
-        # all loss
-        loss = -gts * F.log_softmax(predicts, dim=-1) # shape = (batch num, dboxes num, class_num)
-        # get positive loss
-        pos_loss = loss[pos_indicator].sum()
-        N = pos_indicator.float().sum()
-
-        # calculate negative loss
-        neg_loss = loss[neg_indicator][:, -1]
-        neg_num = neg_indicator.float().sum()
-
-        # hard negative mining
-        neg_num = int(min(N * self._neg_factor, neg_num).item())
-        # -1 means last index. last index represents background which is negative
-        neg_loss, neg_loss_max_indices = neg_loss.topk(neg_num)
-
-        return (pos_loss.sum() + neg_loss.sum()) / N
-
-
-class LogSoftmax(nn.Module):
-    def __init__(self, dim):
-        super().__init__()
-        self.dim = dim
-
-    def forward(self, predicts, targets):
-        exp = torch.exp(predicts.clamp(min=1e-15, max=1-1e-15))
-        softmax = exp / torch.sum(exp, dim=self.dim, keepdim=True)
-
-        #softmax = softmax.clamp(min=1e-15, max=1-1e-15)
-
-        return targets * torch.log(softmax)
+            return (pos_loss.sum() + neg_loss.sum()) / N

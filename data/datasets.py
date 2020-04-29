@@ -1,7 +1,7 @@
 from torch.utils.data import Dataset
 from .base import VOCBaseDataset, VOC_classes, VOC_class_nums
 
-from .utils import _thisdir
+from .utils import DATA_ROOT
 
 
 class VOC2007Dataset(Dataset):
@@ -22,12 +22,12 @@ class VOC2007Dataset(Dataset):
 
 class VOC2007_TrainValDataset(VOCBaseDataset):
     def __init__(self, focus='trainval', transform=None, target_transform=None, augmentation=None):
-        super().__init__(_thisdir + '/voc/voc2007/trainval/VOCdevkit/VOC2007', focus, transform, target_transform)
+        super().__init__(DATA_ROOT + '/voc/voc2007/trainval/VOCdevkit/VOC2007', focus, transform, target_transform)
 
 
 class VOC2007_TestDataset(VOCBaseDataset):
     def __init__(self, focus='test', transform=None, target_transform=None, augmentation=None):
-        super().__init__(_thisdir + '/voc/voc2007/test/VOCdevkit/VOC2007', focus, transform, target_transform)
+        super().__init__(DATA_ROOT + '/voc/voc2007/test/VOCdevkit/VOC2007', focus, transform, target_transform)
 
 
 class VOC2012Dataset(Dataset):
@@ -47,13 +47,13 @@ class VOC2012Dataset(Dataset):
 
 class VOC2012_TrainValDataset(VOCBaseDataset):
     def __init__(self, focus='trainval', transform=None, target_transform=None, augmentation=None):
-        super().__init__(_thisdir + '/voc/voc2012/trainval/VOCdevkit/VOC2012', focus,
+        super().__init__(DATA_ROOT + '/voc/voc2012/trainval/VOCdevkit/VOC2012', focus,
                          transform, target_transform, augmentation)
 
 
 class VOC2012_TestDataset(VOCBaseDataset):
     def __init__(self, focus='test', transform=None, target_transform=None, augmentation=None):
-        super().__init__(_thisdir + '/voc/voc2012/test/VOCdevkit/VOC2012', focus,
+        super().__init__(DATA_ROOT + '/voc/voc2012/test/VOCdevkit/VOC2012', focus,
                          transform, target_transform, augmentation)
 
 

@@ -43,21 +43,21 @@ class _Downloader:
         os.remove(tarpath)
 
 
-from .utils import _thisdir
+from .utils import DATA_ROOT
 
 def voc2007_trainval():
     trainval_downloader = _Downloader('http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtrainval_06-Nov-2007.tar')
-    trainval_downloader.run(_thisdir + '/voc/voc2007', 'trainval')
+    trainval_downloader.run(DATA_ROOT + '/voc/voc2007', 'trainval')
 
 def voc2007_test():
     test_downloader = _Downloader('http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtest_06-Nov-2007.tar')
-    test_downloader.run(_thisdir + '/voc/voc2007', 'test')
+    test_downloader.run(DATA_ROOT + '/voc/voc2007', 'test')
 
 def voc2012_trainval():
     trainval_downloader = _Downloader('http://host.robots.ox.ac.uk/pascal/VOC/voc2012/VOCtrainval_11-May-2012.tar')
-    trainval_downloader.run(_thisdir + '/voc/voc2012', 'trainval')
+    trainval_downloader.run(DATA_ROOT + '/voc/voc2012', 'trainval')
 
 def voc2012_test():
     test_downloader = _Downloader('http://pjreddie.com/media/files/VOC2012test.tar')
-    test_downloader.run(_thisdir + '/voc/voc2012', 'test')
+    test_downloader.run(DATA_ROOT + '/voc/voc2012', 'test')
 

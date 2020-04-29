@@ -62,4 +62,4 @@ def _one_hot_encode(indices, class_num):
     one_hot[np.arange(size), indices] = 1
     return one_hot
 
-_thisdir = os.path.dirname(__file__)
+DATA_ROOT = os.path.join(os.path.expanduser('~'), 'data')

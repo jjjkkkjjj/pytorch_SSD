@@ -6,7 +6,7 @@ class DefaultBox(nn.Module):
     def __init__(self, img_shape=(300, 300, 3), scale_range=(0.2, 0.9), aspect_ratios=(1, 2, 3), clip=True):
         """
         :param img_shape: tuple, must be 3d
-        :param scale_range: tuple of scale range, first element means minimum scale and last is maximum one
+        :param scale_range: tuple of scale range, first element means minimum scale and last is maximum relu_one
         :param aspect_ratios: tuple of aspect ratio, note that all of elements must be greater than 0
         :param clip: bool, whether to force to be 0 to 1
         """
@@ -65,7 +65,7 @@ class DefaultBox(nn.Module):
             x = layer(x)
             # get features by feature map convolution
             if name in classifier_source_names:
-                feature = localization_layers['loc{0}'.format(i)](x)
+                feature = localization_layers['conv_loc_{0}'.format(i)](x)
                 features.append(feature)
                 # print(features[-1].shape)
                 i += 1

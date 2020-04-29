@@ -41,7 +41,7 @@ def _get_recurrsive_paths(basedir, ext):
 
 def _get_xml_et_value(xml_et, key, rettype=str):
     """
-    :param element: Elementtree's element
+    :param xml_et: Elementtree's element
     :param key:
     :param rettype: class, force to convert it from str
     :return: rettype's value
@@ -55,7 +55,7 @@ def _one_hot_encode(indices, class_num):
     """
     :param indices: list of index
     :param class_num:
-    :return: ndarray, one-hot vectors
+    :return: ndarray, relu_one-hot vectors
     """
     size = len(indices)
     one_hot = np.zeros((size, class_num))

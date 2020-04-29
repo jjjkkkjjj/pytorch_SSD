@@ -78,7 +78,7 @@ class Centered(object):
 class Ignore(object):
     def __init__(self, difficult=True, **kwargs):
         """
-        :param difficult: if true, difficult bbox will be ignored, otherwise the one will be kept
+        :param difficult: if true, difficult bbox will be ignored, otherwise the relu_one will be kept
         :param kwargs: if true, specific keyword will be ignored
         """
         self.difficult = difficult
@@ -123,7 +123,7 @@ class OneHot(object):
 
     def __call__(self, img, bboxes, labels, flags):
         if labels.ndim != 1:
-            raise ValueError('labels might have been already one-hotted or be invalid shape')
+            raise ValueError('labels might have been already relu_one-hotted or be invalid shape')
 
         labels = _one_hot_encode(labels.astype(np.int), self._class_nums)
         labels = np.array(labels, dtype=np.float32)

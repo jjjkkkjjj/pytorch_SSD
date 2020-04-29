@@ -65,29 +65,46 @@ class Predictor(nn.Module):
 
         return torch.cat((locs_reshaped, confs_reshaped), dim=2)
 
-class Conv2dRelu:
+class Conv2d:
     batch_norm = True
 
     @staticmethod
-    def block(order, block_num, in_channels, out_channels, **kwargs):
+    def relu_block(order, block_num, in_channels, out_channels, **kwargs):
         """
         :param order: int or str
         :param block_num: int, how many conv layers are sequenced
+            NOTE: layer's name *{order}_{number in relu_block}. * represents layer name.
         :param in_channels: int
         :param out_channels: int
-        :param batch_norm: bool
-        :param kwargs:
+        :param kwargs: key lists are below;
+                Conv2d params:
+                    conv_k_size: int or tuple, conv2d layer's kernel size. Default is (3, 3)
+                    conv_k_stride: int or tuple, conv2d layer's stride. Default is (1, 1)
+                    conv_padding: int or tuple, Zero-padding added to both sides of the input. Default is 1
+
+                BatcnNorm2d param:
+                    batch_norm: bool, whether to add batch normalization layer. Default is Conv2d.batch_norm
+
+                ReLu param:
+                    relu_inplace: bool, whether to inplace in relu
+
+                Maxpool2d params:
+                    pool_k_size: int or tuple, maxpool2d layer's kernel size. Default is (2, 2)
+                    pool_stride: int or tuple, maxpool2d layer's stride. Default is (2, 2)
+                    pool_ceil_mode: bool, whether to ceil in pooling
+                    pool_padding: int or tuple, implicit zero padding to be added on both sides. Default is 0
+
         :return: list of tuple is for OrderedDict
         """
         kernel_size = kwargs.pop('conv_k_size', (3, 3))
         stride = kwargs.pop('conv_stride', (1, 1))
         padding = kwargs.pop('conv_padding', 1)
         relu_inplace = kwargs.pop('relu_inplace', False)# TODO relu inplace problem >>conv4
-        batch_norm = kwargs.pop('batch_norm', Conv2dRelu.batch_norm)
+        batch_norm = kwargs.pop('batch_norm', Conv2d.batch_norm)
 
         in_c = in_channels
         layers = []
-        # append conv block
+        # append conv relu_block
         for bnum in range(block_num):
             postfix = '{0}_{1}'.format(order, bnum + 1)
             if not batch_norm:
@@ -117,18 +134,76 @@ class Conv2dRelu:
         return layers
 
     @staticmethod
-    def one(postfix, *args, relu_inplace=False, **kwargs):
-        batch_norm = kwargs.pop('batch_norm', Conv2dRelu.batch_norm)
+    def block(order, block_num, in_channels, out_channels, **kwargs):
+        """
+        :param order: int or str
+        :param block_num: int, how many conv layers are sequenced
+            NOTE: layer's name *{order}_{number in relu_block}. * represents layer name.
+        :param in_channels: int or tuple
+        :param out_channels: int or tuple
+        :param kwargs:
+                Conv2d params:
+                    conv2d layer's kwargs. See nn.Conv2d
+                BatcnNorm2d param:
+                    batch_norm: bool, whether to add batch normalization layer. Default is Conv2d.batch_norm
+
+        :return:
+        """
+        batch_norm = kwargs.pop('batch_norm', Conv2d.batch_norm)
+
+        if isinstance(out_channels, int):
+            out_channels = tuple(out_channels for _ in range(block_num))
+        if isinstance(in_channels, int):
+            in_channels = [in_channels]
+            for out_c in out_channels[:-1]:
+                in_channels += [out_c]
+            in_channels = tuple(in_channels)
+
+        if not (len(out_channels) == block_num and len(in_channels) == len(out_channels)):
+            raise ValueError('block_nums and length of out_channels and in_channels must be same')
+
+        layers = []
+        # append conv relu_block
+        for bnum, (in_c, out_c) in enumerate(zip(in_channels, out_channels)):
+            postfix = '{0}_{1}'.format(order, bnum + 1)
+            if not batch_norm:
+                layers += [
+                    ('conv{}'.format(postfix),
+                     nn.Conv2d(in_c, out_c, **kwargs))
+                ]
+            else:
+                layers += [
+                    ('conv{}'.format(postfix),
+                     nn.Conv2d(in_c, out_c, **kwargs)),
+                    ('bn{}'.format(postfix), nn.BatchNorm2d(out_c))
+                ]
+
+        return layers
+
+    @staticmethod
+    def relu_one(postfix, in_channels, out_channels, relu_inplace=False, **kwargs):
+        batch_norm = kwargs.pop('batch_norm', Conv2d.batch_norm)
         if not batch_norm:
             return [
-                ('conv{}'.format(postfix), nn.Conv2d(*args, **kwargs)),
+                ('conv{}'.format(postfix), nn.Conv2d(in_channels, out_channels, **kwargs)),
                 ('relu{}'.format(postfix), nn.ReLU(inplace=relu_inplace))
             ]
         else:
-            out_channels = kwargs.pop('out_channels', args[1])
             return [
-                ('conv{}'.format(postfix), nn.Conv2d(*args, **kwargs)),
+                ('conv{}'.format(postfix), nn.Conv2d(in_channels, out_channels, **kwargs)),
                 ('bn{}'.format(postfix), nn.BatchNorm2d(out_channels)),
                 ('relu{}'.format(postfix), nn.ReLU(inplace=relu_inplace))
             ]
 
+    @staticmethod
+    def one(postfix, in_channels, out_channels, **kwargs):
+        batch_norm = kwargs.pop('batch_norm', Conv2d.batch_norm)
+        if not batch_norm:
+            return [
+                ('conv{}'.format(postfix), nn.Conv2d(in_channels, out_channels, **kwargs))
+            ]
+        else:
+            return [
+                ('conv{}'.format(postfix), nn.Conv2d(in_channels, out_channels, **kwargs)),
+                ('bn{}'.format(postfix), nn.BatchNorm2d(out_channels))
+            ]

@@ -31,36 +31,36 @@ class SSD300(nn.Module):
         self.input_shape = input_shape
         self._batch_norm = batch_norm
 
-        Conv2dRelu.batch_norm = self._batch_norm
+        Conv2d.batch_norm = self._batch_norm
         vgg_layers = [
-            *Conv2dRelu.block('1', 2, self.input_channel, 64),
+            *Conv2d.relu_block('1', 2, self.input_channel, 64),
 
-            *Conv2dRelu.block('2', 2, 64, 128),
+            *Conv2d.relu_block('2', 2, 64, 128),
 
-            *Conv2dRelu.block('3', 3, 128, 256, pool_ceil_mode=True),
+            *Conv2d.relu_block('3', 3, 128, 256, pool_ceil_mode=True),
 
-            *Conv2dRelu.block('4', 3, 256, 512),
+            *Conv2d.relu_block('4', 3, 256, 512),
 
-            *Conv2dRelu.block('5', 3, 512, 512, pool_k_size=(3, 3), pool_stride=(1, 1), pool_padding=1), # replace last maxpool layer's kernel and stride
+            *Conv2d.relu_block('5', 3, 512, 512, pool_k_size=(3, 3), pool_stride=(1, 1), pool_padding=1), # replace last maxpool layer's kernel and stride
 
             # Atrous convolution
-            *Conv2dRelu.one('6', 512, 1024, kernel_size=(3, 3), padding=6, dilation=6),
+            *Conv2d.relu_one('6', 512, 1024, kernel_size=(3, 3), padding=6, dilation=6),
 
-            *Conv2dRelu.one('7', 1024, 1024, kernel_size=(1, 1)),
+            *Conv2d.relu_one('7', 1024, 1024, kernel_size=(1, 1)),
         ]
 
         extra_layers = [
-            *Conv2dRelu.one('8_1', 1024, 256, kernel_size=(1, 1)),
-            *Conv2dRelu.one('8_2', 256, 512, kernel_size=(3, 3), stride=(2, 2), padding=1),
+            *Conv2d.relu_one('8_1', 1024, 256, kernel_size=(1, 1)),
+            *Conv2d.relu_one('8_2', 256, 512, kernel_size=(3, 3), stride=(2, 2), padding=1),
 
-            *Conv2dRelu.one('9_1', 512, 128, kernel_size=(1, 1)),
-            *Conv2dRelu.one('9_2', 128, 256, kernel_size=(3, 3), stride=(2, 2), padding=1),
+            *Conv2d.relu_one('9_1', 512, 128, kernel_size=(1, 1)),
+            *Conv2d.relu_one('9_2', 128, 256, kernel_size=(3, 3), stride=(2, 2), padding=1),
 
-            *Conv2dRelu.one('10_1', 256, 128, kernel_size=(1, 1)),
-            *Conv2dRelu.one('10_2', 128, 256, kernel_size=(3, 3)),
+            *Conv2d.relu_one('10_1', 256, 128, kernel_size=(1, 1)),
+            *Conv2d.relu_one('10_2', 128, 256, kernel_size=(3, 3)),
 
-            *Conv2dRelu.one('11_1', 256, 128, kernel_size=(1, 1)),
-            *Conv2dRelu.one('11_2', 128, 256, kernel_size=(3, 3), batch_norm=False), # if batch_norm = True, error is thrown. last layer's channel == 1 may be caused
+            *Conv2d.relu_one('11_1', 256, 128, kernel_size=(1, 1)),
+            *Conv2d.relu_one('11_2', 128, 256, kernel_size=(3, 3), batch_norm=False), # if batch_norm = True, error is thrown. last layer's channel == 1 may be caused
         ]
 
         self.feature_layers = nn.ModuleDict(OrderedDict(vgg_layers + extra_layers))
@@ -72,29 +72,21 @@ class SSD300(nn.Module):
         self.l2norm_layers = nn.ModuleDict(OrderedDict(l2norm_layers))
 
         # loc and conf
-        localization_layers, confidence_layers = [], []
-        for i, (source_name, dbox_num) in enumerate(zip(_classifier_source_names, _dbox_nums)):
-            source = self.feature_layers[source_name]
-            loc_postfix = '_loc{}'.format(i + 1)
-            conf_postfix = '_conf{}'.format(i + 1)
+        in_channels = tuple(self.feature_layers[sourcename].out_channels for sourcename in _classifier_source_names)
 
-            loc_layers = [
-                *Conv2dRelu.one(loc_postfix, source.out_channels, dbox_num * (4), kernel_size=(3, 3), padding=1,
-                                batch_norm=False),
-                ]
-            conf_layers = [
-                *Conv2dRelu.one(conf_postfix, source.out_channels, dbox_num * (class_nums), kernel_size=(3, 3),
-                                padding=1, batch_norm=False),
-                ]
+        # loc
+        out_channels = tuple(dbox_num * 4 for dbox_num in _dbox_nums)
+        localization_layers = [
+            *Conv2d.block('_loc', len(_dbox_nums), in_channels, out_channels, kernel_size=(3, 3), padding=1,
+                                 batch_norm=False)
+        ]
 
-            loc_postfix = loc_postfix[1:]
-            conf_postfix = conf_postfix[1:]
-
-            loc_layers = loc_layers[:-1]
-            conf_layers = conf_layers[:-1]
-
-            localization_layers += [(loc_postfix, nn.Sequential(OrderedDict(loc_layers)))]
-            confidence_layers += [(conf_postfix, nn.Sequential(OrderedDict(conf_layers)))]
+        # conf
+        out_channels = tuple(dbox_num * class_nums for dbox_num in _dbox_nums)
+        confidence_layers = [
+            *Conv2d.block('_conf', len(_dbox_nums), in_channels, out_channels, kernel_size=(3, 3),
+                                 padding=1, batch_norm=False)
+        ]
 
         self.localization_layers = nn.ModuleDict(OrderedDict(localization_layers))
         self.confidence_layers = nn.ModuleDict(OrderedDict(confidence_layers))
@@ -102,10 +94,9 @@ class SSD300(nn.Module):
         self.defaultBox = DefaultBox(img_shape=self.input_shape).build(self.feature_layers, _classifier_source_names, self.localization_layers, _dbox_nums)
         self.predictor = Predictor(self.defaultBox.total_dboxes_nums, self.class_nums)
         self.inferenceBox = None
-        """
-        self._init_weights()
 
-    def _init_weights(self):
+
+    def init_weights(self):
         for module in self.modules():
             if isinstance(module, nn.Conv2d):
                 nn.init.kaiming_normal_(module.weight, mode='fan_out', nonlinearity='relu')
@@ -117,7 +108,7 @@ class SSD300(nn.Module):
             elif isinstance(module, nn.Linear):
                 nn.init.normal_(module.weight, 0, 1e-2)
                 nn.init.constant_(module.bias, 0)
-        """
+
     def forward(self, x):
         """
         :param x: Tensor, input Tensor whose shape is (batch, c, h, w)
@@ -136,10 +127,10 @@ class SSD300(nn.Module):
 
             # get features by feature map convolution
             if name in _classifier_source_names:
-                loc = self.localization_layers['loc{0}'.format(feature_i)](x)
+                loc = self.localization_layers['conv_loc_{0}'.format(feature_i)](x)
                 locs.append(loc)
 
-                conf = self.confidence_layers['conf{0}'.format(feature_i)](x)
+                conf = self.confidence_layers['conv_conf_{0}'.format(feature_i)](x)
                 confs.append(conf)
                 #print(features[-1].shape)
                 feature_i += 1

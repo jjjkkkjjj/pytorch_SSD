@@ -22,7 +22,6 @@ VOC_classes = ['aeroplane', 'bicycle', 'bird', 'boat',
     'sheep', 'sofa', 'train', 'tvmonitor']
 VOC_class_nums = len(VOC_classes) + 1
 
-#target transformに変更?
 class VOCBaseDataset(Dataset):
     class_nums = len(VOC_classes) + 1
     def __init__(self, voc_dir, focus, transform=None):
@@ -51,9 +50,9 @@ class VOCBaseDataset(Dataset):
         :return:
             img : rgb image(Tensor or ndarray)
             gt : Tensor or ndarray of bboxes and labels [box, label]
-            = [xmin, ymin, xmamx, ymax, label index(or one-hotted label)]
+            = [xmin, ymin, xmamx, ymax, label index(or relu_one-hotted label)]
             or
-            = [cx, cy, w, h, label index(or one-hotted label)]
+            = [cx, cy, w, h, label index(or relu_one-hotted label)]
         """
         img = self._get_image(index)
         bboxes, linds, flags = self._get_bbox_lind(index)

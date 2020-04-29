@@ -1,9 +1,9 @@
-from ssd.models.vgg import VGG16
+from ssd.models.vgg import VGGBase16
 #from ssd.train.trainer import TrainLogger
 #from data.mnist import data
 
 if __name__ == '__main__':
-    model = VGG16(3, class_nums=1000)
+    model = VGGBase16(3, class_nums=1000)
     model.load_weights()
     print(model)
 

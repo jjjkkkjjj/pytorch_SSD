@@ -3,7 +3,7 @@ from datetime import date
 import os, logging, re, torch
 import matplotlib.pyplot as plt
 
-from ..core.utils import _weights_path
+from ssd._utils import weights_path
 
 class SaveManager(object):
     def __init__(self, modelname, interval, max_checkpoints):
@@ -15,7 +15,7 @@ class SaveManager(object):
         if max_checkpoints > 15:
             logging.warning('One model size will be about 0.1 GB. Please take care your storage.')
 
-        savedir = _weights_path(__file__, _root_num=2, dirname='weights')
+        savedir = weights_path(__file__, _root_num=2, dirname='weights')
         save_checkpoints_dir = os.path.join(savedir, 'checkpoints')
         today = '{:%Y%m%d}'.format(date.today())
 

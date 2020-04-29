@@ -21,6 +21,7 @@ class DefaultBox(nn.Module):
         self._aspect_ratios = aspect_ratios
         self._clip = clip
 
+        self.dboxes_nums = None
         self.dboxes = None
         self.fmap_sizes = []
         self.boxes_num = []
@@ -70,6 +71,7 @@ class DefaultBox(nn.Module):
                 # print(features[-1].shape)
                 i += 1
 
+        self.dboxes_nums = dbox_nums
         self.dboxes = self.forward(features, dbox_nums)
         self.dboxes.requires_grad_(False)
         return self

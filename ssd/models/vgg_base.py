@@ -6,7 +6,7 @@ from collections import OrderedDict
 
 import os
 
-class VGG(nn.Module):
+class VGGBase(nn.Module):
     """
     :param
         load_model  : path, Bool or None

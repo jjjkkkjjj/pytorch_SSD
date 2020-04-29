@@ -1,8 +1,9 @@
-from ssd.core.layers import *
-from ssd.core.boxes import DefaultBox
-from ssd.core.utils import _weights_path
-from ssd.core.inference import InferenceBox
-from ssd.models.vgg_base import get_model_url
+from ..core.layers import *
+from ..core.boxes import DefaultBox
+from ssd._utils import weights_path
+from ..core.inference import InferenceBox
+from ..models.vgg_base import get_model_url
+from .ssd_base import SSDBase
 
 from torch import nn
 from torchvision.models.utils import load_state_dict_from_url
@@ -17,21 +18,16 @@ _dbox_nums = [4, 6, 6, 6, 4, 4]
 # consists of conv4_3, conv7, conv8_2, conv9_2, conv10_2, conv11_2
 _classifier_source_names = ['conv4_3', 'conv7', 'conv8_2', 'conv9_2', 'conv10_2', 'conv11_2']
 _l2norm_source_names = ['conv4_3']
-class SSD300(nn.Module):
+class SSD300(SSDBase):
     def __init__(self, class_nums, input_shape=(300, 300, 3), batch_norm=False):
         """
         :param class_nums: int, class number
         :param input_shape: tuple, 3d and (height, width, channel)
+        :param batch_norm: bool, whether to add batch normalization layers
         """
-        super().__init__()
+        super().__init__(class_nums, input_shape, batch_norm)
 
-        self.class_nums = class_nums
-        assert len(input_shape) == 3, "input dimension must be 3"
-        assert input_shape[0] == input_shape[1], "input must be square size"
-        self.input_shape = input_shape
-        self._batch_norm = batch_norm
-
-        Conv2d.batch_norm = self._batch_norm
+        Conv2d.batch_norm = self.batch_norm
         vgg_layers = [
             *Conv2d.relu_block('1', 2, self.input_channel, 64),
 
@@ -63,16 +59,16 @@ class SSD300(nn.Module):
             *Conv2d.relu_one('11_2', 128, 256, kernel_size=(3, 3), batch_norm=False), # if batch_norm = True, error is thrown. last layer's channel == 1 may be caused
         ]
 
-        self.feature_layers = nn.ModuleDict(OrderedDict(vgg_layers + extra_layers))
+        feature_layers = nn.ModuleDict(OrderedDict(vgg_layers + extra_layers))
 
         # l2norm
         l2norm_layers = []
         for i, sourcename in enumerate(_l2norm_source_names):
-            l2norm_layers += [('l2norm_{}'.format(i + 1), L2Normalization(self.feature_layers[sourcename].out_channels, gamma=20))]
-        self.l2norm_layers = nn.ModuleDict(OrderedDict(l2norm_layers))
+            l2norm_layers += [('l2norm_{}'.format(i + 1), L2Normalization(feature_layers[sourcename].out_channels, gamma=20))]
+        l2norm_layers = nn.ModuleDict(OrderedDict(l2norm_layers))
 
         # loc and conf
-        in_channels = tuple(self.feature_layers[sourcename].out_channels for sourcename in _classifier_source_names)
+        in_channels = tuple(feature_layers[sourcename].out_channels for sourcename in _classifier_source_names)
 
         # loc
         out_channels = tuple(dbox_num * 4 for dbox_num in _dbox_nums)
@@ -88,34 +84,24 @@ class SSD300(nn.Module):
                                  padding=1, batch_norm=False)
         ]
 
-        self.localization_layers = nn.ModuleDict(OrderedDict(localization_layers))
-        self.confidence_layers = nn.ModuleDict(OrderedDict(confidence_layers))
+        localization_layers = nn.ModuleDict(OrderedDict(localization_layers))
+        confidence_layers = nn.ModuleDict(OrderedDict(confidence_layers))
+        self._build_layers(feature_layers, localization_layers, confidence_layers, l2norm_layers)
+        self._build_defaultBox(_classifier_source_names, _dbox_nums)
 
-        self.defaultBox = DefaultBox(img_shape=self.input_shape).build(self.feature_layers, _classifier_source_names, self.localization_layers, _dbox_nums)
-        self.predictor = Predictor(self.defaultBox.total_dboxes_nums, self.class_nums)
-        self.inferenceBox = None
-
-
-    def init_weights(self):
-        for module in self.modules():
-            if isinstance(module, nn.Conv2d):
-                nn.init.kaiming_normal_(module.weight, mode='fan_out', nonlinearity='relu')
-                if module.bias is not None:
-                    nn.init.constant_(module.bias, 0)
-            elif isinstance(module, nn.BatchNorm2d):
-                nn.init.constant_(module.weight, 1)
-                nn.init.constant_(module.bias, 0)
-            elif isinstance(module, nn.Linear):
-                nn.init.normal_(module.weight, 0, 1e-2)
-                nn.init.constant_(module.bias, 0)
+        inferenceBox = InferenceBox(conf_threshold=0.01, iou_threshold=0.45, topk=200)
+        self._build_inferenceBox(inferenceBox)
 
     def forward(self, x):
         """
+        TODO: check if ssd300 and ssd512's forward function are common
         :param x: Tensor, input Tensor whose shape is (batch, c, h, w)
         :return:
             predicts: localization and confidence Tensor, shape is (batch, total_dbox_num, 4+class_nums)
             dboxes: Tensor, default boxes Tensor whose shape is (total_dbox_nums, 4)`
         """
+        super().forward(x)
+
         locs, confs = [], []
 
         feature_i, l2norm_i = 1, 1
@@ -136,39 +122,11 @@ class SSD300(nn.Module):
                 feature_i += 1
 
         predicts = self.predictor(locs, confs)
-
         return predicts, self.defaultBox.dboxes.clone()
 
-    @property
-    def input_height(self):
-        return self.input_shape[0]
-    @property
-    def input_width(self):
-        return self.input_shape[1]
-    @property
-    def input_channel(self):
-        return self.input_shape[2]
-
-    def build_test(self, path):
-        self.load_weights(path)
-        self.inferenceBox = InferenceBox(conf_threshold=0.01, iou_threshold=0.45, topk=200)
-
-        # set test mode
-        self.eval()
-        # print(self.training)
-        # >> False
-        return self
-    def build_train(self, path=None):
-        # set train mode
-        self.train()
-        if path:
-            self.load_weights(path)
-
-        return self
-
     def inference(self, image, visualize=False, convert_torch=False):
-        if self.training:
-            raise NotImplementedError("model hasn\'t built as test. Call \'build_test\'")
+        super().inference(image, visualize, convert_torch)
+
         if isinstance(image, list):
             img = torch.stack(image)
         elif isinstance(image, np.ndarray):
@@ -193,30 +151,16 @@ class SSD300(nn.Module):
             return
 
     def load_vgg_weights(self):
-        """
-        load pre-trained weights for vgg, which means load weights partially.
-        After calling this method, vgg_ssd.pth or vgg_bn_ssd.pth will be saved
-        :return:
-        """
-        """
-        if not self._batch_norm and os.path.exists('./weights/vgg_ssd.pth'):
-            self.load_weights('./weights/vgg_ssd.pth')
-            return
+        model_dir = weights_path(__file__, _root_num=2, dirname='weights')
 
-        if self._batch_norm and os.path.exists('./weights/vgg_bn_ssd.pth'):
-            self.load_weights('./weights/vgg_bn_ssd.pth')
-            return
-        """
-        model_dir = _weights_path(__file__, _root_num=2, dirname='weights')
-
-        model_url = get_model_url('vgg16' if not self._batch_norm else 'vgg16_bn')
+        model_url = get_model_url('vgg16' if not self.batch_norm else 'vgg16_bn')
         pretrained_state_dict = load_state_dict_from_url(model_url, model_dir=model_dir)
 
         model_state_dict = self.state_dict()
 
         renamed = []
         pre_keys, mod_keys = list(pretrained_state_dict.keys()), list(model_state_dict.keys())
-        if not self._batch_norm:
+        if not self.batch_norm:
             # ssd300 and vgg16 have common 26 (13 weights and biases) layers from first
             for (pre_key, mod_key) in zip(pre_keys[:26], mod_keys[:26]):
                 renamed += [(mod_key, pretrained_state_dict[pre_key])]
@@ -229,10 +173,3 @@ class SSD300(nn.Module):
         self.load_state_dict(model_state_dict)
 
         logging.info("model loaded")
-
-    def load_weights(self, path):
-        """
-        :param path: str
-        :return:
-        """
-        self.load_state_dict(torch.load(path, map_location=lambda storage, loc: storage))

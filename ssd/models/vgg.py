@@ -1,5 +1,5 @@
 from torch import nn
-from ssd.models.vgg_base import VGG
+from ssd.models.vgg_base import VGGBase
 from ssd.core.layers import Conv2d
 from collections import OrderedDict
 """
@@ -19,7 +19,7 @@ OutputSize = (N - F)/stride + 1 + pdg*2/stride [e.g. 32/3=10 it ignores after th
 """
 
 
-class VGG11_bn(VGG):
+class VGGBase11_bn(VGGBase):
     def __init__(self, input_channels, **kwargs):
         Conv2d.batch_norm = True
         conv_layers = [
@@ -37,7 +37,7 @@ class VGG11_bn(VGG):
         super().__init__(model_name='vgg11_bn', conv_layers=nn.ModuleDict(OrderedDict(conv_layers)), **kwargs)
 
 
-class VGG11(VGG):
+class VGGBase11(VGGBase):
     def __init__(self, input_channels, **kwargs):
         Conv2d.batch_norm = False
         conv_layers = [
@@ -54,7 +54,7 @@ class VGG11(VGG):
 
         super().__init__(model_name='vgg11', conv_layers=nn.ModuleDict(OrderedDict(conv_layers)), **kwargs)
 
-class VGG16_bn(VGG):
+class VGGBase16_bn(VGGBase):
     def __init__(self, input_channels, **kwargs):
         Conv2d.batch_norm = True
         conv_layers = [
@@ -71,7 +71,7 @@ class VGG16_bn(VGG):
 
         super().__init__(model_name='vgg16_bn', conv_layers=nn.ModuleDict(OrderedDict(conv_layers)), **kwargs)
 
-class VGG16(VGG):
+class VGGBase16(VGGBase):
     def __init__(self, input_channels, **kwargs):
         Conv2d.batch_norm = False
         conv_layers = [

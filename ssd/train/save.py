@@ -10,7 +10,7 @@ class SaveManager(object):
         """
         :param modelname: str, saved model name.
         :param interval: int, save for each designated iteration
-        :param max_checkpoints: (Optional) int, how many models will be saved during training.
+        :param max_checkpoints: (Optional) int, how many ssd will be saved during training.
         """
         if max_checkpoints > 15:
             logging.warning('One model size will be about 0.1 GB. Please take care your storage.')

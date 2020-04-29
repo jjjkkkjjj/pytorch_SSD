@@ -1,7 +1,6 @@
-from models.vgg import VGG16
-#from models.train.trainer import TrainLogger
+from ssd.models.vgg import VGG16
+#from ssd.train.trainer import TrainLogger
 #from data.mnist import data
-from torchvision import models
 
 if __name__ == '__main__':
     model = VGG16(3, class_nums=1000)

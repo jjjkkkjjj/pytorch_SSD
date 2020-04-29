@@ -1,7 +1,7 @@
 from data import datasets
 from data import transforms, utils
 
-from models.ssd300 import SSD300
+from ssd.models.ssd300 import SSD300
 
 from torch.utils.data import DataLoader
 

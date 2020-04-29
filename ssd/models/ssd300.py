@@ -1,8 +1,8 @@
-from .core.layers import *
-from .core.boxes import DefaultBox
-from .core.utils import _weights_path
-from .core.inference import InferenceBox, toVisualizeImg
-from .vgg_base import get_model_url
+from ssd.core.layers import *
+from ssd.core.boxes import DefaultBox
+from ssd.core.utils import _weights_path
+from ssd.core.inference import InferenceBox
+from ssd.models.vgg_base import get_model_url
 
 from torch import nn
 from torchvision.models.utils import load_state_dict_from_url
@@ -207,7 +207,7 @@ class SSD300(nn.Module):
             self.load_weights('./weights/vgg_bn_ssd.pth')
             return
         """
-        model_dir = _weights_path(__file__, _root_num=1, dirname='weights')
+        model_dir = _weights_path(__file__, _root_num=2, dirname='weights')
 
         model_url = get_model_url('vgg16' if not self._batch_norm else 'vgg16_bn')
         pretrained_state_dict = load_state_dict_from_url(model_url, model_dir=model_dir)

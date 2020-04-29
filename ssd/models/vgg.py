@@ -1,6 +1,6 @@
 from torch import nn
-from .vgg_base import VGG
-from .core.layers import Conv2d
+from ssd.models.vgg_base import VGG
+from ssd.core.layers import Conv2d
 from collections import OrderedDict
 """
 https://stackoverflow.com/questions/55140554/convolutional-encoder-error-runtimeerror-input-and-target-shapes-do-not-matc/55143487#55143487

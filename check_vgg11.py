@@ -1,8 +1,8 @@
-from models.vgg import VGG11
+from ssd.models.vgg import VGG11
 from torchvision import models
 
 if __name__ == '__main__':
-    #model = VGG11(3, class_nums=1000, load_model='./models/weights/vgg11-bbd30ac9.pth')
+    #model = VGG11(3, class_nums=1000, load_model='./ssd/weights/vgg11-bbd30ac9.pth')
     model = VGG11(3, class_nums=1000)
     #model.load_weights()
     model.load_weights(path='./weights/vgg11-bbd30ac9.pth')

@@ -1,10 +1,10 @@
 from data import datasets
 from data import transforms, utils
 
-from models.ssd300 import SSD300
-from models.core.loss import SSDLoss
-from models.train import *
-from models.core.scheduler import *
+from ssd.models.ssd300 import SSD300
+from ssd.core.loss import SSDLoss
+from ssd.train import *
+from ssd.core.scheduler import *
 
 #from torchvision import transforms > not import!!
 from torch.utils.data import DataLoader
@@ -34,7 +34,7 @@ if __name__ == '__main__':
     """
     imgs, gts = utils.batch_ind_fn((train_dataset[2000],))
     p, d = model(imgs)
-    from models.core.boxes import matching_strategy
+    from ssd.core.boxes import matching_strategy
     matching_strategy(gts, d, batch_num=1)
     """
     #optimizer = SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)

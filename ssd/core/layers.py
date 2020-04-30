@@ -1,7 +1,7 @@
 from torch import nn
 import torch
 from torch.nn import init
-
+from torch.nn import functional as F
 import numpy as np
 
 class Flatten(nn.Module):
@@ -16,20 +16,18 @@ class L2Normalization(nn.Module):
         self.gamma = gamma
         self.in_channels = channels
         self.out_channels = channels
-        self.scales = nn.Parameter(torch.Tensor(self.in_channels))
+        self.scales = nn.Parameter(torch.Tensor(self.in_channels)) # trainable
         self.reset_parameters()
 
     def reset_parameters(self):
-        init.constant_(self.scales, self.gamma)
+        init.constant_(self.scales, self.gamma) # initialized with gamma first
 
     # Note that pytorch's dimension order is batch_size, channels, height, width
     def forward(self, x):
         # |x|_2
-        # square element-wise, sum along channel and square element-wise
-        norm_x = torch.pow(x, 2).sum(dim=1, keepdim=True).sqrt()
         # normalize (x^)
-        x = torch.div(x, norm_x)
-        return self.scales.unsqueeze(0).unsqueeze(2).unsqueeze(3).expand_as(x) * x
+        x = F.normalize(x, p=2, dim=1)
+        return self.scales.unsqueeze(0).unsqueeze(2).unsqueeze(3) * x
 
 
 class Predictor(nn.Module):

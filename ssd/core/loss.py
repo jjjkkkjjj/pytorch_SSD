@@ -46,13 +46,12 @@ class LocalizationLoss(nn.Module):
         super().__init__()
 
     def forward(self, pos_indicator, predicts, gts):
-        N = pos_indicator.float().sum()
+        N = pos_indicator.int().sum()
 
-        predicts = predicts[pos_indicator]
-        gts = gts[pos_indicator]
-        loss = F.smooth_l1_loss(predicts, gts, reduction='sum') # shape = (batch num, dboxes num)
+        loss = F.smooth_l1_loss(predicts, gts, reduction='none').sum(dim=-1) # shape = (batch num, dboxes num)
+        loss = loss.masked_select(pos_indicator)
 
-        return loss / N
+        return loss.sum() / N
 
 
 class ConfidenceLoss(nn.Module):
@@ -68,7 +67,7 @@ class ConfidenceLoss(nn.Module):
     def forward(self, pos_indicator, predicts, gts):
         if self.hnm_batch:
             background_loss = -F.log_softmax(predicts, dim=-1)[:, :, -1] # shape = (batch num, dboxes num)
-            background_loss[pos_indicator] = -math.inf
+            background_loss.masked_fill(pos_indicator, -math.inf)
 
             pos_num = pos_indicator.sum(dim=-1) # shape = (dboxes num)
             N = pos_num.sum()

@@ -16,7 +16,7 @@ if __name__ == '__main__':
     )
 
     transform = transforms.Compose(
-        [transforms.Normalize(bgr_means=(123.68, 116.779, 103.939), bgr_stds=1),
+        [transforms.Normalize(rgb_means=(103.939, 116.779, 123.68), rgb_stds=1),
          transforms.Resize((300, 300)),
          transforms.ToTensor()]
     )
@@ -54,4 +54,4 @@ if __name__ == '__main__':
     log_manager = LogManager(interval=10, save_manager=save_manager, live_graph=None)
     trainer = TrainLogger(model, loss_func=SSDLoss(), optimizer=optimizer, scheduler=iter_sheduler, log_manager=log_manager, gpu=True)
 
-    trainer.train(70, train_loader)
+    trainer.train(2000, train_loader)

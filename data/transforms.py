@@ -47,9 +47,9 @@ class Resize(object):
 
 
 class Normalize(object):
-    def __init__(self, bgr_means=(123.68, 116.779, 103.939), bgr_stds=(1.0, 1.0, 1.0)):
-        self.means = np.array(bgr_means, dtype=np.float32)
-        self.stds = np.array(bgr_stds, dtype=np.float32)
+    def __init__(self, rgb_means=(103.939, 116.779, 123.68), rgb_stds=(1.0, 1.0, 1.0)):
+        self.means = np.array(rgb_means, dtype=np.float32)
+        self.stds = np.array(rgb_stds, dtype=np.float32)
 
     def __call__(self, img, *args):
 

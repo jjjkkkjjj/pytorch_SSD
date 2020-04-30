@@ -1,4 +1,4 @@
-from .boxes import iou, center2minmax, minmax2center, Decoder
+from .boxes import iou, centroids2minmax, minmax2centroids, Decoder
 
 from torch.nn import Module
 from torch.nn import functional as F
@@ -81,7 +81,7 @@ def non_maximum_suppression(conf, loc, iou_threshold=0.45, topk=200):
     # get topk indices
     conf_des_inds = conf_des_inds[:topk]
     # converted into minmax coordinates
-    loc_mm = center2minmax(loc)
+    loc_mm = centroids2minmax(loc)
 
     inferred_boxes = []
     while conf_des_inds.nelement() > 0:
@@ -97,7 +97,7 @@ def non_maximum_suppression(conf, loc, iou_threshold=0.45, topk=200):
             break
 
         # get iou, shape = (1, loc_des num)
-        overlap = iou(center2minmax(largest_conf_loc), loc_mm[conf_des_inds])
+        overlap = iou(centroids2minmax(largest_conf_loc), loc_mm[conf_des_inds])
         # filter out overlapped boxes for box with largest conf, shape = (loc_des num)
         indicator = overlap.reshape((overlap.nelement())) <= iou_threshold
 
@@ -121,7 +121,7 @@ def toVisualizeRectangleimg(img, locs, thickness=2, rgb=(255, 0, 0), verbose=Fal
     img = tensor2cvimg(img)
 
     # print(locs)
-    locs_mm = center2minmax(locs).numpy()
+    locs_mm = centroids2minmax(locs).numpy()
 
     h, w, c = img.shape
     locs_mm[:, ::2] *= w
@@ -165,7 +165,7 @@ def toVisualizeImg(img, locs, conf_indices, classes, verbose=False):
 
     h, w, c = img.shape
     # print(locs)
-    locs_mm = center2minmax(locs).numpy()
+    locs_mm = centroids2minmax(locs).numpy()
     locs_mm[:, ::2] *= w
     locs_mm[:, 1::2] *= h
     locs_mm = locs_mm

@@ -139,7 +139,7 @@ class DefaultBox(nn.Module):
 
 def matching_strategy(gts, dboxes, **kwargs):
     """
-    :param gts: Tensor, shape is (batch, object num(batch), 1+4+class_nums)
+    :param gts: Tensor, shape is (batch*object num(batch), 1+4+class_nums)
     :param dboxes: shape is (default boxes num, 4)
     IMPORTANT: Note that means (cx, cy, w, h)
     :param kwargs:
@@ -162,7 +162,7 @@ def matching_strategy(gts, dboxes, **kwargs):
     class_num = gts.shape[1] - 1 - 4
 
     # convert centered coordinated to minmax coordinates
-    dboxes_mm = center2minmax(dboxes)
+    dboxes_mm = centroids2minmax(dboxes)
 
     # create returned empty Tensor
     pos_indicator, gt_loc, gt_conf = torch.empty((batch_num, dboxes_num), device=device, dtype=torch.bool), torch.empty((batch_num, dboxes_num, 4), device=device), torch.empty((batch_num, dboxes_num, class_num), device=device)
@@ -174,7 +174,7 @@ def matching_strategy(gts, dboxes, **kwargs):
         gt_loc_per_img, gt_conf_per_img = gts[index:index + box_num, 1:5], gts[index:index + box_num, 5:]
 
         # overlaps' shape = (object num, default box num)
-        overlaps = iou(center2minmax(gt_loc_per_img), dboxes_mm)
+        overlaps = iou(centroids2minmax(gt_loc_per_img), dboxes_mm)
         """
         best_overlap_per_object, best_dbox_ind_per_object = overlaps.max(dim=1)
         best_overlap_per_dbox, best_object_ind_per_dbox = overlaps.max(dim=0)
@@ -265,7 +265,7 @@ def iou(a, b):
 
     return intersectionArea / (A + B - intersectionArea)
 
-def center2minmax(a):
+def centroids2minmax(a):
     """
     :param a: Box Tensor, shape is (nums, 4=(cx, cy, w, h))
     :return:
@@ -273,7 +273,7 @@ def center2minmax(a):
     """
     return torch.cat((a[:, :2] - a[:, 2:]/2, a[:, :2] + a[:, 2:]/2), dim=1)
 
-def minmax2center(a):
+def minmax2centroids(a):
     """
     :param a: Box Tensor, shape is (nums, 4=(xmin, ymin, xmax, ymax))
     :return:

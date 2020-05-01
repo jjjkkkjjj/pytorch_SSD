@@ -147,6 +147,7 @@ class SSD300(SSDBase):
         predicts, dboxes = self(img)
         infers = self.inferenceBox(predicts, dboxes)
 
+        return infers
         if visualize:
             return
 

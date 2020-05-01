@@ -67,7 +67,7 @@ class ConfidenceLoss(nn.Module):
     def forward(self, pos_indicator, predicts, gts):
         if self.hnm_batch:
             background_loss = -F.log_softmax(predicts, dim=-1)[:, :, -1] # shape = (batch num, dboxes num)
-            background_loss.masked_fill(pos_indicator, -math.inf)
+            background_loss.masked_fill_(pos_indicator, -math.inf)
 
             pos_num = pos_indicator.sum(dim=-1) # shape = (dboxes num)
             N = pos_num.sum()

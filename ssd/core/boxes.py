@@ -174,7 +174,7 @@ def matching_strategy(gts, dboxes, **kwargs):
         gt_loc_per_img, gt_conf_per_img = gts[index:index + box_num, 1:5], gts[index:index + box_num, 5:]
 
         # overlaps' shape = (object num, default box num)
-        overlaps = iou(centroids2minmax(gt_loc_per_img), dboxes_mm)
+        overlaps = iou(centroids2minmax(gt_loc_per_img), dboxes_mm.clone())
         """
         best_overlap_per_object, best_dbox_ind_per_object = overlaps.max(dim=1)
         best_overlap_per_dbox, best_object_ind_per_dbox = overlaps.max(dim=0)
@@ -342,8 +342,12 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self):
+    def __init__(self, norm_means=(0, 0, 0, 0), norm_stds=(0.1, 0.1, 0.2, 0.2)):
         super().__init__()
+        # shape = (1, 1, 4=(cx, cy, w, h)) or (1, 1, 1)
+        self.norm_means = torch.tensor(norm_means, requires_grad=False).unsqueeze(0).unsqueeze(0)
+        self.norm_stds = torch.tensor(norm_stds, requires_grad=False).unsqueeze(0).unsqueeze(0)
+
 
     def forward(self, pred_boxes, default_boxes):
         """
@@ -359,10 +363,12 @@ class Decoder(nn.Module):
         """
         assert pred_boxes.shape[1:] == default_boxes.shape, "pred_boxes and default_boxes must be same shape"
 
-        inf_cx = pred_boxes[:, :, 0] * default_boxes[:, 2] + default_boxes[:, 0]
-        inf_cy = pred_boxes[:, :, 1] * default_boxes[:, 3] + default_boxes[:, 1]
-        inf_w = torch.exp(pred_boxes[:, :, 2]) * default_boxes[:, 2]
-        inf_h = torch.exp(pred_boxes[:, :, 3]) * default_boxes[:, 3]
+        pred_unnormalized = pred_boxes * self.norm_stds + self.norm_means
+
+        inf_cx = pred_unnormalized[:, :, 0] * default_boxes[:, 2] + default_boxes[:, 0]
+        inf_cy = pred_unnormalized[:, :, 1] * default_boxes[:, 3] + default_boxes[:, 1]
+        inf_w = torch.exp(pred_unnormalized[:, :, 2]) * default_boxes[:, 2]
+        inf_h = torch.exp(pred_unnormalized[:, :, 3]) * default_boxes[:, 3]
 
         return torch.cat((inf_cx.unsqueeze(2),
                           inf_cy.unsqueeze(2),

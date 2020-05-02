@@ -1,7 +1,7 @@
 from torch import nn
 import torch
 
-from .boxes import *
+from ssd.core.boxes import *
 
 class Codec(nn.Module):
     def __init__(self, norm_means=(0, 0, 0, 0), norm_stds=(0.1, 0.1, 0.2, 0.2)):

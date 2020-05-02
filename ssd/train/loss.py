@@ -1,10 +1,8 @@
 from torch import nn
 import torch
-import logging, math
+import math
 import torch.nn.functional as F
 
-from .boxes import *
-from .codec import Encoder
 
 class SSDLoss(nn.Module):
     def __init__(self, alpha=1, loc_loss=None, conf_loss=None):

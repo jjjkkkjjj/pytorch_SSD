@@ -1,10 +1,9 @@
 from ..core.layers import *
-from ..core.boxes import DefaultBox
 from ssd._utils import weights_path
 from ..core.inference import InferenceBox
 from ..models.vgg_base import get_model_url
 from .ssd_base import SSDBase
-from ..core.codec import Codec
+from ssd.core.boxes.codec import Codec
 
 from torch import nn
 from torchvision.models.utils import load_state_dict_from_url

@@ -1,5 +1,5 @@
-from .boxes import iou, centroids2minmax, minmax2centroids
-from .codec import Decoder
+from .boxes import iou, centroids2minmax
+from ssd.core.boxes.codec import Decoder
 
 from torch.nn import Module
 from torch.nn import functional as F

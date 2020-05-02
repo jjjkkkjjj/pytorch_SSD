@@ -2,9 +2,7 @@ from data import datasets
 from data import transforms, target_transforms, augmentations, utils
 
 from ssd.models.ssd300 import SSD300
-from ssd.core.loss import SSDLoss
 from ssd.train import *
-from ssd.core.scheduler import *
 
 #from torchvision import transforms > not import!!
 from torch.utils.data import DataLoader

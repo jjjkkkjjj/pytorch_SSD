@@ -1,12 +1,11 @@
 from torch import nn
 import torch
-import numpy as np
 
 from .._utils import check_instance
 from ..core.boxes import DefaultBox
 from ..core.layers import Predictor
 from ..core.inference import InferenceBox
-from ..core.codec import Codec
+from ssd.core.boxes.codec import Codec
 
 class SSDBase(nn.Module):
     _codec: Codec

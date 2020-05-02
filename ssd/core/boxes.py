@@ -86,6 +86,42 @@ class DefaultBox(nn.Module):
                 bellow is deprecated to LocConf
                 features' shape is (position, class)
         """
+        from itertools import product
+        from math import sqrt
+        mean = []
+        steps = [8, 16, 32, 64, 100, 300]
+        min_sizes = [30, 60, 111, 162, 213, 264]
+        max_sizes = [60, 111, 162, 213, 264, 315]
+        aspect_ratios = [[2], [2, 3], [2, 3], [2, 3], [2], [2]]
+        for k, f in enumerate(features):
+            _, _, fmap_h, fmap_w = f.shape
+            for i, j in product(range(fmap_h), repeat=2):
+                f_k = self.img_width / steps[k]
+                # unit center x,y
+                cx = (j + 0.5) / f_k
+                cy = (i + 0.5) / f_k
+
+                # aspect_ratio: 1
+                # rel size: min_size
+                s_k = min_sizes[k] / self.img_width
+                mean += [cx, cy, s_k, s_k]
+
+                # aspect_ratio: 1
+                # rel size: sqrt(s_k * s_(k+1))
+                s_k_prime = sqrt(s_k * (max_sizes[k] / self.img_width))
+                mean += [cx, cy, s_k_prime, s_k_prime]
+
+                # rest of aspect ratios
+                for ar in aspect_ratios[k]:
+                    mean += [cx, cy, s_k * sqrt(ar), s_k / sqrt(ar)]
+                    mean += [cx, cy, s_k / sqrt(ar), s_k * sqrt(ar)]
+        # back to torch land
+        output = torch.Tensor(mean).view(-1, 4)
+        k = output.cpu().numpy()
+        if self._clip:
+            output.clamp_(max=1, min=0)
+        return output
+        """
         dboxes = []
         # ret_features = []
         m = len(features)
@@ -135,6 +171,7 @@ class DefaultBox(nn.Module):
             dboxes = dboxes.clamp(min=0, max=1)
 
         return dboxes  # , ret_features
+        """
 
 
 def matching_strategy(gts, dboxes, **kwargs):
@@ -146,9 +183,8 @@ def matching_strategy(gts, dboxes, **kwargs):
         threshold: (Optional) float, threshold for returned indicator
         batch_num: (Required) int, batch size
     :return:
-        indicator: Bool Tensor, shape = (batch, default box num). this represents whether each default box is object or background.
-        gt_loc: Tensor, shape = (batch, default box num, 4)
-        gt_conf: Tensor, shape = (batch, default box num, class_num)
+        pos_indicator: Bool Tensor, shape = (batch, default box num). this represents whether each default box is object or background.
+        matched_gts: Tensor, shape = (batch, default box num, 4+class_num)
     """
     threshold = kwargs.pop('threshold', 0.5)
     batch_num = kwargs.pop('batch_num')
@@ -165,7 +201,7 @@ def matching_strategy(gts, dboxes, **kwargs):
     dboxes_mm = centroids2minmax(dboxes)
 
     # create returned empty Tensor
-    pos_indicator, gt_loc, gt_conf = torch.empty((batch_num, dboxes_num), device=device, dtype=torch.bool), torch.empty((batch_num, dboxes_num, 4), device=device), torch.empty((batch_num, dboxes_num, class_num), device=device)
+    pos_indicator, matched_gts = torch.empty((batch_num, dboxes_num), device=device, dtype=torch.bool), torch.empty((batch_num, dboxes_num, 4 + class_num), device=device)
 
     # matching for each batch
     index = 0
@@ -204,20 +240,20 @@ def matching_strategy(gts, dboxes, **kwargs):
 
         pos_ind = overlaps_per_dbox > threshold
 
-        # assign boxes
-        gt_loc[b], gt_conf[b] = gt_loc_per_img[object_indices], gt_conf_per_img[object_indices]
+        # assign gts
+        matched_gts[b, :, :4], matched_gts[b, :, 4:] = gt_loc_per_img[object_indices], gt_conf_per_img[object_indices]
         pos_indicator[b] = pos_ind
 
         # set background flag
         neg_ind = torch.logical_not(pos_ind)
-        gt_conf[b, neg_ind] = 0
-        gt_conf[b, neg_ind, -1] = 1
+        matched_gts[b, neg_ind, 4:] = 0
+        matched_gts[b, neg_ind, -1] = 1
 
         index += box_num
 
 
 
-    return pos_indicator.bool(), gt_loc, gt_conf
+    return pos_indicator, matched_gts
 
 def iou(a, b):
     """
@@ -306,71 +342,3 @@ tensor([[1., 2., 3., 4.],
 def tensor_tile(a, repeat, dim=0):
     return torch.cat([a]*repeat, dim=dim)
 
-class Encoder(nn.Module):
-    def __init__(self, norm_means=(0, 0, 0, 0), norm_stds=(0.1, 0.1, 0.2, 0.2)):
-        super().__init__()
-        # shape = (1, 1, 4=(cx, cy, w, h)) or (1, 1, 1)
-        self.norm_means = torch.tensor(norm_means, requires_grad=False).unsqueeze(0).unsqueeze(0)
-        self.norm_stds = torch.tensor(norm_stds, requires_grad=False).unsqueeze(0).unsqueeze(0)
-
-
-    def forward(self, gt_boxes, default_boxes):
-        """
-        :param gt_boxes: Tensor, shape = (batch, default boxes num, 4)
-        :param default_boxes: Tensor, shape = (default boxes num, 4)
-        Note that 4 means (cx, cy, w, h)
-        :return:
-            encoded_boxes: Tensor, calculate ground truth value considering default boxes. The formula is below;
-                           gt_cx = (gt_cx - dbox_cx)/dbox_w, gt_cy = (gt_cy - dbox_cy)/dbox_h,
-                           gt_w = train(gt_w / dbox_w), gt_h = train(gt_h / dbox_h)
-                           shape = (batch, default boxes num, 4)
-        """
-        assert gt_boxes.shape[1:] == default_boxes.shape, "gt_boxes and default_boxes must be same shape"
-
-        gt_cx = (gt_boxes[:, :, 0] - default_boxes[:, 0]) / default_boxes[:, 2]
-        gt_cy = (gt_boxes[:, :, 1] - default_boxes[:, 1]) / default_boxes[:, 3]
-        gt_w = torch.log(gt_boxes[:, :, 2] / default_boxes[:, 2])
-        gt_h = torch.log(gt_boxes[:, :, 3] / default_boxes[:, 3])
-
-        encoded_boxes = torch.cat((gt_cx.unsqueeze(2),
-                          gt_cy.unsqueeze(2),
-                          gt_w.unsqueeze(2),
-                          gt_h.unsqueeze(2)), dim=2)
-
-        # normalization
-        return (encoded_boxes - self.norm_means.to(gt_boxes.device)) / self.norm_stds.to(gt_boxes.device)
-
-
-class Decoder(nn.Module):
-    def __init__(self, norm_means=(0, 0, 0, 0), norm_stds=(0.1, 0.1, 0.2, 0.2)):
-        super().__init__()
-        # shape = (1, 1, 4=(cx, cy, w, h)) or (1, 1, 1)
-        self.norm_means = torch.tensor(norm_means, requires_grad=False).unsqueeze(0).unsqueeze(0)
-        self.norm_stds = torch.tensor(norm_stds, requires_grad=False).unsqueeze(0).unsqueeze(0)
-
-
-    def forward(self, pred_boxes, default_boxes):
-        """
-        Opposite to above procession
-        :param pred_boxes: Tensor, shape = (batch, default boxes num, 4)
-        :param default_boxes: Tensor, shape = (default boxes num, 4)
-        Note that 4 means (cx, cy, w, h)
-        :return:
-            inf_boxes: Tensor, calculate ground truth value considering default boxes. The formula is below;
-                      inf_cx = pred_cx * dbox_w + dbox_cx, inf_cy = pred_cy * dbox_h + dbox_cy,
-                      inf_w = exp(pred_w) * dbox_w, inf_h = exp(pred_h) * dbox_h
-                      shape = (batch, default boxes num, 4)
-        """
-        assert pred_boxes.shape[1:] == default_boxes.shape, "pred_boxes and default_boxes must be same shape"
-
-        pred_unnormalized = pred_boxes * self.norm_stds + self.norm_means
-
-        inf_cx = pred_unnormalized[:, :, 0] * default_boxes[:, 2] + default_boxes[:, 0]
-        inf_cy = pred_unnormalized[:, :, 1] * default_boxes[:, 3] + default_boxes[:, 1]
-        inf_w = torch.exp(pred_unnormalized[:, :, 2]) * default_boxes[:, 2]
-        inf_h = torch.exp(pred_unnormalized[:, :, 3]) * default_boxes[:, 3]
-
-        return torch.cat((inf_cx.unsqueeze(2),
-                          inf_cy.unsqueeze(2),
-                          inf_w.unsqueeze(2),
-                          inf_h.unsqueeze(2)), dim=2)

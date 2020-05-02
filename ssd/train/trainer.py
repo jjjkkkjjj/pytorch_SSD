@@ -2,13 +2,18 @@ import math
 import torch
 
 from .log import LogManager
+from .._utils import check_instance
+from ..models.ssd_base import SSDBase
 """
     ref: https://nextjournal.com/gkoehler/pytorch-mnist
 """
 class TrainLogger(object):
+    model: SSDBase
+
     def __init__(self, model, loss_func, optimizer, log_manager, scheduler=None, gpu=True):
         self.gpu = gpu
 
+        self.model = check_instance('model', model, SSDBase)
         self.model = model.cuda() if self.gpu else model
         # convert to float
         self.model = self.model.to(dtype=torch.float)
@@ -59,13 +64,9 @@ class TrainLogger(object):
                 # set variable
                 # images.requires_grad = True
                 # gts.requires_grad = True
+                pos_indicator, predicts, gts = self.model.learn(images, targets)
 
-                predicts, dboxes = self.model(images)
-
-                if self.gpu:
-                    dboxes = dboxes.cuda()
-
-                confloss, locloss = self.loss_func(predicts, targets, dboxes=dboxes)
+                confloss, locloss = self.loss_func(pos_indicator, predicts, gts)
                 loss = confloss + self.loss_func.alpha * locloss
                 loss.backward()  # calculate gradient for value with requires_grad=True, shortly back propagation
                 # print(self.model.feature_layers.conv1_1.weight.grad)

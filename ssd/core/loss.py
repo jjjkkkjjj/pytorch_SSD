@@ -4,33 +4,27 @@ import logging, math
 import torch.nn.functional as F
 
 from .boxes import *
+from .codec import Encoder
 
 class SSDLoss(nn.Module):
-    def __init__(self, alpha=1, matching_func=None, loc_loss=None, conf_loss=None, encoder=None):
+    def __init__(self, alpha=1, loc_loss=None, conf_loss=None):
         super().__init__()
 
         self.alpha = alpha
-        self.matching_strategy = matching_strategy if matching_func is None else matching_func
         self.loc_loss = LocalizationLoss() if loc_loss is None else loc_loss
         self.conf_loss = ConfidenceLoss() if conf_loss is None else conf_loss
-        self.encoder = Encoder() if encoder is None else encoder
 
-    def forward(self, predicts, gts, dboxes):
+    def forward(self, pos_indicator, predicts, gts):
         """
+        :param pos_indicator: Bool Tensor, shape = (batch, default box num). this represents whether each default box is object or background.
         :param predicts: Tensor, shape is (batch, total_dbox_nums, 4+class_nums=(cx, cy, w, h, p_class,...)
-        :param gts: Tensor, shape is (batch*bbox_nums(batch), 1+4+class_nums) = [[img's_ind, cx, cy, w, h, p_class,...],..
-        :param dboxes: Tensor, shape is (total_dbox_nums, 4=(cx,cy,w,h))
+        :param gts: Tensor, shape is (batch, total_dbox_nums, 4+class_nums=(cx, cy, w, h, p_class,...)
         :return:
             loss: float
         """
-        # get predict's localization and confidence
+        # get localization and confidence from predicts and gts respectively
         pred_loc, pred_conf = predicts[:, :, :4], predicts[:, :, 4:]
-
-        # matching
-        pos_indicator, gt_loc, gt_conf = self.matching_strategy(gts, dboxes, batch_num=predicts.shape[0], threshold=0.5)
-
-        # calculate ground truth value considering default boxes
-        gt_loc = self.encoder(gt_loc, dboxes)
+        gt_loc, gt_conf = gts[:, :, :4], gts[:, :, 4:]
 
         # Localization loss
         loc_loss = self.loc_loss(pos_indicator, pred_loc, gt_loc)

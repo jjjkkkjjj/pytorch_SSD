@@ -32,7 +32,7 @@ if __name__ == '__main__':
                               collate_fn=utils.batch_ind_fn)
 
     model = SSD300(class_nums=test_dataset.class_nums, batch_norm=False)
-    model.load_weights('weights/checkpoints/ssd300-voc2007_i-0018000_checkpoints20200430.pth')
+    model.load_weights('weights/ssd300-voc2007_i-60000.pth')
     model.eval()
 
     images = [test_dataset[i][0] for i in range(2)]

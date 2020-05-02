@@ -6,8 +6,11 @@ from .._utils import check_instance
 from ..core.boxes import DefaultBox
 from ..core.layers import Predictor
 from ..core.inference import InferenceBox
+from ..core.codec import Codec
 
 class SSDBase(nn.Module):
+    _codec: Codec
+
     feature_layers: nn.ModuleDict
     l2norm_layers: nn.ModuleDict
     localization_layers: nn.ModuleDict
@@ -20,11 +23,12 @@ class SSDBase(nn.Module):
     classifier_source_names: tuple
     dbox_nums: tuple
 
-    def __init__(self, class_nums, input_shape, batch_norm):
+    def __init__(self, class_nums, input_shape, batch_norm, codec):
         """
         :param class_nums: int, class number
         :param input_shape: tuple, 3d and (height, width, channel)
         :param batch_norm: bool, whether to add batch normalization layers
+        :param codec: Codec,
         """
         super().__init__()
 
@@ -33,10 +37,12 @@ class SSDBase(nn.Module):
         assert input_shape[0] == input_shape[1], "input must be square size"
         self.input_shape = input_shape
         self.batch_norm = batch_norm
+        self._codec = codec
 
         self._isbuilt_layer = False
         self._isbuilt_box = False
         self._isbuilt_infBox = False
+        self._called_learn = False
 
     @property
     def input_height(self):
@@ -51,6 +57,12 @@ class SSDBase(nn.Module):
     def isBuilt(self):
         return self._isbuilt_layer and self._isbuilt_box and self._isbuilt_infBox
 
+    @property
+    def encoder(self):
+        return self._codec.encoder
+    @property
+    def decoder(self):
+        return self._codec.decoder
 
     def _build_layers(self, features, locs, confs, l2norms):
         self.feature_layers = check_instance('feature_layers', features, nn.ModuleDict)
@@ -77,28 +89,38 @@ class SSDBase(nn.Module):
 
         self._isbuilt_infBox = True
 
-    def init_weights(self):
-        for module in self.modules():
-            if isinstance(module, nn.Conv2d):
-                nn.init.kaiming_normal_(module.weight, mode='fan_out', nonlinearity='relu')
-                if module.bias is not None:
-                    nn.init.constant_(module.bias, 0)
-            elif isinstance(module, nn.BatchNorm2d):
-                nn.init.constant_(module.weight, 1)
-                nn.init.constant_(module.bias, 0)
-            elif isinstance(module, nn.Linear):
-                nn.init.normal_(module.weight, 0, 1e-2)
-                nn.init.constant_(module.bias, 0)
 
     def forward(self, x):
         if not self.isBuilt:
-            raise NotImplementedError('call _build_layers and _build_defaultBox first')
+            raise NotImplementedError('call _build_layers, _build_defaultBox and _build_infBox first')
 
-    def inference(self, image, visualize=False, convert_torch=False):
+        if not self._called_learn:
+            raise NotImplementedError('call learn first')
+
+    def learn(self, x, gts):
+        if not self.training:
+            raise NotImplementedError("model hasn\'t built as train. Call \'train()\'")
+        self._called_learn = True
+
+    def infer(self, image, visualize=False, convert_torch=False):
         if self.training:
             raise NotImplementedError("model hasn\'t built as test. Call \'eval()\'")
 
+    # device management
+    def to(self, *args, **kwargs):
+        super().to(*args, **kwargs)
+        if not self.isBuilt:
+            raise NotImplementedError('call _build_layers, _build_defaultBox and _build_infBox first')
+        self.defaultBox.dboxes.to(*args, **kwargs)
 
+        return self
+    def cuda(self, device=None):
+        super().cuda(device)
+        self.defaultBox.dboxes = self.defaultBox.dboxes.cuda(device)
+
+        return self
+
+    # weights management
     def load_vgg_weights(self):
         """
         load pre-trained weights for vgg, which means load weights partially.
@@ -113,3 +135,16 @@ class SSDBase(nn.Module):
         :return:
         """
         self.load_state_dict(torch.load(path, map_location=lambda storage, loc: storage))
+
+    def init_weights(self):
+        for module in self.modules():
+            if isinstance(module, nn.Conv2d):
+                nn.init.kaiming_normal_(module.weight, mode='fan_out', nonlinearity='relu')
+                if module.bias is not None:
+                    nn.init.constant_(module.bias, 0)
+            elif isinstance(module, nn.BatchNorm2d):
+                nn.init.constant_(module.weight, 1)
+                nn.init.constant_(module.bias, 0)
+            elif isinstance(module, nn.Linear):
+                nn.init.normal_(module.weight, 0, 1e-2)
+                nn.init.constant_(module.bias, 0)

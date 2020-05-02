@@ -4,6 +4,7 @@ from ssd._utils import weights_path
 from ..core.inference import InferenceBox
 from ..models.vgg_base import get_model_url
 from .ssd_base import SSDBase
+from ..core.codec import Codec
 
 from torch import nn
 from torchvision.models.utils import load_state_dict_from_url
@@ -25,7 +26,9 @@ class SSD300(SSDBase):
         :param input_shape: tuple, 3d and (height, width, channel)
         :param batch_norm: bool, whether to add batch normalization layers
         """
-        super().__init__(class_nums, input_shape, batch_norm)
+        codec = Codec(norm_means=(0, 0, 0, 0), norm_stds=(0.1, 0.1, 0.2, 0.2))
+
+        super().__init__(class_nums, input_shape, batch_norm, codec)
 
         Conv2d.batch_norm = self.batch_norm
         vgg_layers = [
@@ -98,7 +101,6 @@ class SSD300(SSDBase):
         :param x: Tensor, input Tensor whose shape is (batch, c, h, w)
         :return:
             predicts: localization and confidence Tensor, shape is (batch, total_dbox_num, 4+class_nums)
-            dboxes: Tensor, default boxes Tensor whose shape is (total_dbox_nums, 4)`
         """
         super().forward(x)
 
@@ -122,10 +124,28 @@ class SSD300(SSDBase):
                 feature_i += 1
 
         predicts = self.predictor(locs, confs)
-        return predicts, self.defaultBox.dboxes.clone()
+        return predicts
 
-    def inference(self, image, visualize=False, convert_torch=False):
-        super().inference(image, visualize, convert_torch)
+    def learn(self, x, gts):
+        """
+        :param x: Tensor, input Tensor whose shape is (batch, c, h, w)
+        :param gts: Tensor, shape is (batch*bbox_nums(batch), 1+4+class_nums) = [[img's_ind, cx, cy, w, h, p_class,...],..
+        :return:
+            pos_indicator: Bool Tensor, shape = (batch, default box num). this represents whether each default box is object or background.
+            predicts: localization and confidence Tensor, shape is (batch, total_dbox_num, 4+class_nums)
+            dboxes: Tensor, default boxes Tensor whose shape is (total_dbox_nums, 4)`
+        """
+        super().learn(x, gts)
+
+        batch_num = x.shape[0]
+
+        pos_indicator, gts = self.encoder(gts, self.defaultBox.dboxes.clone(), batch_num)
+        predicts = self(x)
+
+        return pos_indicator, predicts, gts
+
+    def infer(self, image, visualize=False, convert_torch=False):
+        super().infer(image, visualize, convert_torch)
 
         if isinstance(image, list):
             img = torch.stack(image)

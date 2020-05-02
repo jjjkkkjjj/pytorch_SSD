@@ -2,7 +2,7 @@ from torch import nn
 import torch
 
 from .._utils import check_instance
-from ..core.boxes import DefaultBox
+from ..core.boxes.dbox import *
 from ..core.layers import Predictor
 from ..core.inference import InferenceBox
 from ssd.core.boxes.codec import Codec
@@ -15,7 +15,7 @@ class SSDBase(nn.Module):
     localization_layers: nn.ModuleDict
     confidence_layers: nn.ModuleDict
 
-    defaultBox: DefaultBox
+    defaultBox: DefaultBoxBase
     predictor: Predictor
     inferenceBox: InferenceBox
 
@@ -71,12 +71,11 @@ class SSDBase(nn.Module):
 
         self._isbuilt_layer = True
 
-    def _build_defaultBox(self, classifier_source_names, dbox_nums):
+    def _build_defaultBox(self, defaultBox, classifier_source_names):
         if not self._isbuilt_layer:
             raise NotImplementedError('Call _build_layers first!')
 
-        self.defaultBox = DefaultBox(img_shape=self.input_shape)
-        self.defaultBox = self.defaultBox.build(self.feature_layers, classifier_source_names, self.localization_layers, dbox_nums)
+        self.defaultBox = defaultBox.build(self.feature_layers, classifier_source_names, self.localization_layers)
         self.predictor = Predictor(self.defaultBox.total_dboxes_nums, self.class_nums)
 
         self.classifier_source_names = tuple(classifier_source_names)

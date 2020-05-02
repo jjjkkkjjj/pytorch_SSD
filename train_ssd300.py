@@ -49,7 +49,7 @@ if __name__ == '__main__':
     iter_sheduler = SSDIterStepLR(optimizer, step_size=10000, gamma=0.1, verbose=True)
 
     save_manager = SaveManager(modelname='ssd300', interval=10, max_checkpoints=3)
-    log_manager = LogManager(interval=10, save_manager=save_manager, live_graph=None)
+    log_manager = LogManager(interval=10, save_manager=save_manager, loss_interval=10, live_graph=None)
     trainer = TrainLogger(model, loss_func=SSDLoss(), optimizer=optimizer, scheduler=iter_sheduler, log_manager=log_manager, gpu=True)
 
-    trainer.train(2000, train_loader)
+    trainer.train(30, train_loader)

@@ -5,12 +5,11 @@
 data/**
 !*.py
 
-weights/*
-!weights/checkpoints/
-!.gitkeep
-
 weights/checkpoints/*
-!.gitkeep
+!weights/checkpoints/.gitkeep
+weights/results/*
+!weights/results/.gitkeep
+
 
 # Created by https://www.gitignore.io/api/linux,python,pycharm
 # Edit at https://www.gitignore.io/?templates=linux,python,pycharm

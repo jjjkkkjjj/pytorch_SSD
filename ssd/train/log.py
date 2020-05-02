@@ -5,7 +5,7 @@ from .save import SaveManager
 from .graph import LiveGraph
 
 class LogManager(object):
-    def __init__(self, interval, save_manager, live_graph=None):
+    def __init__(self, interval, save_manager, loss_interval=1, live_graph=None):
 
         if live_graph:
             logging.info("You should use jupyter notebook")
@@ -23,7 +23,7 @@ class LogManager(object):
             raise ValueError('save_manager must be \'SaveManager\' instance')
         self.save_manager = save_manager
 
-        self._losses_manager = _SSDLossesManager()
+        self._losses_manager = _SSDLossesManager(loss_interval)
 
 
     @property
@@ -99,8 +99,10 @@ class LogManager(object):
         self.save_manager.finish(model, self._losses_manager)
 
 class _SSDLossesManager(object):
-    def __init__(self):
+    def __init__(self, interval):
         self.now_iteration = 0
+
+        self.interval = interval
 
         self.iterations = []
         self.totals = []
@@ -109,8 +111,9 @@ class _SSDLossesManager(object):
 
     def update_iteration(self, totalval, locval, confval):
         self.now_iteration += 1
-        self.iterations += [self.now_iteration]
-        self.totals += [totalval]
-        self.locs += [locval]
-        self.confs += [confval]
 
+        if self.now_iteration % self.interval == 0 or self.now_iteration == 1:
+            self.iterations += [self.now_iteration]
+            self.totals += [totalval]
+            self.locs += [locval]
+            self.confs += [confval]

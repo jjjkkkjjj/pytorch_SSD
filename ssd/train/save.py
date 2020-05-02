@@ -72,12 +72,12 @@ class SaveManager(object):
 
     def finish(self, model, loss_manager):
         # model
-        savepath = os.path.join(self.savedir, self.modelname + '_i-{}.pth'.format(loss_manager.now_iteration))
+        savepath = os.path.join(self.savedir, 'results', self.modelname + '_i-{}.pth'.format(loss_manager.now_iteration))
         torch.save(model.state_dict(), savepath)
         print('Saved model to {}'.format(savepath))
 
         # graph
-        savepath = os.path.join(self.savedir,
+        savepath = os.path.join(self.savedir, 'results',
                                 self.modelname + '_learning-curve_i-{}.png'.format(loss_manager.now_iteration))
         # initialise the graph and settings
         fig = plt.figure()

@@ -3,7 +3,8 @@ from ssd._utils import weights_path
 from ..core.inference import InferenceBox
 from ..models.vgg_base import get_model_url
 from .ssd_base import SSDBase
-from ssd.core.boxes.codec import Codec
+from ..core.boxes import *
+
 
 from torch import nn
 from torchvision.models.utils import load_state_dict_from_url
@@ -12,7 +13,8 @@ from collections import OrderedDict
 import logging
 
 # defalut boxes number for each feature map
-_dbox_nums = [4, 6, 6, 6, 4, 4]
+#_dbox_num_per_fpixel = [4, 6, 6, 6, 4, 4]
+_aspect_ratios=((1, 2), (1, 2), (1, 2, 3), (1, 2, 3), (1, 2, 3), (1, 2))
 
 # classifier's source layers
 # consists of conv4_3, conv7, conv8_2, conv9_2, conv10_2, conv11_2
@@ -72,25 +74,31 @@ class SSD300(SSDBase):
         # loc and conf
         in_channels = tuple(feature_layers[sourcename].out_channels for sourcename in _classifier_source_names)
 
+        _dbox_num_per_fpixel = [len(_aspect_ratio)*2 for _aspect_ratio in _aspect_ratios]
         # loc
-        out_channels = tuple(dbox_num * 4 for dbox_num in _dbox_nums)
+        out_channels = tuple(dbox_num * 4 for dbox_num in _dbox_num_per_fpixel)
         localization_layers = [
-            *Conv2d.block('_loc', len(_dbox_nums), in_channels, out_channels, kernel_size=(3, 3), padding=1,
-                                 batch_norm=False)
+            *Conv2d.block('_loc', len(_dbox_num_per_fpixel), in_channels, out_channels, kernel_size=(3, 3), padding=1,
+                          batch_norm=False)
         ]
 
         # conf
-        out_channels = tuple(dbox_num * class_nums for dbox_num in _dbox_nums)
+        out_channels = tuple(dbox_num * class_nums for dbox_num in _dbox_num_per_fpixel)
         confidence_layers = [
-            *Conv2d.block('_conf', len(_dbox_nums), in_channels, out_channels, kernel_size=(3, 3),
-                                 padding=1, batch_norm=False)
+            *Conv2d.block('_conf', len(_dbox_num_per_fpixel), in_channels, out_channels, kernel_size=(3, 3),
+                          padding=1, batch_norm=False)
         ]
 
+        # build layer
         localization_layers = nn.ModuleDict(OrderedDict(localization_layers))
         confidence_layers = nn.ModuleDict(OrderedDict(confidence_layers))
         self._build_layers(feature_layers, localization_layers, confidence_layers, l2norm_layers)
-        self._build_defaultBox(_classifier_source_names, _dbox_nums)
 
+        # build default box
+        defaultBox = DBoxSSD300Original(scale_conv4_3=0.1, aspect_ratios=_aspect_ratios, scale_range=(0.2, 0.9))
+        self._build_defaultBox(defaultBox, _classifier_source_names)
+
+        # build inference box
         inferenceBox = InferenceBox(conf_threshold=0.01, iou_threshold=0.45, topk=200)
         self._build_inferenceBox(inferenceBox)
 

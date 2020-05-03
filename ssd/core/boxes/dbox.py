@@ -4,7 +4,7 @@ from torch import nn
 
 class DefaultBoxBase(nn.Module):
     def __init__(self, img_shape=(300, 300, 3), scale_range=(0.2, 0.9),
-                 aspect_ratios=((1, 2), (1, 2), (1, 2, 3), (1, 2, 3), (1, 2, 3), (1, 2)), clip=True):
+                 aspect_ratios=((1, 2), (1, 2, 3), (1, 2, 3), (1, 2, 3), (1, 2), (1, 2)), clip=True):
         """
         :param img_shape: tuple, must be 3d
         :param scale_range: tuple of scale range, first element means minimum scale and last is maximum relu_one

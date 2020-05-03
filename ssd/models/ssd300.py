@@ -14,7 +14,7 @@ import logging
 
 # defalut boxes number for each feature map
 #_dbox_num_per_fpixel = [4, 6, 6, 6, 4, 4]
-_aspect_ratios=((1, 2), (1, 2), (1, 2, 3), (1, 2, 3), (1, 2, 3), (1, 2))
+_aspect_ratios=((1, 2), (1, 2, 3), (1, 2, 3), (1, 2, 3), (1, 2), (1, 2))
 
 # classifier's source layers
 # consists of conv4_3, conv7, conv8_2, conv9_2, conv10_2, conv11_2
@@ -171,8 +171,8 @@ class SSD300(SSDBase):
             raise ValueError('image shape was not same as input shape: {}, but got {}'.format(input_shape.tolist(), list(img.shape[1:])))
 
         # predict
-        predicts, dboxes = self(img)
-        infers = self.inferenceBox(predicts, dboxes)
+        predicts = self(img)
+        infers = self.inferenceBox(predicts, self.defaultBox.dboxes.clone())
 
         return infers
         if visualize:

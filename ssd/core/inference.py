@@ -29,7 +29,7 @@ class InferenceBox(Module):
         pred_conf: shape = (batch number, default boxes number, class number)
         """
         pred_loc, pred_conf = predicts[:, :, :4], predicts[:, :, 4:]
-        inf_cand_loc, inf_cand_conf = self.decoder(pred_loc, dboxes), self.softmax(pred_conf, dim=2)
+        inf_cand_loc, inf_cand_conf = self.decoder(pred_loc, dboxes), self.softmax(pred_conf, dim=-1)
 
         batch_num = predicts.shape[0]
         class_num = pred_conf.shape[2]
@@ -119,15 +119,16 @@ def toVisualizeRectangleimg(img, locs, thickness=2, rgb=(255, 0, 0), verbose=Fal
     :return:
     """
     # convert (c, h, w) to (h, w, c)
-    img = tensor2cvimg(img)
-
+    img = tensor2cvimg(img).copy()
+    #cv2.imshow('a', img)
+    #cv2.waitKey()
     # print(locs)
-    locs_mm = centroids2minmax(locs).numpy()
+    locs_mm = centroids2minmax(locs).detach().numpy()
 
     h, w, c = img.shape
     locs_mm[:, ::2] *= w
     locs_mm[:, 1::2] *= h
-    locs_mm = np.clip(locs_mm, 0, w).astype(np.int)
+    locs_mm = np.clip(locs_mm, 0, w).astype(int)
 
     if verbose:
         print(locs_mm)

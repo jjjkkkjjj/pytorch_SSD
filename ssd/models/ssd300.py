@@ -1,6 +1,6 @@
 from ..core.layers import *
 from ssd._utils import weights_path
-from ..core.inference import InferenceBox
+from ..core.inference import InferenceBox, toVisualizeImg, toVisualizeRectangleimg
 from ..models.vgg_base import get_model_url
 from .ssd_base import SSDBase
 from ..core.boxes import *
@@ -151,32 +151,18 @@ class SSD300(SSDBase):
 
         return pos_indicator, predicts, gts
 
-    def infer(self, image, visualize=False, convert_torch=False):
-        super().infer(image, visualize, convert_torch)
-
-        if isinstance(image, list):
-            img = torch.stack(image)
-        elif isinstance(image, np.ndarray):
-            img = torch.tensor(image, requires_grad=False)
-        elif not isinstance(image, torch.Tensor):
-            raise ValueError('Invalid image type')
-
-        if img.ndim == 3:
-            img = img.unsqueeze(0) # shape = (1, ?, ?, ?)
-        if convert_torch:
-            img = img.permute((0, 3, 1, 2))
-
-        input_shape = np.array(self.input_shape)[np.array([2, 0, 1])]
-        if list(img.shape[1:]) != input_shape.tolist():
-            raise ValueError('image shape was not same as input shape: {}, but got {}'.format(input_shape.tolist(), list(img.shape[1:])))
+    def infer(self, image, toNorm=False, rgb_means=(103.939, 116.779, 123.68), rgb_stds=(1.0, 1.0, 1.0), visualize=False, visualize_classes=None, convert_torch=False):
+        normed_img, orig_img = super().infer(image, toNorm, rgb_means, rgb_stds, visualize, convert_torch)
 
         # predict
-        predicts = self(img)
+        predicts = self(normed_img)
         infers = self.inferenceBox(predicts, self.defaultBox.dboxes.clone())
 
-        return infers
+        img_num = normed_img.shape[0]
         if visualize:
-            return
+            return infers, [toVisualizeRectangleimg(orig_img[i], infers[i][:, 1:]) for i in range(img_num)]
+        else:
+            return infers
 
     def load_vgg_weights(self):
         model_dir = weights_path(__file__, _root_num=2, dirname='weights')

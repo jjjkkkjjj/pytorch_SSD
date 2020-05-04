@@ -1,7 +1,7 @@
 # PyTorch SSD
 The implementation of SSD (Single shot detector) in PyTorch.
 
-- Default Box in SSD300 has been implemented in [codec.py](https://github.com/jjjkkkjjj/pytorch_SSD/blob/master/ssd/core/boxes/codec.py)
+- Default Box in SSD300 has been implemented in [dbox.py](https://github.com/jjjkkkjjj/pytorch_SSD/blob/master/ssd/core/boxes/dbox.py)
 
   ![scale](https://user-images.githubusercontent.com/16914891/80902072-f5daa780-8d4c-11ea-86ea-0f837aed2a7a.png)
   

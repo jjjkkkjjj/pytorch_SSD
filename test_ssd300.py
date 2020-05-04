@@ -4,6 +4,7 @@ from data import transforms, target_transforms, augmentations, utils
 from ssd.models.ssd300 import SSD300
 
 from torch.utils.data import DataLoader
+import cv2
 
 if __name__ == '__main__':
     augmentaion = augmentations.Compose(
@@ -23,7 +24,7 @@ if __name__ == '__main__':
     )
 
     test_dataset = datasets.Compose(datasets.VOC_class_nums,
-                                     datasets=(datasets.VOC2007Dataset, datasets.VOC2012_TrainValDataset),
+                                     datasets=(datasets.VOC2007_TestDataset, datasets.VOC2012_TrainValDataset),
                                      transform=transform, target_transform=target_transform, augmentation=augmentaion)
 
     test_loader = DataLoader(test_dataset,
@@ -32,8 +33,11 @@ if __name__ == '__main__':
                               collate_fn=utils.batch_ind_fn)
 
     model = SSD300(class_nums=test_dataset.class_nums, batch_norm=False)
-    model.load_weights('weights/ssd300-voc2007_i-60000.pth')
+    model.load_weights('weights/results/ssd300-voc2007_i-0055000_checkpoints20200503.pth')
     model.eval()
 
     images = [test_dataset[i][0] for i in range(2)]
-    model.inference(images)
+    infers, imgs = model.infer(images, visualize=True)
+    for img in imgs:
+        cv2.imshow('result', img)
+        cv2.waitKey()

@@ -41,7 +41,7 @@ class SSDBase(nn.Module):
         self._isbuilt_layer = False
         self._isbuilt_box = False
         self._isbuilt_infBox = False
-        self._called_learn = False
+        self._called_learn_inferr = False
 
     @property
     def input_height(self):
@@ -92,17 +92,59 @@ class SSDBase(nn.Module):
         if not self.isBuilt:
             raise NotImplementedError('call _build_layers, _build_defaultBox and _build_infBox first')
 
-        if not self._called_learn:
-            raise NotImplementedError('call learn first')
+        if not self._called_learn_inferr:
+            raise NotImplementedError('call learn or infer first')
 
     def learn(self, x, gts):
         if not self.training:
             raise NotImplementedError("model hasn\'t built as train. Call \'train()\'")
-        self._called_learn = True
+        self._called_learn_inferr = True
 
-    def infer(self, image, visualize=False, convert_torch=False):
+    def infer(self, image, toNorm=False, rgb_means=(103.939, 116.779, 123.68), rgb_stds=(1.0, 1.0, 1.0), visualize=False, convert_torch=False):
+        """
+        :param image: list of ndarray or Tensor, ndarray or Tensor
+        :param toNorm: bool, whether to normalize passed image
+        :param rgb_means: number, tuple,
+        :param rgb_stds: number, tuple,
+        :param visualize: bool,
+        :param convert_torch: bool, convert shape=(*, h, w, c) to shape=(*, c, h, w)
+        :return:
+        """
         if self.training:
             raise NotImplementedError("model hasn\'t built as test. Call \'eval()\'")
+
+        if isinstance(image, list):
+            img = torch.stack(image)
+        elif isinstance(image, np.ndarray):
+            img = torch.tensor(image, requires_grad=False)
+        elif isinstance(image, torch.Tensor):
+            img = image
+        else:
+            raise ValueError('Invalid image type')
+
+        if img.ndim == 3:
+            img = img.unsqueeze(0) # shape = (1, ?, ?, ?)
+        if convert_torch:
+            img = img.permute((0, 3, 1, 2))
+
+        # shape = (1, 3, 1, 1)
+        rgb_means = torch.tensor(rgb_means).unsqueeze(0).unsqueeze(2).unsqueeze(3)
+        rgb_stds = torch.tensor(rgb_stds).unsqueeze(0).unsqueeze(2).unsqueeze(3)
+        if toNorm:
+            normed_img = (img - rgb_means) / rgb_stds
+            orig_img = img
+        else:
+            normed_img = img
+            orig_img = img*rgb_stds + rgb_means
+
+
+        input_shape = np.array(self.input_shape)[np.array([2, 0, 1])]
+        if list(img.shape[1:]) != input_shape.tolist():
+            raise ValueError('image shape was not same as input shape: {}, but got {}'.format(input_shape.tolist(), list(img.shape[1:])))
+
+        self._called_learn_inferr = True
+
+        return normed_img, orig_img
 
     # device management
     def to(self, *args, **kwargs):

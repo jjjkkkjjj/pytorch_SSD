@@ -22,12 +22,12 @@ class VOC2007Dataset(Dataset):
 
 class VOC2007_TrainValDataset(VOCBaseDataset):
     def __init__(self, focus='trainval', transform=None, target_transform=None, augmentation=None):
-        super().__init__(DATA_ROOT + '/voc/voc2007/trainval/VOCdevkit/VOC2007', focus, transform, target_transform)
+        super().__init__(DATA_ROOT + '/voc/voc2007/trainval/VOCdevkit/VOC2007', focus, transform, target_transform, augmentation)
 
 
 class VOC2007_TestDataset(VOCBaseDataset):
     def __init__(self, focus='test', transform=None, target_transform=None, augmentation=None):
-        super().__init__(DATA_ROOT + '/voc/voc2007/test/VOCdevkit/VOC2007', focus, transform, target_transform)
+        super().__init__(DATA_ROOT + '/voc/voc2007/test/VOCdevkit/VOC2007', focus, transform, target_transform, augmentation)
 
 
 class VOC2012Dataset(Dataset):

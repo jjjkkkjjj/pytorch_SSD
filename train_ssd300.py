@@ -9,9 +9,11 @@ from torch.utils.data import DataLoader
 from torch.optim.adam import Adam
 
 if __name__ == '__main__':
-    augmentaion = augmentations.Compose(
+    """
+    augmentation = augmentations.Compose(
         []
-    )
+    )"""
+    augmentation = augmentations.AugmentationOriginal()
 
     transform = transforms.Compose(
         [transforms.Normalize(rgb_means=(103.939, 116.779, 123.68), rgb_stds=1),
@@ -27,7 +29,7 @@ if __name__ == '__main__':
 
 
     train_dataset = datasets.Compose(datasets.VOC_class_nums, datasets=(datasets.VOC2007Dataset, datasets.VOC2012_TrainValDataset),
-                                     transform=transform, target_transform=target_transform, augmentation=augmentaion)
+                                     transform=transform, target_transform=target_transform, augmentation=augmentation)
     #train_dataset = datasets.VOC2007Dataset(transform=transform)
     train_loader = DataLoader(train_dataset,
                               batch_size=32,

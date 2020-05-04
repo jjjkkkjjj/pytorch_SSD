@@ -67,6 +67,8 @@ class PhotometricDistortions(Compose):
 class GeometricDistortions(Compose):
     def __init__(self):
         gmdists = [
-
+            RandomExpand(),
+            RandomSampled(),
+            RandomFlip()
         ]
         super().__init__(gmdists)

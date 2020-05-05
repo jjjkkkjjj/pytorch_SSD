@@ -58,22 +58,40 @@ class _Downloader:
 from .utils import DATA_ROOT
 
 def voc2007_trainval():
+    logging.info('Downloading voc2007_trainval')
+
     trainval_downloader = _Downloader('http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtrainval_06-Nov-2007.tar')
     trainval_downloader.run(DATA_ROOT + '/voc/voc2007', 'trainval')
 
+    logging.info('Downloaded voc2007_trainval')
+
 def voc2007_test():
+    logging.info('Downloading voc2007_test')
+
     test_downloader = _Downloader('http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtest_06-Nov-2007.tar')
     test_downloader.run(DATA_ROOT + '/voc/voc2007', 'test')
 
+    logging.info('Downloaded voc2007_test')
+
 def voc2012_trainval():
+    logging.info('Downloading voc2012_trainval')
+
     trainval_downloader = _Downloader('http://host.robots.ox.ac.uk/pascal/VOC/voc2012/VOCtrainval_11-May-2012.tar')
     trainval_downloader.run(DATA_ROOT + '/voc/voc2012', 'trainval')
 
+    logging.info('Downloaded voc2012_trainval')
+
 def voc2012_test():
+    logging.info('Downloading voc2012_test')
+
     test_downloader = _Downloader('http://pjreddie.com/media/files/VOC2012test.tar')
     test_downloader.run(DATA_ROOT + '/voc/voc2012', 'test')
 
+    logging.info('Downloaded voc2012_test')
+
 def coco2014_trainval():
+    logging.info('Downloading coco2014_trainval')
+
     # get images
     train_downloader = _Downloader('http://images.cocodataset.org/zips/train2014.zip', 'zip')
     train_downloader.run(DATA_ROOT + '/coco/coco2014/images', 'train', remove_comp_file=False)
@@ -85,7 +103,11 @@ def coco2014_trainval():
     trainval_downloader = _Downloader('http://images.cocodataset.org/annotations/annotations_trainval2014.zip', 'zip')
     trainval_downloader.run(DATA_ROOT + '/coco/coco2014/annotations', 'train', remove_comp_file=False)
 
+    logging.info('Downloaded coco2014_trainval')
+
 def coco2014_test():
+    logging.info('Downloading coco2014_test')
+
     # get images
     test_downloader = _Downloader('http://images.cocodataset.org/zips/test2014.zip', 'zip')
     test_downloader.run(DATA_ROOT + '/coco/coco2014/images', 'test', remove_comp_file=False)
@@ -93,3 +115,5 @@ def coco2014_test():
     # annotations
     test_downloader = _Downloader('http://images.cocodataset.org/annotations/annotations_trainval2014.zip', 'zip')
     test_downloader.run(DATA_ROOT + '/coco/coco2014/annotations', 'test', remove_comp_file=False)
+
+    logging.info('Downloaded coco2014_test')

@@ -66,7 +66,7 @@ class RandomIoUSampledPatch(_SampledPatchOp):
         :param iou_max: float or None, if it's None, set iou_max as inf
         """
         self.iou_min = iou_min if iou_min else float('-inf')
-        self.iou_max = iou_max if iou_max else float('-inf')
+        self.iou_max = iou_max if iou_max else float('inf')
         self.aspect_ration_min = ar_min
         self.aspect_ration_max = ar_max
 
@@ -76,14 +76,20 @@ class RandomIoUSampledPatch(_SampledPatchOp):
 
         ret_img = img.copy()
         ret_bboxes = bboxes.copy()
-        ret_labels = labels.copy()
 
-        # get aspect ratio randomly
-        aspect_ratio = random.uniform(self.aspect_ration_min, self.aspect_ration_max)
+        # get patch width and height, and aspect ratio randomly
+        patch_w = int(random.uniform(0.3 * w, w))
+        patch_h = int(random.uniform(0.3 * h, h))
+        aspect_ratio = patch_h / float(patch_w)
 
-        patch_h, patch_w = int(aspect_ratio*h), int(aspect_ratio*w)
-        patch_topleft_x = int(random.uniform(patch_w - w))
-        patch_topleft_y = int(random.uniform(patch_h - h))
+        # aspect ratio constraint b/t .5 & 2
+        if not (aspect_ratio >= 0.5 and aspect_ratio <= 2):
+            raise _SampledPatchOp.UnSatisfy
+        #aspect_ratio = random.uniform(self.aspect_ration_min, self.aspect_ration_max)
+
+        #patch_h, patch_w = int(aspect_ratio*h), int(aspect_ratio*w)
+        patch_topleft_x = int(random.uniform(w - patch_w))
+        patch_topleft_y = int(random.uniform(h - patch_h))
         # shape = (1, 4)
         patch = np.array((patch_topleft_x, patch_topleft_y, patch_topleft_x + patch_w, patch_topleft_y + patch_h))
         patch = np.expand_dims(patch, 0)
@@ -92,6 +98,7 @@ class RandomIoUSampledPatch(_SampledPatchOp):
         overlaps = iou_numpy(bboxes, patch)
         if overlaps.min() < self.iou_min and overlaps.max() > self.iou_max:
             raise _SampledPatchOp.UnSatisfy
+            #return None
 
         # cut patch
         ret_img = ret_img[patch_topleft_y:patch_topleft_y+patch_h, patch_topleft_x:patch_topleft_x+patch_w]
@@ -105,10 +112,11 @@ class RandomIoUSampledPatch(_SampledPatchOp):
         centroids_patch = minmax2centroids_numpy(ret_bboxes)
 
         # check if centroids of patch is in patch
-        mask_box = (centroids_patch[:, 0] > patch_topleft_x) * (centroids_patch[:, 1] < patch_topleft_y) *\
-                   (centroids_patch[:, 0] > patch_topleft_x+patch_w) * (centroids_patch[:, 1] < patch_topleft_y+patch_h)
+        mask_box = (centroids_patch[:, 0] > patch_topleft_x) * (centroids_patch[:, 0] < patch_topleft_x+patch_w) *\
+                   (centroids_patch[:, 1] > patch_topleft_y) * (centroids_patch[:, 1] < patch_topleft_y+patch_h)
         if not mask_box.any():
             raise _SampledPatchOp.UnSatisfy
+            #return None
 
         # filtered out the boxes with unsatisfied above condition
         ret_bboxes = ret_bboxes[mask_box]
@@ -119,7 +127,8 @@ class RandomIoUSampledPatch(_SampledPatchOp):
         ret_bboxes[:, 2:] = np.minimum(ret_bboxes[:, 2:], patch[:, 2:])
 
         # move new position
-        ret_bboxes -= patch
+        ret_bboxes[:, :2] -= patch[:, :2]
+        ret_bboxes[:, 2:] -= patch[:, :2]
 
         # to percent
         ret_bboxes[:, 0::2] /= float(patch_w)
@@ -155,6 +164,8 @@ class RandomSampled(object):
         self.max_iteration = max_iteration
 
     def __call__(self, img, bboxes, labels, flags):
+        import time
+        s = time.time()
         while True:
             # select option randomly
             op = random.choice(self.options)
@@ -167,7 +178,12 @@ class RandomSampled(object):
                     return op(img, bboxes, labels, flags)
                 except _SampledPatchOp.UnSatisfy:
                     continue
-
+                """
+                ret = op(img, bboxes, labels, flags)
+                if ret:
+                    print(time.time()-s)
+                    return ret
+                """
 
 class RandomFlip(object):
     def __init__(self, p=0.5):

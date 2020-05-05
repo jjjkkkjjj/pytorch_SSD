@@ -62,4 +62,32 @@ def _one_hot_encode(indices, class_num):
     one_hot[np.arange(size), indices] = 1
     return one_hot
 
+def _separate_ignore(target_transform):
+    """
+    Separate Ignore by target_transform
+    :param target_transform:
+    :return: ignore, target_transform
+    """
+    if target_transform:
+        from .target_transforms import Ignore, Compose
+        if isinstance(target_transform, Ignore):
+            return target_transform, None
+
+        if not isinstance(target_transform, Compose):
+            return None, target_transform
+
+        # search existing target_transforms.Ignore in target_transform
+        new_target_transform = []
+        ignore = None
+        for t in target_transform.target_transforms:
+            if isinstance(t, Ignore):
+                ignore = t
+            else:
+                new_target_transform += [t]
+        return ignore, Compose(new_target_transform)
+
+    else:
+        return None, target_transform
+
+
 DATA_ROOT = os.path.join(os.path.expanduser('~'), 'data')

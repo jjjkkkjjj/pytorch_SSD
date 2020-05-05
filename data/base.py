@@ -4,7 +4,7 @@ import cv2, glob, os
 import numpy as np
 from xml.etree import ElementTree as ET
 
-from .utils import _get_xml_et_value
+from .utils import _get_xml_et_value, _separate_ignore
 
 """
 ref > https://pytorch.org/tutorials/beginner/data_loading_tutorial.html
@@ -22,12 +22,64 @@ VOC_classes = ['aeroplane', 'bicycle', 'bird', 'boat',
     'sheep', 'sofa', 'train', 'tvmonitor']
 VOC_class_nums = len(VOC_classes) + 1
 
-class VOCBaseDataset(Dataset):
-    class_nums = len(VOC_classes) + 1
-    def __init__(self, voc_dir, focus, transform=None, target_transform=None, augmentation=None):
+class BaseDataset(Dataset):
+    def __init__(self, transform=None, target_transform=None, augmentation=None):
+        ignore, target_transform = _separate_ignore(target_transform)
+        self.ignore = ignore
         self.transform = transform
         self.target_transform = target_transform
         self.augmentation = augmentation
+
+    def _get_image(self, index):
+        """
+        :param index: int
+        :return:
+            rgb image(Tensor)
+        """
+        pass
+
+    def _get_bbox_lind(self, index):
+        """
+        :param index: int
+        :return:
+            list of bboxes, list of bboxes' label index, list of flags([difficult, truncated])
+        """
+        pass
+
+    def _apply_transform(self, img, bboxes, linds, flags):
+        """
+        IMPORTATANT: apply transform function in order with ignore, augmentation, transform and target_transform
+        :param img:
+        :param bboxes:
+        :param linds:
+        :param flags:
+        :return:
+        """
+        # To Percent mode
+        height, width, channel = img.shape
+        # bbox = [xmin, ymin, xmax, ymax]
+        # [bbox[0] / width, bbox[1] / height, bbox[2] / width, bbox[3] / height]
+        bboxes[:, 0::2] /= float(width)
+        bboxes[:, 1::2] /= float(height)
+
+        if self.ignore:
+            bboxes, linds, flags = self.ignore(bboxes, linds, flags)
+
+        if self.augmentation:
+            img, bboxes, linds, flags = self.augmentation(img, bboxes, linds, flags)
+
+        if self.transform:
+            img, bboxes, linds, flags = self.transform(img, bboxes, linds, flags)
+
+        if self.target_transform:
+            bboxes, linds, flags = self.target_transform(bboxes, linds, flags)
+
+        return img, bboxes, linds, flags
+
+class VOCBaseDataset(BaseDataset):
+    class_nums = len(VOC_classes) + 1
+    def __init__(self, voc_dir, focus, transform=None, target_transform=None, augmentation=None):
+        super().__init__(transform=transform, target_transform=target_transform, augmentation=augmentation)
 
         self._voc_dir = voc_dir
         self._focus = focus
@@ -60,21 +112,7 @@ class VOCBaseDataset(Dataset):
         img = self._get_image(index)
         bboxes, linds, flags = self._get_bbox_lind(index)
 
-        # To Percent mode
-        height, width, channel = img.shape
-        # bbox = [xmin, ymin, xmax, ymax]
-        # [bbox[0] / width, bbox[1] / height, bbox[2] / width, bbox[3] / height]
-        bboxes[:, 0::2] /= float(width)
-        bboxes[:, 1::2] /= float(height)
-
-        if self.augmentation:
-            img, bboxes, linds, flags = self.augmentation(img, bboxes, linds, flags)
-
-        if self.transform:
-            img, bboxes, linds, flags = self.transform(img, bboxes, linds, flags)
-
-        if self.target_transform:
-            bboxes, linds, flags = self.target_transform(bboxes, linds, flags)
+        img, bboxes, linds, flags = self._apply_transform(img, bboxes, linds, flags)
 
         # concatenate bboxes and linds
         if isinstance(bboxes, torch.Tensor) and isinstance(linds, torch.Tensor):

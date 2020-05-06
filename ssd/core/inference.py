@@ -17,10 +17,11 @@ class InferenceBox(Module):
 
         self.softmax = F.softmax
 
-    def forward(self, predicts, dboxes):
+    def forward(self, predicts, dboxes, conf_threshold=None):
         """
         :param predicts: localization and confidence Tensor, shape is (batch, total_dbox_num, 4+class_nums)
         :param dboxes: Tensor, default boxes Tensor whose shape is (total_dbox_nums, 4)`
+        :param conf_threshold: float or None, if it's None, passed default value with 0.01
         :return:
         """
 
@@ -34,6 +35,8 @@ class InferenceBox(Module):
         batch_num = predicts.shape[0]
         class_num = pred_conf.shape[2]
 
+        conf_threshold = conf_threshold if conf_threshold else self.conf_threshold
+
         ret_boxes = []
         for b in range(batch_num):
             ret_box = []
@@ -41,7 +44,7 @@ class InferenceBox(Module):
             inf_loc = inf_cand_loc[b]
             for c in range(class_num - 1): # last index means background
                 # filter out less than threshold
-                indicator = inf_conf[:, c] > self.conf_threshold
+                indicator = inf_conf[:, c] > conf_threshold
                 conf = inf_conf[indicator, c] # shape = (filtered default boxes num)
                 if conf.nelement() == 0:
                     continue
@@ -63,7 +66,10 @@ class InferenceBox(Module):
                     # shape = (inferred box num, 5=(class index, cx, cy, w, h))
                     ret_box += [torch.cat((flag, inferred_boxes), dim=1)]
 
-            ret_boxes += [torch.cat(ret_box, dim=0)]
+            if len(ret_box) == 0:
+                ret_boxes += [torch.from_numpy(np.ones((1, 5))*-1)]
+            else:
+                ret_boxes += [torch.cat(ret_box, dim=0)]
 
         # list of tensor, shape = (box num, 5=(class index, cx, cy, w, h))
         return ret_boxes

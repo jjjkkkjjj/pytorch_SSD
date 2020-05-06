@@ -100,9 +100,12 @@ class SSDBase(nn.Module):
             raise NotImplementedError("model hasn\'t built as train. Call \'train()\'")
         self._called_learn_inferr = True
 
-    def infer(self, image, toNorm=False, rgb_means=(103.939, 116.779, 123.68), rgb_stds=(1.0, 1.0, 1.0), visualize=False, convert_torch=False):
+    def infer(self, image, conf_threshold=0.01, toNorm=False,
+              rgb_means=(103.939, 116.779, 123.68), rgb_stds=(1.0, 1.0, 1.0),
+              visualize=False, convert_torch=False):
         """
         :param image: list of ndarray or Tensor, ndarray or Tensor
+        :param conf_threshold: float or None, if it's None, default value (0.01) will be passed
         :param toNorm: bool, whether to normalize passed image
         :param rgb_means: number, tuple,
         :param rgb_stds: number, tuple,
@@ -128,8 +131,8 @@ class SSDBase(nn.Module):
             img = img.permute((0, 3, 1, 2))
 
         # shape = (1, 3, 1, 1)
-        rgb_means = torch.tensor(rgb_means).unsqueeze(0).unsqueeze(2).unsqueeze(3)
-        rgb_stds = torch.tensor(rgb_stds).unsqueeze(0).unsqueeze(2).unsqueeze(3)
+        rgb_means = torch.tensor(rgb_means).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+        rgb_stds = torch.tensor(rgb_stds).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         if toNorm:
             normed_img = (img - rgb_means) / rgb_stds
             orig_img = img
@@ -179,7 +182,11 @@ class SSDBase(nn.Module):
     def init_weights(self):
         for module in self.modules():
             if isinstance(module, nn.Conv2d):
-                nn.init.kaiming_normal_(module.weight, mode='fan_out', nonlinearity='relu')
+                #nn.init.kaiming_normal_(module.weight, mode='fan_out', nonlinearity='relu')
+                #if module.bias is not None:
+                #    nn.init.constant_(module.bias, 0)
+
+                nn.init.xavier_normal(module.weight)
                 if module.bias is not None:
                     nn.init.constant_(module.bias, 0)
             elif isinstance(module, nn.BatchNorm2d):

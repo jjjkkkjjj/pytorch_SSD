@@ -155,10 +155,10 @@ class SSD300(SSDBase):
               rgb_means=(103.939, 116.779, 123.68), rgb_stds=(1.0, 1.0, 1.0),
               visualize=False, visualize_classes=None, convert_torch=False):
 
+        normed_img, orig_img = super().infer(image, conf_threshold, toNorm, rgb_means, rgb_stds, visualize, convert_torch)
+
         if conf_threshold is None:
             conf_threshold = 0.6 if visualize else 0.01
-
-        normed_img, orig_img = super().infer(image, toNorm, rgb_means, rgb_stds, visualize, convert_torch)
 
         # predict
         predicts = self(normed_img)
@@ -166,7 +166,7 @@ class SSD300(SSDBase):
 
         img_num = normed_img.shape[0]
         if visualize:
-            return infers, [toVisualizeRectangleimg(orig_img[i], infers[i][:, 1:]) for i in range(img_num)]
+            return infers, [toVisualizeRectangleimg(orig_img[i], infers[i][:, 1:], verbose=True) for i in range(img_num)]
         else:
             return infers
 

@@ -132,9 +132,11 @@ def toVisualizeRectangleimg(img, locs, thickness=2, rgb=(255, 0, 0), verbose=Fal
     locs_mm = centroids2minmax(locs).detach().numpy()
 
     h, w, c = img.shape
-    locs_mm[:, ::2] *= w
+    locs_mm[:, 0::2] *= w
     locs_mm[:, 1::2] *= h
-    locs_mm = np.clip(locs_mm, 0, w).astype(int)
+    locs_mm[:, 0::2] = np.clip(locs_mm[:, 0::2], 0, w).astype(int)
+    locs_mm[:, 1::2] = np.clip(locs_mm[:, 1::2], 0, h).astype(int)
+    locs_mm = locs_mm.astype(int)
 
     if verbose:
         print(locs_mm)
@@ -177,7 +179,9 @@ def toVisualizeImg(img, locs, conf_indices, classes, verbose=False):
     locs_mm[:, ::2] *= w
     locs_mm[:, 1::2] *= h
     locs_mm = locs_mm
-    locs_mm = np.clip(locs_mm, 0, w).astype(np.int)
+    locs_mm[:, 0::2] = np.clip(locs_mm[:, 0::2], 0, w).astype(int)
+    locs_mm[:, 1::2] = np.clip(locs_mm[:, 1::2], 0, h).astype(int)
+    locs_mm = locs_mm.astype(int)
 
     if verbose:
         print(locs_mm)

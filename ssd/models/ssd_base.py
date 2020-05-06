@@ -130,6 +130,7 @@ class SSDBase(nn.Module):
         if convert_torch:
             img = img.permute((0, 3, 1, 2))
 
+
         # shape = (1, 3, 1, 1)
         rgb_means = torch.tensor(rgb_means).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         rgb_stds = torch.tensor(rgb_stds).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)

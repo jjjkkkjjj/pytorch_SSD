@@ -78,8 +78,8 @@ class RandomIoUSampledPatch(_SampledPatchOp):
         ret_bboxes = bboxes.copy()
 
         # get patch width and height, and aspect ratio randomly
-        patch_w = int(random.uniform(0.3 * w, w))
-        patch_h = int(random.uniform(0.3 * h, h))
+        patch_w = random.randint(int(0.3 * w), w)
+        patch_h = random.randint(int(0.3 * h), h)
         aspect_ratio = patch_h / float(patch_w)
 
         # aspect ratio constraint b/t .5 & 2
@@ -88,10 +88,11 @@ class RandomIoUSampledPatch(_SampledPatchOp):
         #aspect_ratio = random.uniform(self.aspect_ration_min, self.aspect_ration_max)
 
         #patch_h, patch_w = int(aspect_ratio*h), int(aspect_ratio*w)
-        patch_topleft_x = int(random.uniform(w - patch_w))
-        patch_topleft_y = int(random.uniform(h - patch_h))
+        patch_topleft_x = random.randint(w - patch_w)
+        patch_topleft_y = random.randint(h - patch_h)
         # shape = (1, 4)
-        patch = np.array((patch_topleft_x, patch_topleft_y, patch_topleft_x + patch_w, patch_topleft_y + patch_h))
+        patch = np.array((patch_topleft_x, patch_topleft_y,
+                          patch_topleft_x + patch_w, patch_topleft_y + patch_h))
         patch = np.expand_dims(patch, 0)
 
         # IoU
@@ -109,17 +110,17 @@ class RandomIoUSampledPatch(_SampledPatchOp):
 
         # convert minmax to centroids coordinates of bboxes
         # shape = (*, 4=(cx, cy, w, h))
-        centroids_patch = minmax2centroids_numpy(ret_bboxes)
+        centroids_boxes = minmax2centroids_numpy(ret_bboxes)
 
-        # check if centroids of patch is in patch
-        mask_box = (centroids_patch[:, 0] > patch_topleft_x) * (centroids_patch[:, 0] < patch_topleft_x+patch_w) *\
-                   (centroids_patch[:, 1] > patch_topleft_y) * (centroids_patch[:, 1] < patch_topleft_y+patch_h)
+        # check if centroids of boxes is in patch
+        mask_box = (centroids_boxes[:, 0] > patch_topleft_x) * (centroids_boxes[:, 0] < patch_topleft_x+patch_w) *\
+                   (centroids_boxes[:, 1] > patch_topleft_y) * (centroids_boxes[:, 1] < patch_topleft_y+patch_h)
         if not mask_box.any():
             raise _SampledPatchOp.UnSatisfy
             #return None
 
         # filtered out the boxes with unsatisfied above condition
-        ret_bboxes = ret_bboxes[mask_box]
+        ret_bboxes = ret_bboxes[mask_box, :].copy()
         ret_labels = labels[mask_box]
 
         # adjust boxes within patch

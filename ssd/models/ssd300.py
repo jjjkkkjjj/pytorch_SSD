@@ -166,7 +166,7 @@ class SSD300(SSDBase):
 
         img_num = normed_img.shape[0]
         if visualize:
-            return infers, [toVisualizeRectangleimg(orig_img[i], infers[i][:, 1:], verbose=True) for i in range(img_num)]
+            return infers, [toVisualizeRectangleimg(orig_img[i], infers[i][:, 1:], verbose=False) for i in range(img_num)]
         else:
             return infers
 

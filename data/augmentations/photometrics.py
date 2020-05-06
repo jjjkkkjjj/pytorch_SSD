@@ -1,5 +1,6 @@
 from .utils import decision
 from numpy import random
+import numpy as np
 import cv2
 from itertools import permutations
 
@@ -18,6 +19,7 @@ class RandomBrightness(object):
             # get delta randomly between delta_min and delta_max
             delta = random.uniform(self.delta_min, self.delta_max)
             img += delta
+            img = np.clip(img, a_min=0, a_max=255)
 
         return img, bboxes, labels, flags
 
@@ -35,6 +37,7 @@ class RandomContrast(object):
             # get delta randomly between delta_min and delta_max
             factor = random.uniform(self.factor_min, self.factor_max)
             img *= factor
+            img = np.clip(img, a_min=0, a_max=255)
 
         return img, bboxes, labels, flags
 
@@ -54,6 +57,7 @@ class RandomHue(object):
             delta = random.uniform(self.delta_min, self.delta_max)
             img[:, :, 0] += delta
 
+            # clip 0 to 180, note that opencv's hue range is [0, 180]
             over_mask = img[:, :, 0] > 180
             img[over_mask, 0] -= 180
 
@@ -76,6 +80,7 @@ class RandomSaturation(object):
             # get delta randomly between delta_min and delta_max
             factor = random.uniform(self.factor_min, self.factor_max)
             img[:, :, 1] *= factor
+            img = np.clip(img, a_min=0, a_max=255)
 
         return img, bboxes, labels, flags
 

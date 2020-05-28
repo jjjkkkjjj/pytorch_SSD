@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 import cv2
 
 if __name__ == '__main__':
+    """
     augmentaion = augmentations.Compose(
         []
     )
@@ -23,9 +24,7 @@ if __name__ == '__main__':
          target_transforms.ToTensor()]
     )
 
-    test_dataset = datasets.Compose(datasets.VOC_class_nums,
-                                     datasets=(datasets.VOC2007_TestDataset, datasets.VOC2012_TrainValDataset),
-                                     transform=transform, target_transform=target_transform, augmentation=augmentaion)
+    test_dataset = datasets.VOC2012_TestDataset(transform=transform, target_transform=target_transform, augmentation=augmentaion)
 
     test_loader = DataLoader(test_dataset,
                               batch_size=32,
@@ -37,7 +36,14 @@ if __name__ == '__main__':
     model.eval()
 
     images = [test_dataset[i][0] for i in range(10)]
-    infers, imgs = model.infer(images, visualize=True)
+    """
+
+    model = SSD300(class_nums=datasets.VOC_class_nums, batch_norm=False)
+    model.load_weights('weights/ssd300-voc2007-augmentation/ssd300-voc2007_i-60000.pth')
+    model.eval()
+
+    image = cv2.imread('assets/coco_testimg.jpg')
+    infers, imgs = model.infer(cv2.resize(image, (300, 300)), visualize=True, toNorm=True)
     for img in imgs:
         cv2.imshow('result', img)
         cv2.waitKey()

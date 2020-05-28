@@ -102,7 +102,7 @@ class SSDBase(nn.Module):
 
     def infer(self, image, conf_threshold=0.01, toNorm=False,
               rgb_means=(103.939, 116.779, 123.68), rgb_stds=(1.0, 1.0, 1.0),
-              visualize=False, convert_torch=False):
+              visualize=False):
         """
         :param image: list of ndarray or Tensor, ndarray or Tensor
         :param conf_threshold: float or None, if it's None, default value (0.01) will be passed
@@ -110,16 +110,29 @@ class SSDBase(nn.Module):
         :param rgb_means: number, tuple,
         :param rgb_stds: number, tuple,
         :param visualize: bool,
-        :param convert_torch: bool, convert shape=(*, h, w, c) to shape=(*, c, h, w)
         :return:
         """
         if self.training:
             raise NotImplementedError("model hasn\'t built as test. Call \'eval()\'")
 
         if isinstance(image, list):
-            img = torch.stack(image)
+            img = []
+            for im in image:
+                if isinstance(im, np.ndarray):
+                    im = torch.tensor(im, requires_grad=False)
+                    img += im.permute((2, 0, 1))
+                elif isinstance(im, torch.Tensor):
+                    img += im
+                else:
+                    raise ValueError('Invalid image type')
+            img = torch.stack(img)
         elif isinstance(image, np.ndarray):
             img = torch.tensor(image, requires_grad=False)
+            if img.ndim == 3:
+                img = img.permute((2, 0, 1))
+            elif img.ndim == 4:
+                img = img.permute((0, 3, 1, 2))
+
         elif isinstance(image, torch.Tensor):
             img = image
         else:
@@ -127,8 +140,7 @@ class SSDBase(nn.Module):
 
         if img.ndim == 3:
             img = img.unsqueeze(0) # shape = (1, ?, ?, ?)
-        if convert_torch:
-            img = img.permute((0, 3, 1, 2))
+
 
 
         # shape = (1, 3, 1, 1)

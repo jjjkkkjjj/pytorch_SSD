@@ -153,9 +153,9 @@ class SSD300(SSDBase):
 
     def infer(self, image, conf_threshold=None, toNorm=False,
               rgb_means=(103.939, 116.779, 123.68), rgb_stds=(1.0, 1.0, 1.0),
-              visualize=False, visualize_classes=None, convert_torch=False):
+              visualize=False, visualize_classes=None):
 
-        normed_img, orig_img = super().infer(image, conf_threshold, toNorm, rgb_means, rgb_stds, visualize, convert_torch)
+        normed_img, orig_img = super().infer(image, conf_threshold, toNorm, rgb_means, rgb_stds, visualize)
 
         if conf_threshold is None:
             conf_threshold = 0.6 if visualize else 0.01

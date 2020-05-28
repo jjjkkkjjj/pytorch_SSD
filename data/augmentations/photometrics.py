@@ -58,7 +58,7 @@ class RandomHue(object):
             img[:, :, 0] += delta
 
             # clip 0 to 180, note that opencv's hue range is [0, 180]
-            over_mask = img[:, :, 0] > 180
+            over_mask = img[:, :, 0] >= 180
             img[over_mask, 0] -= 180
 
             under_mask = img[:, :, 0] < 0

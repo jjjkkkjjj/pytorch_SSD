@@ -68,6 +68,7 @@ class SSD300(SSDBase):
         # l2norm
         l2norm_layers = []
         for i, sourcename in enumerate(_l2norm_source_names):
+            assert sourcename in _classifier_source_names, "must be element of _classifier_source_names"
             l2norm_layers += [('l2norm_{}'.format(i + 1), L2Normalization(feature_layers[sourcename].out_channels, gamma=20))]
         l2norm_layers = nn.ModuleDict(OrderedDict(l2norm_layers))
 
@@ -116,16 +117,19 @@ class SSD300(SSDBase):
         feature_i, l2norm_i = 1, 1
         for name, layer in self.feature_layers.items():
             x = layer(x)
-            # l2norm
-            if name in _l2norm_source_names:
-                x = self.l2norm_layers['l2norm_{}'.format(l2norm_i)](x)
 
             # get features by feature map convolution
             if name in _classifier_source_names:
-                loc = self.localization_layers['conv_loc_{0}'.format(feature_i)](x)
+                source = x
+                # l2norm
+                if name in _l2norm_source_names:
+                    source = self.l2norm_layers['l2norm_{}'.format(l2norm_i)](source)
+                    l2norm_i += 1
+
+                loc = self.localization_layers['conv_loc_{0}'.format(feature_i)](source)
                 locs.append(loc)
 
-                conf = self.confidence_layers['conv_conf_{0}'.format(feature_i)](x)
+                conf = self.confidence_layers['conv_conf_{0}'.format(feature_i)](source)
                 confs.append(conf)
                 #print(features[-1].shape)
                 feature_i += 1

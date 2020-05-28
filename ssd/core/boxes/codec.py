@@ -14,18 +14,16 @@ class Codec(nn.Module):
         self.decoder = Decoder(self.norm_means, self.norm_stds)
 
 class Encoder(nn.Module):
-    def __init__(self, norm_means=(0, 0, 0, 0), norm_stds=(0.1, 0.1, 0.2, 0.2), matching_threshold=0.5):
+    def __init__(self, norm_means=(0, 0, 0, 0), norm_stds=(0.1, 0.1, 0.2, 0.2)):
         super().__init__()
         # shape = (1, 1, 4=(cx, cy, w, h)) or (1, 1, 1)
         self.norm_means = torch.tensor(norm_means, requires_grad=False).unsqueeze(0).unsqueeze(0)
         self.norm_stds = torch.tensor(norm_stds, requires_grad=False).unsqueeze(0).unsqueeze(0)
 
-        self.matching_threshold = matching_threshold
-
 
     def forward(self, gts, dboxes, batch_num):
         """
-        :param gts: Tensor, shape is (batch*bbox_nums(batch), 1+4+class_nums) = [[img's_ind, cx, cy, w, h, p_class,...],..
+        :param gts: Tensor, shape = (batch, default box num, 4+class_num) including background
         :param dboxes: Tensor, shape is (total_dbox_nums, 4=(cx,cy,w,h))
         :param batch_num: int
         :return:

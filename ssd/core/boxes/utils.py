@@ -13,7 +13,7 @@ def matching_strategy(gts, dboxes, **kwargs):
         batch_num: (Required) int, batch size
     :return:
         pos_indicator: Bool Tensor, shape = (batch, default box num). this represents whether each default box is object or background.
-        matched_gts: Tensor, shape = (batch, default box num, 4+class_num)
+        matched_gts: Tensor, shape = (batch, default box num, 4+class_num) including background
     """
     threshold = kwargs.pop('threshold', 0.5)
     batch_num = kwargs.pop('batch_num')

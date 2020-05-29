@@ -69,6 +69,8 @@ class SSDBase(nn.Module):
         self.localization_layers = check_instance('localization_layers', locs, nn.ModuleDict)
         self.confidence_layers = check_instance('confidence_layers', confs, nn.ModuleDict)
 
+        self.init_weights()
+
         self._isbuilt_layer = True
 
     def _build_defaultBox(self, defaultBox, classifier_source_names):
@@ -199,12 +201,12 @@ class SSDBase(nn.Module):
                 #if module.bias is not None:
                 #    nn.init.constant_(module.bias, 0)
 
-                nn.init.xavier_normal(module.weight)
+                nn.init.xavier_normal_(module.weight)
                 if module.bias is not None:
                     nn.init.constant_(module.bias, 0)
             elif isinstance(module, nn.BatchNorm2d):
                 nn.init.constant_(module.weight, 1)
                 nn.init.constant_(module.bias, 0)
             elif isinstance(module, nn.Linear):
-                nn.init.normal_(module.weight, 0, 1e-2)
+                nn.init.normal(module.weight, 0, 1e-2)
                 nn.init.constant_(module.bias, 0)

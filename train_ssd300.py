@@ -7,6 +7,7 @@ from ssd.train import *
 #from torchvision import transforms > not import!!
 from torch.utils.data import DataLoader
 from torch.optim.adam import Adam
+from torch.optim.sgd import SGD
 
 if __name__ == '__main__':
     """
@@ -45,13 +46,20 @@ if __name__ == '__main__':
     from ssd.core.boxes import matching_strategy
     matching_strategy(gts, d, batch_num=1)
     """
-    #optimizer = SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
-    optimizer = Adam(model.parameters(), lr=1e-3, weight_decay=5e-4)
+    optimizer = SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
+    #optimizer = Adam(model.parameters(), lr=1e-3, weight_decay=5e-4)
     #iter_sheduler = SSDIterMultiStepLR(optimizer, milestones=(10, 20, 30), gamma=0.1, verbose=True)
-    iter_sheduler = SSDIterStepLR(optimizer, step_size=10000, gamma=0.1, verbose=True)
-
+    iter_sheduler = SSDIterStepLR(optimizer, step_size=60000, gamma=0.1, verbose=True)
+    """
     save_manager = SaveManager(modelname='ssd300', interval=10, max_checkpoints=3)
     log_manager = LogManager(interval=10, save_manager=save_manager, loss_interval=10, live_graph=None)
     trainer = TrainLogger(model, loss_func=SSDLoss(), optimizer=optimizer, scheduler=iter_sheduler, log_manager=log_manager, gpu=True)
 
     trainer.train(30, train_loader)
+    """
+    save_manager = SaveManager(modelname='ssd300', interval=5000, max_checkpoints=3)
+    log_manager = LogManager(interval=10, save_manager=save_manager, loss_interval=10, live_graph=None)
+    trainer = TrainLogger(model, loss_func=SSDLoss(), optimizer=optimizer, scheduler=iter_sheduler,
+                          log_manager=log_manager, gpu=True)
+
+    trainer.train(80000, train_loader)

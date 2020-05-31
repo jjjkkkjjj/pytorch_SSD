@@ -3,7 +3,7 @@ import torch
 
 from .._utils import check_instance
 from ..core.boxes.dbox import *
-from ..core.layers import Predictor
+from ..core.layers import Predictor, ConvRelu
 from ..core.inference import InferenceBox
 from ssd.core.boxes.codec import Codec
 
@@ -173,10 +173,9 @@ class SSDBase(nn.Module):
 
         return self
     def cuda(self, device=None):
-        super().cuda(device)
         self.defaultBox.dboxes = self.defaultBox.dboxes.cuda(device)
 
-        return self
+        return super().cuda(device)
 
     # weights management
     def load_vgg_weights(self):
@@ -196,14 +195,19 @@ class SSDBase(nn.Module):
 
     def init_weights(self):
         for module in self.modules():
+
             if isinstance(module, nn.Conv2d):
-                #nn.init.kaiming_normal_(module.weight, mode='fan_out', nonlinearity='relu')
+                #nn.init.kaiming_norma l_(module.weight, mode='fan_out', nonlinearity='relu')
                 #if module.bias is not None:
                 #    nn.init.constant_(module.bias, 0)
 
-                nn.init.xavier_normal_(module.weight)
+                nn.init.xavier_uniform_(module.weight)
                 if module.bias is not None:
                     nn.init.constant_(module.bias, 0)
+            elif isinstance(module, ConvRelu):
+                nn.init.xavier_uniform_(module.conv.weight)
+                if module.conv.bias is not None:
+                    nn.init.constant_(module.conv.bias, 0)
             elif isinstance(module, nn.BatchNorm2d):
                 nn.init.constant_(module.weight, 1)
                 nn.init.constant_(module.bias, 0)

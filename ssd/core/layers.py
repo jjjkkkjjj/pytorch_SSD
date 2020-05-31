@@ -4,6 +4,8 @@ from torch.nn import init
 from torch.nn import functional as F
 import numpy as np
 
+from collections import OrderedDict
+
 class Flatten(nn.Module):
     def forward(self, x):
         batch_size = x.shape[0]
@@ -29,6 +31,22 @@ class L2Normalization(nn.Module):
         x = F.normalize(x, p=2, dim=1)
         return self.scales.unsqueeze(0).unsqueeze(2).unsqueeze(3) * x
 
+
+class ConvRelu(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, bn=False, relu_inplace=False, **kwargs):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.bn = nn.BatchNorm2d(out_channels) if bn else None
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, **kwargs)
+        self.relu = nn.ReLU(relu_inplace)
+
+    def forward(self, x):
+        x = self.conv(x)
+        if self.bn:
+            x = self.bn(x)
+        x = self.relu(x)
+        return x
 
 class Predictor(nn.Module):
     def __init__(self, total_dbox_nums, class_nums):
@@ -107,17 +125,18 @@ class Conv2d:
             postfix = '{0}_{1}'.format(order, bnum + 1)
             if not batch_norm:
                 layers += [
-                    ('conv{}'.format(postfix),
-                     nn.Conv2d(in_c, out_channels, kernel_size, stride=stride, padding=padding)),
-                    ('relu{}'.format(postfix), nn.ReLU(relu_inplace))
+                    ('convRL{}'.format(postfix), ConvRelu(in_c, out_channels, kernel_size,
+                                                          stride=stride, padding=padding,
+                                                          bn=False, relu_inplace=relu_inplace))
                 ]
+
             else:
                 layers += [
-                    ('conv{}'.format(postfix),
-                     nn.Conv2d(in_c, out_channels, kernel_size, stride=stride, padding=padding)),
-                    ('bn{}'.format(postfix), nn.BatchNorm2d(out_channels)),
-                    ('relu{}'.format(postfix), nn.ReLU(relu_inplace))
+                    ('convBnRL{}'.format(postfix), ConvRelu(in_c, out_channels, kernel_size,
+                                                          stride=stride, padding=padding,
+                                                          bn=True, relu_inplace=relu_inplace))
                 ]
+
             in_c = out_channels
 
         kernel_size = kwargs.pop('pool_k_size', (2, 2))
@@ -183,14 +202,13 @@ class Conv2d:
         batch_norm = kwargs.pop('batch_norm', Conv2d.batch_norm)
         if not batch_norm:
             return [
-                ('conv{}'.format(postfix), nn.Conv2d(in_channels, out_channels, **kwargs)),
-                ('relu{}'.format(postfix), nn.ReLU(inplace=relu_inplace))
+                ('convRL{}'.format(postfix), ConvRelu(in_channels, out_channels,
+                                                      bn=False, relu_inplace=relu_inplace, **kwargs))
             ]
         else:
             return [
-                ('conv{}'.format(postfix), nn.Conv2d(in_channels, out_channels, **kwargs)),
-                ('bn{}'.format(postfix), nn.BatchNorm2d(out_channels)),
-                ('relu{}'.format(postfix), nn.ReLU(inplace=relu_inplace))
+                ('convBnRL{}'.format(postfix), ConvRelu(in_channels, out_channels,
+                                                      bn=True, relu_inplace=relu_inplace, **kwargs))
             ]
 
     @staticmethod

@@ -70,7 +70,7 @@ class TrainLogger(object):
                 loss = confloss + self.loss_func.alpha * locloss
                 loss.backward()  # calculate gradient for value with requires_grad=True, shortly back propagation
                 # print(self.model.feature_layers.conv1_1.weight.grad)
-
+                # print(self.model.localization_layers.conv_loc_1.weight.grad)
                 self.optimizer.step()
                 if self.scheduler:
                     self.scheduler.step()

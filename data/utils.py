@@ -23,6 +23,7 @@ def batch_ind_fn(batch):
 
     imgs = torch.stack(imgs)
     ret_gts = torch.from_numpy(np.concatenate(ret_gts).astype(np.float32))
+    ret_gts.requires_grad_(False)
 
     return imgs, ret_gts
 

@@ -23,7 +23,7 @@ class Encoder(nn.Module):
 
     def forward(self, gts, dboxes, batch_num):
         """
-        :param gts: Tensor, shape = (batch, default box num, 4+class_num) including background
+        :param gts: Tensor, shape is (batch*object num(batch), 1+4+class_nums)
         :param dboxes: Tensor, shape is (total_dbox_nums, 4=(cx,cy,w,h))
         :param batch_num: int
         :return:
@@ -34,6 +34,8 @@ class Encoder(nn.Module):
                            shape = (batch, default boxes num, 4)
         """
         # matching
+        # pos_indicator: Bool Tensor, shape = (batch, default box num). this represents whether each default box is object or background.
+        # gts: Tensor, shape = (batch, default box num, 4+class_num) including background
         pos_indicator, gts = matching_strategy(gts, dboxes, batch_num=batch_num)
 
         # encoding

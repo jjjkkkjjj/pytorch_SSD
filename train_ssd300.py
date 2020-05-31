@@ -8,6 +8,7 @@ from ssd.train import *
 from torch.utils.data import DataLoader
 from torch.optim.adam import Adam
 from torch.optim.sgd import SGD
+import torch
 
 if __name__ == '__main__':
     """
@@ -15,6 +16,7 @@ if __name__ == '__main__':
         []
     )"""
     augmentation = augmentations.AugmentationOriginal()
+    augmentation = None
 
     transform = transforms.Compose(
         [transforms.Normalize(rgb_means=(103.939, 116.779, 123.68), rgb_stds=1),
@@ -35,7 +37,8 @@ if __name__ == '__main__':
     train_loader = DataLoader(train_dataset,
                               batch_size=32,
                               shuffle=True,
-                              collate_fn=utils.batch_ind_fn)
+                              collate_fn=utils.batch_ind_fn,
+                              pin_memory=True)
 
     model = SSD300(class_nums=train_dataset.class_nums, batch_norm=False)
     model.load_vgg_weights()

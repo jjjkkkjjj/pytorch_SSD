@@ -3,7 +3,7 @@ import torch
 from torch import nn
 
 class DefaultBoxBase(nn.Module):
-    def __init__(self, img_shape=(300, 300, 3), scale_range=(0.2, 0.9),
+    def __init__(self, img_shape=(300, 300, 3), scale_range=(0.1, 0.9),
                  aspect_ratios=((1, 2), (1, 2, 3), (1, 2, 3), (1, 2, 3), (1, 2), (1, 2)), clip=True):
         """
         :param img_shape: tuple, must be 3d
@@ -142,7 +142,16 @@ class DBoxSSD300Original(DefaultBoxBase):
         # / f_k
         step_i, step_j = (np.arange(fmap_w) + 0.5) / fmap_w, (np.arange(fmap_h) + 0.5) / fmap_h
         # ((i+0.5)/f_k, (j+0.5)/f_k) for all i,j
-        cx, cy = np.meshgrid(step_i, step_j)
+        """ 
+        Note that Predictor handles as height first!!
+        See layers.py to detail
+        loc's shape = (b, h, w, c)
+        loc = loc.permute((0, 2, 3, 1)).contiguous()
+        locs_reshaped += [loc.reshape((batch_num, -1))]
+        
+        So, meshgrid's return value x is assigned to cy, y is assigned to cx 
+        """
+        cy, cx = np.meshgrid(step_i, step_j)
         # cx, cy's shape (fmap_w, fmap_h) to (fmap_w*fmap_h, 1)
         cx, cy = cx.reshape(-1, 1), cy.reshape(-1, 1)
         total_dbox_num = cx.size
@@ -169,7 +178,7 @@ class DBoxSSD300Original(DefaultBoxBase):
 
 
 # deprecated
-class __DefaultBox(DefaultBoxBase):
+class _DefaultBox(DefaultBoxBase):
     def __init__(self, **kwargs):
         """
         :param img_shape: tuple, must be 3d
@@ -214,7 +223,7 @@ class __DefaultBox(DefaultBoxBase):
         # back to torch land
         output = torch.Tensor(mean).view(-1, 4)
         k = output.cpu().numpy()
-        if self._clip:
+        if self.clip:
             output.clamp_(max=1, min=0)
         return output
 

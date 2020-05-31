@@ -4,7 +4,7 @@ from ..core.inference import InferenceBox, toVisualizeImg, toVisualizeRectanglei
 from ..models.vgg_base import get_model_url
 from .ssd_base import SSDBase
 from ..core.boxes import *
-
+from  ..core.boxes.dbox import _DefaultBox
 
 from torch import nn
 from torchvision.models.utils import load_state_dict_from_url
@@ -18,8 +18,8 @@ _aspect_ratios=((1, 2), (1, 2, 3), (1, 2, 3), (1, 2, 3), (1, 2), (1, 2))
 
 # classifier's source layers
 # consists of conv4_3, conv7, conv8_2, conv9_2, conv10_2, conv11_2
-_classifier_source_names = ['conv4_3', 'conv7', 'conv8_2', 'conv9_2', 'conv10_2', 'conv11_2']
-_l2norm_source_names = ['conv4_3']
+_classifier_source_names = ['convRL4_3', 'convRL7', 'convRL8_2', 'convRL9_2', 'convRL10_2', 'convRL11_2']
+_l2norm_source_names = ['convRL4_3']
 class SSD300(SSDBase):
     def __init__(self, class_nums, input_shape=(300, 300, 3), batch_norm=False):
         """
@@ -97,6 +97,7 @@ class SSD300(SSDBase):
 
         # build default box
         defaultBox = DBoxSSD300Original(scale_conv4_3=0.1, aspect_ratios=_aspect_ratios, scale_range=(0.2, 0.9))
+        #defaultBox = _DefaultBox()
         self._build_defaultBox(defaultBox, _classifier_source_names)
 
         # build inference box

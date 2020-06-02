@@ -20,9 +20,9 @@ if __name__ == '__main__':
     #augmentation = None
 
     transform = transforms.Compose(
-        [transforms.Normalize(rgb_means=(103.939, 116.779, 123.68), rgb_stds=1),
-         transforms.Resize((300, 300)),
-         transforms.ToTensor()]
+        [transforms.Resize((300, 300)),
+         transforms.ToTensor(),
+         transforms.Normalize(rgb_means=(0.485, 0.456, 0.406), rgb_stds=(0.229, 0.224, 0.225))]
     )
     target_transform = target_transforms.Compose(
         [target_transforms.Ignore(difficult=True),

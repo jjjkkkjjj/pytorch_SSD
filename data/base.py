@@ -22,7 +22,7 @@ VOC_classes = ['aeroplane', 'bicycle', 'bird', 'boat',
     'sheep', 'sofa', 'train', 'tvmonitor']
 VOC_class_nums = len(VOC_classes) + 1
 
-class BaseDataset(Dataset):
+class ObjectDetectionDatasetBase(Dataset):
     def __init__(self, transform=None, target_transform=None, augmentation=None):
         ignore, target_transform = _separate_ignore(target_transform)
         self.ignore = ignore
@@ -74,9 +74,9 @@ class BaseDataset(Dataset):
         if self.target_transform:
             bboxes, linds, flags = self.target_transform(bboxes, linds, flags)
 
-        return img / 255., bboxes, linds, flags
+        return img, bboxes, linds, flags
 
-class VOCBaseDataset(BaseDataset):
+class VOCBaseDataset(ObjectDetectionDatasetBase):
     class_nums = len(VOC_classes) + 1
     def __init__(self, voc_dir, focus, transform=None, target_transform=None, augmentation=None):
         super().__init__(transform=transform, target_transform=target_transform, augmentation=augmentation)

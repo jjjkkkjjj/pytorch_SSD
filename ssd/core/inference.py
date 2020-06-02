@@ -112,7 +112,9 @@ def non_maximum_suppression(conf, loc, iou_threshold=0.45, topk=200):
 
     return inferred_boxes
 
-def tensor2cvimg(img):
+def tensor2cvimg(img, to8bit=True):
+    if to8bit:
+        img = img * 255.
     return img.numpy().transpose((1, 2, 0)).astype(np.uint8)
 
 def toVisualizeRectangleimg(img, locs, thickness=2, rgb=(255, 0, 0), verbose=False):

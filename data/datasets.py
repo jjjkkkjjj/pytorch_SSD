@@ -6,9 +6,9 @@ from .utils import DATA_ROOT
 
 class VOC2007Dataset(Dataset):
     class_nums = VOCBaseDataset.class_nums
-    def __init__(self, transform=None, target_transform=None, augmentation=None):
-        self.trainval = VOC2007_TrainValDataset(transform=transform, target_transform=target_transform, augmentation=augmentation)
-        self.test = VOC2007_TestDataset(transform=transform, target_transform=target_transform, augmentation=augmentation)
+    def __init__(self, **kwargs):
+        self.trainval = VOC2007_TrainValDataset(**kwargs)
+        self.test = VOC2007_TestDataset(**kwargs)
 
     def __getitem__(self, index):
         if index < len(self.trainval):
@@ -21,20 +21,20 @@ class VOC2007Dataset(Dataset):
 
 
 class VOC2007_TrainValDataset(VOCBaseDataset):
-    def __init__(self, focus='trainval', transform=None, target_transform=None, augmentation=None):
-        super().__init__(DATA_ROOT + '/voc/voc2007/trainval/VOCdevkit/VOC2007', focus, transform, target_transform, augmentation)
+    def __init__(self, focus='trainval', **kwargs):
+        super().__init__(DATA_ROOT + '/voc/voc2007/trainval/VOCdevkit/VOC2007', focus, **kwargs)
 
 
 class VOC2007_TestDataset(VOCBaseDataset):
-    def __init__(self, focus='test', transform=None, target_transform=None, augmentation=None):
-        super().__init__(DATA_ROOT + '/voc/voc2007/test/VOCdevkit/VOC2007', focus, transform, target_transform, augmentation)
+    def __init__(self, focus='test', **kwargs):
+        super().__init__(DATA_ROOT + '/voc/voc2007/test/VOCdevkit/VOC2007', focus, **kwargs)
 
 
 class VOC2012Dataset(Dataset):
     class_nums = VOCBaseDataset.class_nums
-    def __init__(self, transform=None, target_transform=None, augmentation=None):
-        self.trainval = VOC2012_TrainValDataset(transform=transform, target_transform=target_transform, augmentation=augmentation)
-        self.test = VOC2012_TestDataset(transform=transform, target_transform=target_transform, augmentation=augmentation)
+    def __init__(self, **kwargs):
+        self.trainval = VOC2012_TrainValDataset(**kwargs)
+        self.test = VOC2012_TestDataset(**kwargs)
 
     def __getitem__(self, index):
         if index < len(self.trainval):
@@ -46,28 +46,28 @@ class VOC2012Dataset(Dataset):
         return len(self.trainval) + len(self.test)
 
 class VOC2012_TrainValDataset(VOCBaseDataset):
-    def __init__(self, focus='trainval', transform=None, target_transform=None, augmentation=None):
+    def __init__(self, focus='trainval', **kwargs):
         super().__init__(DATA_ROOT + '/voc/voc2012/trainval/VOCdevkit/VOC2012', focus,
-                         transform, target_transform, augmentation)
+                         **kwargs)
 
 
 class VOC2012_TestDataset(VOCBaseDataset):
-    def __init__(self, focus='test', transform=None, target_transform=None, augmentation=None):
+    def __init__(self, focus='test', **kwargs):
         super().__init__(DATA_ROOT + '/voc/voc2012/test/VOCdevkit/VOC2012', focus,
-                         transform, target_transform, augmentation)
+                         **kwargs)
 
 
 class Compose(Dataset):
     class_nums = -1
-    def __init__(self, class_nums, datasets=(VOC2007Dataset, VOC2012Dataset), transform=None, target_transform=None, augmentation=None):
-        self.transform = transform
-        self.target_transform = target_transform
-        self.augmentation = augmentation
+    def __init__(self, class_nums, datasets=(VOC2007Dataset, VOC2012Dataset), **kwargs):
+        self.transform = kwargs.get('transform', None)
+        self.target_transform = kwargs.get('target_transform', None)
+        self.augmentation = kwargs.get('augmentation', None)
 
         _datasets, _lens = [], []
         for dataset in datasets:
             # initialization
-            _datasets += [dataset(transform=transform, target_transform=target_transform, augmentation=augmentation)]
+            _datasets += [dataset(**kwargs)]
 
             _lens += [len(_datasets[-1])]
 

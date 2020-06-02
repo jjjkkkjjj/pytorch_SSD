@@ -4,7 +4,8 @@ import cv2, glob, os
 import numpy as np
 from xml.etree import ElementTree as ET
 
-from .utils import _get_xml_et_value, _separate_ignore
+from .utils import _get_xml_et_value, _check_ins, _contain_ignore
+from .target_transforms import Ignore
 
 """
 ref > https://pytorch.org/tutorials/beginner/data_loading_tutorial.html
@@ -23,11 +24,11 @@ VOC_classes = ['aeroplane', 'bicycle', 'bird', 'boat',
 VOC_class_nums = len(VOC_classes) + 1
 
 class ObjectDetectionDatasetBase(Dataset):
-    def __init__(self, transform=None, target_transform=None, augmentation=None):
-        ignore, target_transform = _separate_ignore(target_transform)
-        self.ignore = ignore
+    def __init__(self, ignore=None, transform=None, target_transform=None, augmentation=None):
+        #ignore, target_transform = _separate_ignore(target_transform)
+        self.ignore = _check_ins('ignore', ignore, Ignore, allow_none=True)
         self.transform = transform
-        self.target_transform = target_transform
+        self.target_transform = _contain_ignore(target_transform)
         self.augmentation = augmentation
 
     def _get_image(self, index):
@@ -46,7 +47,7 @@ class ObjectDetectionDatasetBase(Dataset):
         """
         pass
 
-    def _apply_transform(self, img, bboxes, linds, flags):
+    def apply_transform(self, img, bboxes, linds, flags):
         """
         IMPORTATANT: apply transform function in order with ignore, augmentation, transform and target_transform
         :param img:
@@ -78,8 +79,8 @@ class ObjectDetectionDatasetBase(Dataset):
 
 class VOCBaseDataset(ObjectDetectionDatasetBase):
     class_nums = len(VOC_classes) + 1
-    def __init__(self, voc_dir, focus, transform=None, target_transform=None, augmentation=None):
-        super().__init__(transform=transform, target_transform=target_transform, augmentation=augmentation)
+    def __init__(self, voc_dir, focus, **kwargs):
+        super().__init__(**kwargs)
 
         self._voc_dir = voc_dir
         self._focus = focus
@@ -112,19 +113,19 @@ class VOCBaseDataset(ObjectDetectionDatasetBase):
         img = self._get_image(index)
         bboxes, linds, flags = self._get_bbox_lind(index)
 
-        img, bboxes, linds, flags = self._apply_transform(img, bboxes, linds, flags)
+        img, bboxes, linds, flags = self.apply_transform(img, bboxes, linds, flags)
 
         # concatenate bboxes and linds
         if isinstance(bboxes, torch.Tensor) and isinstance(linds, torch.Tensor):
             if linds.ndim == 1:
                 linds = linds.unsqueeze(1)
-            gt = torch.cat((bboxes, linds), dim=1)
+            targets = torch.cat((bboxes, linds), dim=1)
         else:
             if linds.ndim == 1:
                 linds = linds[:, np.newaxis]
-            gt = np.concatenate((bboxes, linds), axis=1)
+            targets = np.concatenate((bboxes, linds), axis=1)
 
-        return img, gt
+        return img, targets
 
     def __len__(self):
         return len(self._annopaths)
@@ -169,4 +170,8 @@ class VOCBaseDataset(ObjectDetectionDatasetBase):
                           #'partial': _get_xml_et_value(obj, 'truncated', int) == 1})
 
         return np.array(bboxes, dtype=np.float32), np.array(linds, dtype=np.float32), flags
+
+
+
+
 

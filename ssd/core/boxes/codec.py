@@ -21,9 +21,9 @@ class Encoder(nn.Module):
         self.norm_stds = torch.tensor(norm_stds, requires_grad=False).unsqueeze(0).unsqueeze(0)
 
 
-    def forward(self, gts, dboxes, batch_num):
+    def forward(self, targets, dboxes, batch_num):
         """
-        :param gts: Tensor, shape is (batch*object num(batch), 1+4+class_nums)
+        :param targets: Tensor, shape is (batch*object num(batch), 1+4+class_nums)
         :param dboxes: Tensor, shape is (total_dbox_nums, 4=(cx,cy,w,h))
         :param batch_num: int
         :return:
@@ -35,19 +35,19 @@ class Encoder(nn.Module):
         """
         # matching
         # pos_indicator: Bool Tensor, shape = (batch, default box num). this represents whether each default box is object or background.
-        # gts: Tensor, shape = (batch, default box num, 4+class_num) including background
-        pos_indicator, gts = matching_strategy(gts, dboxes, batch_num=batch_num)
+        # targets: Tensor, shape = (batch, default box num, 4+class_num) including background
+        pos_indicator, targets = matching_strategy(targets, dboxes, batch_num=batch_num)
 
         # encoding
-        # gt_boxes: Tensor, shape = (batch, default boxes num, 4)
-        gt_boxes = gts[:, :, :4]
+        # targets_loc: Tensor, shape = (batch, default boxes num, 4)
+        targets_loc = targets[:, :, :4]
 
-        assert gt_boxes.shape[1:] == dboxes.shape, "gt_boxes and default_boxes must be same shape"
+        assert targets_loc.shape[1:] == dboxes.shape, "targets_loc and default_boxes must be same shape"
 
-        gt_cx = (gt_boxes[:, :, 0] - dboxes[:, 0]) / dboxes[:, 2]
-        gt_cy = (gt_boxes[:, :, 1] - dboxes[:, 1]) / dboxes[:, 3]
-        gt_w = torch.log(gt_boxes[:, :, 2] / dboxes[:, 2])
-        gt_h = torch.log(gt_boxes[:, :, 3] / dboxes[:, 3])
+        gt_cx = (targets_loc[:, :, 0] - dboxes[:, 0]) / dboxes[:, 2]
+        gt_cy = (targets_loc[:, :, 1] - dboxes[:, 1]) / dboxes[:, 3]
+        gt_w = torch.log(targets_loc[:, :, 2] / dboxes[:, 2])
+        gt_h = torch.log(targets_loc[:, :, 3] / dboxes[:, 3])
 
         encoded_boxes = torch.cat((gt_cx.unsqueeze(2),
                           gt_cy.unsqueeze(2),
@@ -55,9 +55,9 @@ class Encoder(nn.Module):
                           gt_h.unsqueeze(2)), dim=2)
 
         # normalization
-        gts[:, :, :4] = (encoded_boxes - self.norm_means.to(gt_boxes.device)) / self.norm_stds.to(gt_boxes.device)
+        targets[:, :, :4] = (encoded_boxes - self.norm_means.to(targets_loc.device)) / self.norm_stds.to(targets_loc.device)
 
-        return pos_indicator, gts
+        return pos_indicator, targets
 
 
 class Decoder(nn.Module):

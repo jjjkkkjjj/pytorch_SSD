@@ -4,12 +4,10 @@ import numpy as np
 
 def batch_ind_fn(batch):
     """
-    concatenate image's index to gt
-    e.g.) gts = [[cx, cy, w, h, p_class,...],...] >  ret_gts = [[img's_box number!!!, cx, cy, w, h, p_class,...],...]
-
-    About img's box number...
-    e.g.) ret_gts[0] = (2,2,1,3,3,3,2,2,...)
-            shortly, box number value is arranged for each box number
+    :param batch:
+    :return:
+        imgs: Tensor, shape = (b, c, h, w)
+        targets: list of Tensor, whose shape = (object box num, 4 + class num) including background
     """
     imgs, gts = list(zip(*batch))
 
@@ -78,5 +76,25 @@ def _separate_ignore(target_transform):
     else:
         return None, target_transform
 
+def _contain_ignore(target_transform):
+    if target_transform:
+        from .target_transforms import Ignore, Compose
+        if isinstance(target_transform, Ignore):
+            raise ValueError('target_transforms.Ignore must be passed to \'ignore\' argument')
+
+        if isinstance(target_transform, Compose):
+            for t in target_transform.target_transforms:
+                if isinstance(t, Ignore):
+                    raise ValueError('target_transforms.Ignore must be passed to \'ignore\' argument')
+
+    return target_transform
+
+def _check_ins(name, val, cls, allow_none=False):
+    if allow_none and val is None:
+        return val
+
+    if not isinstance(val, cls):
+        raise ValueError('Argument {} must be {}, but got {}'.format(name, cls.__name__, type(val).__name__))
+    return val
 
 DATA_ROOT = os.path.join(os.path.expanduser('~'), 'data')

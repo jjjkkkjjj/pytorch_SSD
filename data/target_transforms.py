@@ -50,7 +50,7 @@ class Ignore(object):
         self.kwargs = kwargs
         if len(kwargs) > 0:
             import logging
-            logging.warning('Unsupported arguments: {}'.format(self.kwargs))
+            logging.warning('Unsupported arguments: {}'.format(self.kwargs.keys()))
 
     def __call__(self, bboxes, labels, flags):
         ret_bboxes = []

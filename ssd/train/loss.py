@@ -12,23 +12,23 @@ class SSDLoss(nn.Module):
         self.loc_loss = LocalizationLoss() if loc_loss is None else loc_loss
         self.conf_loss = ConfidenceLoss() if conf_loss is None else conf_loss
 
-    def forward(self, pos_indicator, predicts, gts):
+    def forward(self, pos_indicator, predicts, targets):
         """
         :param pos_indicator: Bool Tensor, shape = (batch, default box num). this represents whether each default box is object or background.
         :param predicts: Tensor, shape is (batch, total_dbox_nums, 4+class_nums=(cx, cy, w, h, p_class,...)
-        :param gts: Tensor, shape is (batch, total_dbox_nums, 4+class_nums=(cx, cy, w, h, p_class,...)
+        :param targets: Tensor, shape is (batch, total_dbox_nums, 4+class_nums=(cx, cy, w, h, p_class,...)
         :return:
             loss: float
         """
-        # get localization and confidence from predicts and gts respectively
+        # get localization and confidence from predicts and targets respectively
         pred_loc, pred_conf = predicts[:, :, :4], predicts[:, :, 4:]
-        gt_loc, gt_conf = gts[:, :, :4], gts[:, :, 4:]
+        targets_loc, targets_conf = targets[:, :, :4], targets[:, :, 4:]
 
         # Localization loss
-        loc_loss = self.loc_loss(pos_indicator, pred_loc, gt_loc)
+        loc_loss = self.loc_loss(pos_indicator, pred_loc, targets_loc)
 
         # Confidence loss
-        conf_loss = self.conf_loss(pos_indicator, pred_conf, gt_conf)
+        conf_loss = self.conf_loss(pos_indicator, pred_conf, targets_conf)
 
         return conf_loss, loc_loss
 
@@ -37,11 +37,11 @@ class LocalizationLoss(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, pos_indicator, predicts, gts):
+    def forward(self, pos_indicator, predicts, targets):
         """
         :param pos_indicator: Tensor, shape = (batch num, dbox num)
         :param predicts: Tensor, shape = (batch num, dbox num, 4=(cx, cy, w, h))
-        :param gts: Tensor, shape = (batch num, dbox num, 4=(cx, cy, w, h))
+        :param targets: Tensor, shape = (batch num, dbox num, 4=(cx, cy, w, h))
         :return:
         """
         """
@@ -50,14 +50,14 @@ class LocalizationLoss(nn.Module):
         N = pos_indicator.sum(dim=-1) # shape = (batch num)
         N = torch.max(N, torch.ones_like(N))
 
-        loss = F.smooth_l1_loss(predicts, gts, reduction='none').sum(dim=-1)  # shape = (batch num, dboxes num)
+        loss = F.smooth_l1_loss(predicts, targets, reduction='none').sum(dim=-1)  # shape = (batch num, dboxes num)
         loss.masked_fill_(neg_indicator, 0)
 
         return (loss.sum(dim=-1) / N).mean()
         """
         N = pos_indicator.sum().float()
 
-        loss = F.smooth_l1_loss(predicts, gts, reduction='none').sum(dim=-1)  # shape = (batch num, dbox num)
+        loss = F.smooth_l1_loss(predicts, targets, reduction='none').sum(dim=-1)  # shape = (batch num, dbox num)
 
         return loss.masked_select(pos_indicator).sum() / N
 
@@ -72,11 +72,11 @@ class ConfidenceLoss(nn.Module):
         self._neg_factor = neg_factor
         self.hnm_batch = hnm_batch
 
-    def forward(self, pos_indicator, predicts, gts):
+    def forward(self, pos_indicator, predicts, targets):
         """
         :param pos_indicator: Tensor, shape = (batch num, dbox num)
         :param predicts: Tensor, shape = (batch num, dbox num, class num) including background
-        :param gts: Tensor, shape = (batch num, dbox num, class num) including background
+        :param targets: Tensor, shape = (batch num, dbox num, class num) including background
         :return:
         """
         if self.hnm_batch:
@@ -94,7 +94,7 @@ class ConfidenceLoss(nn.Module):
             neg_indicator = rank < neg_num.unsqueeze(1).expand_as(rank)
             mask = pos_indicator | neg_indicator
 
-            labels = gts.argmax(dim=-1)
+            labels = targets.argmax(dim=-1)
 
             """
             batch_num = pos_num.shape[0]
@@ -115,7 +115,7 @@ class ConfidenceLoss(nn.Module):
             neg_indicator = torch.logical_not(pos_indicator)
 
             # all loss
-            loss = -gts * F.log_softmax(predicts, dim=-1)  # shape = (batch num, dboxes num, class_num)
+            loss = -targets * F.log_softmax(predicts, dim=-1)  # shape = (batch num, dboxes num, class_num)
             # get positive loss
             pos_loss = loss[pos_indicator].sum()
             N = pos_indicator.float().sum()

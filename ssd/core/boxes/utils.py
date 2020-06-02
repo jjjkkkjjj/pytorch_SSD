@@ -3,9 +3,9 @@ import torch
 from torch import nn
 
 
-def matching_strategy(gts, dboxes, **kwargs):
+def matching_strategy(targets, dboxes, **kwargs):
     """
-    :param gts: Tensor, shape is (batch*object num(batch), 1+4+class_nums)
+    :param targets: Tensor, shape is (batch*object num(batch), 1+4+class_nums)
     :param dboxes: shape is (default boxes num, 4)
     IMPORTANT: Note that means (cx, cy, w, h)
     :param kwargs:
@@ -13,7 +13,7 @@ def matching_strategy(gts, dboxes, **kwargs):
         batch_num: (Required) int, batch size
     :return:
         pos_indicator: Bool Tensor, shape = (batch, default box num). this represents whether each default box is object or background.
-        matched_gts: Tensor, shape = (batch, default box num, 4+class_num) including background
+        matched_targets: Tensor, shape = (batch, default box num, 4+class_num) including background
     """
     threshold = kwargs.pop('threshold', 0.5)
     batch_num = kwargs.pop('batch_num')
@@ -23,21 +23,21 @@ def matching_strategy(gts, dboxes, **kwargs):
 
     dboxes_num = dboxes.shape[0]
     # minus 'box number per image' and 'localization=(cx, cy, w, h)'
-    class_num = gts[0].shape[1] - 4
+    class_num = targets[0].shape[1] - 4
 
     # convert centered coordinated to minmax coordinates
     dboxes_mm = centroids2minmax(dboxes)
 
     # create returned empty Tensor
-    pos_indicator, matched_gts = torch.empty((batch_num, dboxes_num), device=device, dtype=torch.bool), torch.empty((batch_num, dboxes_num, 4 + class_num), device=device)
+    pos_indicator, matched_targets = torch.empty((batch_num, dboxes_num), device=device, dtype=torch.bool), torch.empty((batch_num, dboxes_num, 4 + class_num), device=device)
 
     # matching for each batch
     index = 0
-    for b, gt in enumerate(gts):
-        gt_loc_per_img, gt_conf_per_img = gt[:, :4], gt[:, 4:]
+    for b, target in enumerate(targets):
+        targets_loc, targets_conf = target[:, :4], target[:, 4:]
 
         # overlaps' shape = (object num, default box num)
-        overlaps = iou(centroids2minmax(gt_loc_per_img), dboxes_mm.clone())
+        overlaps = iou(centroids2minmax(targets_loc), dboxes_mm.clone())
         """
         best_overlap_per_object, best_dbox_ind_per_object = overlaps.max(dim=1)
         best_overlap_per_dbox, best_object_ind_per_dbox = overlaps.max(dim=0)
@@ -47,7 +47,7 @@ def matching_strategy(gts, dboxes, **kwargs):
 
         pos_ind = best_overlap_per_dbox > threshold
         pos_indicator[b] = pos_ind
-        gt_loc[b], gt_conf[b] = gt_loc_per_img[best_object_ind_per_dbox], gt_conf_per_img[best_object_ind_per_dbox]
+        gt_loc[b], gt_conf[b] = targets[best_object_ind_per_dbox], targets_conf[best_object_ind_per_dbox]
 
         neg_ind = torch.logical_not(pos_ind)
         gt_conf[b, neg_ind] = 0
@@ -67,18 +67,18 @@ def matching_strategy(gts, dboxes, **kwargs):
 
         pos_ind = overlaps_per_dbox > threshold
 
-        # assign gts
-        matched_gts[b, :, :4], matched_gts[b, :, 4:] = gt_loc_per_img[object_indices], gt_conf_per_img[object_indices]
+        # assign targets
+        matched_targets[b, :, :4], matched_targets[b, :, 4:] = targets_loc[object_indices], targets_conf[object_indices]
         pos_indicator[b] = pos_ind
 
         # set background flag
         neg_ind = torch.logical_not(pos_ind)
-        matched_gts[b, neg_ind, 4:] = 0
-        matched_gts[b, neg_ind, -1] = 1
+        matched_targets[b, neg_ind, 4:] = 0
+        matched_targets[b, neg_ind, -1] = 1
 
 
 
-    return pos_indicator, matched_gts
+    return pos_indicator, matched_targets
 
 def iou(a, b):
     """

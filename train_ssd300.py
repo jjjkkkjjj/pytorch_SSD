@@ -25,15 +25,14 @@ if __name__ == '__main__':
          transforms.Normalize(rgb_means=(0.485, 0.456, 0.406), rgb_stds=(0.229, 0.224, 0.225))]
     )
     target_transform = target_transforms.Compose(
-        [target_transforms.Ignore(difficult=True),
-         target_transforms.ToCentroids(),
+        [target_transforms.ToCentroids(),
          target_transforms.OneHot(class_nums=datasets.VOC_class_nums),
          target_transforms.ToTensor()]
     )
 
 
     train_dataset = datasets.Compose(datasets.VOC_class_nums, datasets=(datasets.VOC2007Dataset, datasets.VOC2012_TrainValDataset),
-                                     transform=transform, target_transform=target_transform, augmentation=augmentation)
+                                     ignore=target_transforms.Ignore(difficult=True), transform=transform, target_transform=target_transform, augmentation=augmentation)
     #train_dataset = datasets.VOC2007Dataset(transform=transform)
     train_loader = DataLoader(train_dataset,
                               batch_size=32,
@@ -46,10 +45,10 @@ if __name__ == '__main__':
     #model = build_ssd('train')
     print(model)
     """
-    imgs, gts = utils.batch_ind_fn((train_dataset[2000],))
+    imgs, targets = utils.batch_ind_fn((train_dataset[2000],))
     p, d = model(imgs)
     from ssd.core.boxes import matching_strategy
-    matching_strategy(gts, d, batch_num=1)
+    matching_strategy(targets, d, batch_num=1)
     """
     optimizer = SGD(model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
     #optimizer = Adam(model.parameters(), lr=1e-3, weight_decay=5e-4)

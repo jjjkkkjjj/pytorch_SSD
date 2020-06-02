@@ -27,7 +27,7 @@ class SSD300(SSDBase):
         :param input_shape: tuple, 3d and (height, width, channel)
         :param batch_norm: bool, whether to add batch normalization layers
         """
-        codec = Codec(norm_means=(0, 0, 0, 0), norm_stds=(0.1, 0.1, 0.2, 0.2))
+        codec = Codec(norm_means=(0.0, 0.0, 0.0, 0.0), norm_stds=(0.1, 0.1, 0.2, 0.2))
 
         super().__init__(class_nums, input_shape, batch_norm, codec)
 
@@ -96,8 +96,8 @@ class SSD300(SSDBase):
         self._build_layers(feature_layers, localization_layers, confidence_layers, l2norm_layers)
 
         # build default box
-        defaultBox = DBoxSSD300Original(scale_conv4_3=0.1, aspect_ratios=_aspect_ratios, scale_range=(0.2, 0.9))
-        #defaultBox = _DefaultBox()
+        #defaultBox = DBoxSSD300Original(scale_conv4_3=0.1, aspect_ratios=_aspect_ratios, scale_range=(0.2, 0.9))
+        defaultBox = _DefaultBox()
         self._build_defaultBox(defaultBox, _classifier_source_names)
 
         # build inference box

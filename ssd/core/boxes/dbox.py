@@ -110,19 +110,32 @@ class DBoxSSD300Original(DefaultBoxBase):
     def forward(self):
         dboxes = []
 
+        #fsize = []
+        #sk = []
+        #sk_ = []
+
         # conv4_3 has different scale
         fmap_h, fmap_w = self.fmap_sizes[0]
         scale_k = self.scale_conv4_3
         scale_k_plus = self.scale_min
         ars = self.aspect_ratios[0]
         dboxes += self._make(fmap_w, fmap_h, scale_k, scale_k_plus, ars)
-
+        #fsize += [fmap_h]
+        #sk += [scale_k]
+        #sk_ += [scale_k_plus]
         for k in range(1, self.fmap_num):
             fmap_h, fmap_w = self.fmap_sizes[k]
             scale_k = self.get_scale(k, m=self.fmap_num-1)
             scale_k_plus = self.get_scale(k + 1, m=self.fmap_num-1)
             ars = self.aspect_ratios[k]
             dboxes += self._make(fmap_w, fmap_h, scale_k, scale_k_plus, ars)
+        """
+            fsize += [fmap_h]
+            sk += [scale_k]
+            sk_ += [scale_k_plus]
+        print(fsize, sk, sk_)
+        """
+        #print(dboxes)
 
         dboxes = np.concatenate(dboxes, axis=0)
         dboxes = torch.from_numpy(dboxes).float()
@@ -134,47 +147,35 @@ class DBoxSSD300Original(DefaultBoxBase):
         return dboxes  # , ret_features
 
     def _make(self, fmap_w, fmap_h, scale_k, scale_k_plus, ars):
-        dboxes = []
-
         # get cx and cy
         # (cx, cy) = ((i+0.5)/f_k, (j+0.5)/f_k)
 
         # / f_k
         step_i, step_j = (np.arange(fmap_w) + 0.5) / fmap_w, (np.arange(fmap_h) + 0.5) / fmap_h
         # ((i+0.5)/f_k, (j+0.5)/f_k) for all i,j
-        """ 
-        Note that Predictor handles as height first!!
-        See layers.py to detail
-        loc's shape = (b, h, w, c)
-        loc = loc.permute((0, 2, 3, 1)).contiguous()
-        locs_reshaped += [loc.reshape((batch_num, -1))]
-        
-        So, meshgrid's return value x is assigned to cy, y is assigned to cx 
-        """
-        cy, cx = np.meshgrid(step_i, step_j)
+        cx, cy = np.meshgrid(step_i, step_j)
         # cx, cy's shape (fmap_w, fmap_h) to (fmap_w*fmap_h, 1)
-        cx, cy = cx.reshape(-1, 1), cy.reshape(-1, 1)
-        total_dbox_num = cx.size
-        for ar in ars:
+        aspect_ratio_num = len(ars)*2
+
+        cx, cy = cx.reshape(-1, 1).repeat(aspect_ratio_num, axis=0), cy.reshape(-1, 1).repeat(aspect_ratio_num, axis=0)
+        width, height = np.zeros_like(cx), np.zeros_like(cy)
+
+        for i, ar in enumerate(ars):
             # normal aspect
             aspect = ar
             scale = scale_k
 
             box_w, box_h = scale * np.sqrt(aspect), scale / np.sqrt(aspect)
-            box_w, box_h = np.broadcast_to([box_w], (total_dbox_num, 1)), np.broadcast_to([box_h],
-                                                                                          (total_dbox_num, 1))
-            dboxes += [np.concatenate((cx, cy, box_w, box_h), axis=1)]
+            width[i*2::aspect_ratio_num], height[i*2::aspect_ratio_num] = box_w, box_h
 
             # reciprocal aspect
             aspect = 1.0 / aspect
             if aspect == 1:  # if aspect is 1, scale = sqrt(s_k * s_k+1)
                 scale = np.sqrt(scale_k * scale_k_plus)
             box_w, box_h = scale * np.sqrt(aspect), scale / np.sqrt(aspect)
-            box_w, box_h = np.broadcast_to([box_w], (total_dbox_num, 1)), np.broadcast_to([box_h],
-                                                                                          (total_dbox_num, 1))
-            dboxes += [np.concatenate((cx, cy, box_w, box_h), axis=1)]
+            width[i*2+1::aspect_ratio_num], height[i*2+1::aspect_ratio_num] = box_w, box_h
 
-        return dboxes
+        return [np.concatenate((cx, cy, width, height), axis=1)]
 
 
 # deprecated
@@ -198,6 +199,11 @@ class _DefaultBox(DefaultBoxBase):
         min_sizes = [30, 60, 111, 162, 213, 264]
         max_sizes = [60, 111, 162, 213, 264, 315]
         aspect_ratios = [[2], [2, 3], [2, 3], [2, 3], [2], [2]]
+        """
+        fsize = []
+        sk = []
+        sk_ = []
+        """
         for k, sizes in enumerate(self.fmap_sizes):
             fmap_h, fmap_w = sizes
             for i, j in product(range(fmap_h), repeat=2):
@@ -220,6 +226,16 @@ class _DefaultBox(DefaultBoxBase):
                 for ar in aspect_ratios[k]:
                     mean += [cx, cy, s_k * sqrt(ar), s_k / sqrt(ar)]
                     mean += [cx, cy, s_k / sqrt(ar), s_k * sqrt(ar)]
+        #print(mean)
+        """
+            fsize += [f_k]
+            sk += [s_k]
+            sk_ += [s_k_prime]
+        print(fsize, sk, sk_)
+        [37.5, 18.75, 9.375, 4.6875, 3.0, 1.0]
+        [0.1, 0.2, 0.37, 0.54, 0.71, 0.88] 
+        [0.14142135623730953, 0.2720294101747089, 0.4469899327725402, 0.6191930232165088, 0.7904429138147802, 0.9612491872558333]
+        """
         # back to torch land
         output = torch.Tensor(mean).view(-1, 4)
         k = output.cpu().numpy()

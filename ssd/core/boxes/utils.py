@@ -19,12 +19,11 @@ def matching_strategy(gts, dboxes, **kwargs):
     batch_num = kwargs.pop('batch_num')
     device = dboxes.device
 
-    # get box number per image
-    gt_boxnum_per_image = gts[:, 0]
+
 
     dboxes_num = dboxes.shape[0]
     # minus 'box number per image' and 'localization=(cx, cy, w, h)'
-    class_num = gts.shape[1] - 1 - 4
+    class_num = gts[0].shape[1] - 4
 
     # convert centered coordinated to minmax coordinates
     dboxes_mm = centroids2minmax(dboxes)
@@ -34,9 +33,8 @@ def matching_strategy(gts, dboxes, **kwargs):
 
     # matching for each batch
     index = 0
-    for b in range(batch_num):
-        box_num = int(gt_boxnum_per_image[index].item())
-        gt_loc_per_img, gt_conf_per_img = gts[index:index + box_num, 1:5], gts[index:index + box_num, 5:]
+    for b, gt in enumerate(gts):
+        gt_loc_per_img, gt_conf_per_img = gt[:, :4], gt[:, 4:]
 
         # overlaps' shape = (object num, default box num)
         overlaps = iou(centroids2minmax(gt_loc_per_img), dboxes_mm.clone())
@@ -77,8 +75,6 @@ def matching_strategy(gts, dboxes, **kwargs):
         neg_ind = torch.logical_not(pos_ind)
         matched_gts[b, neg_ind, 4:] = 0
         matched_gts[b, neg_ind, -1] = 1
-
-        index += box_num
 
 
 

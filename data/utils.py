@@ -13,19 +13,7 @@ def batch_ind_fn(batch):
     """
     imgs, gts = list(zip(*batch))
 
-    ret_gts = []
-    for ind, gt in enumerate(gts):
-        box_num = len(gt)
-        ret_gt = np.zeros((box_num, gt.shape[1] + 1))
-        ret_gt[:, 1:] = gt
-        ret_gt[:, 0] = box_num # concatenate image's index
-        ret_gts.append(ret_gt)
-
-    imgs = torch.stack(imgs)
-    ret_gts = torch.from_numpy(np.concatenate(ret_gts).astype(np.float32))
-    ret_gts.requires_grad_(False)
-
-    return imgs, ret_gts
+    return torch.stack(imgs), gts
 
 def _get_recurrsive_paths(basedir, ext):
     """

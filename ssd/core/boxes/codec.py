@@ -4,7 +4,7 @@ import torch
 from .utils import matching_strategy
 
 class Codec(nn.Module):
-    def __init__(self, norm_means=(0, 0, 0, 0), norm_stds=(0.1, 0.1, 0.2, 0.2)):
+    def __init__(self, norm_means=(0.0, 0.0, 0.0, 0.0), norm_stds=(0.1, 0.1, 0.2, 0.2)):
         super().__init__()
         # shape = (1, 1, 4=(cx, cy, w, h)) or (1, 1, 1)
         self.norm_means = norm_means
@@ -14,7 +14,7 @@ class Codec(nn.Module):
         self.decoder = Decoder(self.norm_means, self.norm_stds)
 
 class Encoder(nn.Module):
-    def __init__(self, norm_means=(0, 0, 0, 0), norm_stds=(0.1, 0.1, 0.2, 0.2)):
+    def __init__(self, norm_means=(0.0, 0.0, 0.0, 0.0), norm_stds=(0.1, 0.1, 0.2, 0.2)):
         super().__init__()
         # shape = (1, 1, 4=(cx, cy, w, h)) or (1, 1, 1)
         self.norm_means = torch.tensor(norm_means, requires_grad=False).unsqueeze(0).unsqueeze(0)
@@ -61,7 +61,7 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, norm_means=(0, 0, 0, 0), norm_stds=(0.1, 0.1, 0.2, 0.2)):
+    def __init__(self, norm_means=(0.0, 0.0, 0.0, 0.0), norm_stds=(0.1, 0.1, 0.2, 0.2)):
         super().__init__()
         # shape = (1, 1, 4=(cx, cy, w, h)) or (1, 1, 1)
         self.norm_means = torch.tensor(norm_means, requires_grad=False).unsqueeze(0).unsqueeze(0)

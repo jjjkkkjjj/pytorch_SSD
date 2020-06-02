@@ -13,7 +13,7 @@ class TrainLogger(object):
     def __init__(self, model, loss_func, optimizer, log_manager, scheduler=None, gpu=True):
         self.gpu = gpu
 
-        self.model = check_instance('model', model, SSDBase)
+        #self.model = check_instance('model', model, SSDBase)
         self.model = model.cuda() if self.gpu else model
         # convert to float
         self.model = self.model.to(dtype=torch.float)
@@ -59,18 +59,18 @@ class TrainLogger(object):
 
                 if self.gpu:
                     images = images.cuda()
-                    targets = targets.cuda()
+                    targets = [target.cuda() for target in targets]
 
                 # set variable
                 # images.requires_grad = True
                 # gts.requires_grad = True
-                pos_indicator, predicts, gts = self.model.learn(images, targets)
+                pos_indicator, predicts, gts = self.model(images, targets)
 
                 confloss, locloss = self.loss_func(pos_indicator, predicts, gts)
                 loss = confloss + self.loss_func.alpha * locloss
                 loss.backward()  # calculate gradient for value with requires_grad=True, shortly back propagation
-                # print(self.model.feature_layers.conv1_1.weight.grad)
-                # print(self.model.localization_layers.conv_loc_1.weight.grad)
+                #print(self.model.feature_layers.convRL1_1.conv.weight.grad)
+                #print(self.model.localization_layers.conv_loc_1.weight.grad)
                 self.optimizer.step()
                 if self.scheduler:
                     self.scheduler.step()

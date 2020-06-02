@@ -2,6 +2,7 @@ from data import datasets
 from data import transforms, target_transforms, augmentations, utils
 
 from ssd.models.ssd300 import SSD300
+from ssd.models._ssd300 import build_ssd
 from ssd.train import *
 
 #from torchvision import transforms > not import!!
@@ -16,7 +17,7 @@ if __name__ == '__main__':
         []
     )"""
     augmentation = augmentations.AugmentationOriginal()
-    augmentation = None
+    #augmentation = None
 
     transform = transforms.Compose(
         [transforms.Normalize(rgb_means=(103.939, 116.779, 123.68), rgb_stds=1),
@@ -40,8 +41,9 @@ if __name__ == '__main__':
                               collate_fn=utils.batch_ind_fn,
                               pin_memory=True)
 
-    model = SSD300(class_nums=train_dataset.class_nums, batch_norm=False)
-    model.load_vgg_weights()
+    #model = SSD300(class_nums=train_dataset.class_nums, batch_norm=False)
+    #model.load_vgg_weights()
+    model = build_ssd('train')
     print(model)
     """
     imgs, gts = utils.batch_ind_fn((train_dataset[2000],))

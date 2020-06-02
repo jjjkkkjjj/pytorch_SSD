@@ -74,7 +74,7 @@ class BaseDataset(Dataset):
         if self.target_transform:
             bboxes, linds, flags = self.target_transform(bboxes, linds, flags)
 
-        return img, bboxes, linds, flags
+        return img / 255., bboxes, linds, flags
 
 class VOCBaseDataset(BaseDataset):
     class_nums = len(VOC_classes) + 1
@@ -123,7 +123,6 @@ class VOCBaseDataset(BaseDataset):
             if linds.ndim == 1:
                 linds = linds[:, np.newaxis]
             gt = np.concatenate((bboxes, linds), axis=1)
-
 
         return img, gt
 

@@ -41,9 +41,9 @@ if __name__ == '__main__':
                               collate_fn=utils.batch_ind_fn,
                               pin_memory=True)
 
-    #model = SSD300(class_nums=train_dataset.class_nums, batch_norm=False)
-    #model.load_vgg_weights()
-    model = build_ssd('train')
+    model = SSD300(class_nums=train_dataset.class_nums, batch_norm=False)
+    model.load_vgg_weights()
+    #model = build_ssd('train')
     print(model)
     """
     imgs, gts = utils.batch_ind_fn((train_dataset[2000],))

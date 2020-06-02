@@ -33,7 +33,7 @@ class L2Normalization(nn.Module):
 
 
 class ConvRelu(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, bn=False, relu_inplace=False, **kwargs):
+    def __init__(self, in_channels, out_channels, kernel_size, bn=False, relu_inplace=True, **kwargs):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -115,7 +115,7 @@ class Conv2d:
         kernel_size = kwargs.pop('conv_k_size', (3, 3))
         stride = kwargs.pop('conv_stride', (1, 1))
         padding = kwargs.pop('conv_padding', 1)
-        relu_inplace = kwargs.pop('relu_inplace', False)# TODO relu inplace problem >>conv4
+        relu_inplace = kwargs.pop('relu_inplace', True)
         batch_norm = kwargs.pop('batch_norm', Conv2d.batch_norm)
 
         in_c = in_channels
@@ -198,7 +198,7 @@ class Conv2d:
         return layers
 
     @staticmethod
-    def relu_one(postfix, in_channels, out_channels, relu_inplace=False, **kwargs):
+    def relu_one(postfix, in_channels, out_channels, relu_inplace=True, **kwargs):
         batch_norm = kwargs.pop('batch_norm', Conv2d.batch_norm)
         if not batch_norm:
             return [

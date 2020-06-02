@@ -96,8 +96,8 @@ class SSD300(SSDBase):
         self._build_layers(feature_layers, localization_layers, confidence_layers, l2norm_layers)
 
         # build default box
-        #defaultBox = DBoxSSD300Original(scale_conv4_3=0.1, aspect_ratios=_aspect_ratios, scale_range=(0.2, 0.9))
-        defaultBox = _DefaultBox()
+        defaultBox = DBoxSSD300Original(scale_conv4_3=0.1, aspect_ratios=_aspect_ratios, scale_range=(0.2, 0.9))
+        #defaultBox = _DefaultBox()
         self._build_defaultBox(defaultBox, _classifier_source_names)
 
         # build inference box
@@ -180,7 +180,7 @@ class SSD300(SSDBase):
 
         model_url = get_model_url('vgg16' if not self.batch_norm else 'vgg16_bn')
         pretrained_state_dict = load_state_dict_from_url(model_url, model_dir=model_dir)
-
+        #pretrained_state_dict = torch.load('/home/kado/Desktop/program/machile-learning/ssd.pytorch/weights/vgg16_reducedfc.pth')
         model_state_dict = self.state_dict()
 
         renamed = []

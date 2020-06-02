@@ -103,8 +103,8 @@ class DefaultBoxBase(nn.Module):
 
 
 class DBoxSSD300Original(DefaultBoxBase):
-    def __init__(self, scale_conv4_3=0.1, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, scale_conv4_3=0.1, scale_range=(0.2, 0.9), **kwargs):
+        super().__init__(scale_range=scale_range, **kwargs)
         self.scale_conv4_3 = scale_conv4_3
 
     def forward(self):

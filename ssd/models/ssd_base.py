@@ -194,23 +194,17 @@ class SSDBase(nn.Module):
         self.load_state_dict(torch.load(path, map_location=lambda storage, loc: storage))
 
     def init_weights(self):
-        for module in self.modules():
+        _initialize_xavier_uniform(self.feature_layers)
+        _initialize_xavier_uniform(self.localization_layers)
+        _initialize_xavier_uniform(self.confidence_layers)
 
-            if isinstance(module, nn.Conv2d):
-                #nn.init.kaiming_norma l_(module.weight, mode='fan_out', nonlinearity='relu')
-                #if module.bias is not None:
-                #    nn.init.constant_(module.bias, 0)
-
-                nn.init.xavier_uniform_(module.weight)
-                if module.bias is not None:
-                    nn.init.constant_(module.bias, 0)
-            elif isinstance(module, ConvRelu):
-                nn.init.xavier_uniform_(module.conv.weight)
-                if module.conv.bias is not None:
-                    nn.init.constant_(module.conv.bias, 0)
-            elif isinstance(module, nn.BatchNorm2d):
-                nn.init.constant_(module.weight, 1)
+def _initialize_xavier_uniform(layers):
+    for module in layers.modules():
+        if isinstance(module, nn.Conv2d):
+            nn.init.xavier_uniform_(module.weight)
+            if module.bias is not None:
                 nn.init.constant_(module.bias, 0)
-            elif isinstance(module, nn.Linear):
-                nn.init.normal(module.weight, 0, 1e-2)
-                nn.init.constant_(module.bias, 0)
+        elif isinstance(module, ConvRelu):
+            nn.init.xavier_uniform_(module.conv.weight)
+            if module.conv.bias is not None:
+                nn.init.constant_(module.conv.bias, 0)

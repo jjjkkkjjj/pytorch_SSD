@@ -64,7 +64,7 @@ class TrainLogger(object):
                 # set variable
                 # images.requires_grad = True
                 # gts.requires_grad = True
-                pos_indicator, predicts, gts = self.model(images, targets)
+                pos_indicator, predicts, gts = self.model.learn(images, targets)
 
                 confloss, locloss = self.loss_func(pos_indicator, predicts, gts)
                 loss = confloss + self.loss_func.alpha * locloss

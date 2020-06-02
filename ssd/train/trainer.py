@@ -3,7 +3,7 @@ import torch
 
 from .log import LogManager
 from .._utils import check_instance
-from ..models.ssd_base import SSDBase
+from ..models.base import SSDBase
 """
     ref: https://nextjournal.com/gkoehler/pytorch-mnist
 """
@@ -13,7 +13,7 @@ class TrainLogger(object):
     def __init__(self, model, loss_func, optimizer, log_manager, scheduler=None, gpu=True):
         self.gpu = gpu
 
-        #self.model = check_instance('model', model, SSDBase)
+        self.model = check_instance('model', model, SSDBase)
         self.model = model.cuda() if self.gpu else model
         # convert to float
         self.model = self.model.to(dtype=torch.float)

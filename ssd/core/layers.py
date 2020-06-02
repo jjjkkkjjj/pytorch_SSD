@@ -49,10 +49,9 @@ class ConvRelu(nn.Module):
         return x
 
 class Predictor(nn.Module):
-    def __init__(self, total_dbox_nums, class_nums):
+    def __init__(self, class_nums):
         super().__init__()
 
-        self._total_dbox_nums = total_dbox_nums
         self._class_nums = class_nums
 
     def forward(self, locs, confs):
@@ -76,8 +75,8 @@ class Predictor(nn.Module):
 
 
 
-        locs_reshaped = torch.cat(locs_reshaped, dim=1).reshape((-1, self._total_dbox_nums, 4))
-        confs_reshaped = torch.cat(confs_reshaped, dim=1).reshape((-1, self._total_dbox_nums, self._class_nums))
+        locs_reshaped = torch.cat(locs_reshaped, dim=1).reshape((batch_num, -1, 4))
+        confs_reshaped = torch.cat(confs_reshaped, dim=1).reshape((batch_num, -1, self._class_nums))
 
         return torch.cat((locs_reshaped, confs_reshaped), dim=2)
 

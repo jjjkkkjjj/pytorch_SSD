@@ -1,7 +1,7 @@
 from data import transforms, target_transforms, augmentations, utils, datasets
 
 from ssd.models.ssd300 import SSD300
-from ssd.models._ssd300 import build_ssd
+from ssd.models._debug_ssd300 import build_ssd
 from ssd.train import *
 
 #from torchvision import transforms > not import!!

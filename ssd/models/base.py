@@ -8,7 +8,7 @@ from ..core.inference import InferenceBox
 from ssd.core.boxes.codec import Codec
 
 class SSDBase(nn.Module):
-    _codec: Codec
+    codec: Codec
 
     feature_layers: nn.ModuleDict
     l2norm_layers: nn.ModuleDict
@@ -36,12 +36,12 @@ class SSDBase(nn.Module):
         assert input_shape[0] == input_shape[1], "input must be square size"
         self.input_shape = input_shape
         self.batch_norm = batch_norm
-        self._codec = codec
+        self.codec = codec
 
         self._isbuilt_layer = False
         self._isbuilt_box = False
         self._isbuilt_infBox = False
-        self._called_learn_inferr = False
+        self._called_learn_infer = False
 
     @property
     def input_height(self):
@@ -58,10 +58,10 @@ class SSDBase(nn.Module):
 
     @property
     def encoder(self):
-        return self._codec.encoder
+        return self.codec.encoder
     @property
     def decoder(self):
-        return self._codec.decoder
+        return self.codec.decoder
 
     def _build_layers(self, features, locs, confs, l2norms):
         self.feature_layers = check_instance('feature_layers', features, nn.ModuleDict)
@@ -94,13 +94,13 @@ class SSDBase(nn.Module):
         if not self.isBuilt:
             raise NotImplementedError('call _build_layers, _build_defaultBox and _build_infBox first')
 
-        if not self._called_learn_inferr:
+        if not self._called_learn_infer:
             raise NotImplementedError('call learn or infer first')
 
-    def learn(self, x, gts):
+    def learn(self, x, targets):
         if not self.training:
             raise NotImplementedError("model hasn\'t built as train. Call \'train()\'")
-        self._called_learn_inferr = True
+        self._called_learn_infer = True
 
     def infer(self, image, conf_threshold=0.01, toNorm=False,
               rgb_means=(103.939, 116.779, 123.68), rgb_stds=(1.0, 1.0, 1.0),
@@ -160,18 +160,17 @@ class SSDBase(nn.Module):
         if list(img.shape[1:]) != input_shape.tolist():
             raise ValueError('image shape was not same as input shape: {}, but got {}'.format(input_shape.tolist(), list(img.shape[1:])))
 
-        self._called_learn_inferr = True
+        self._called_learn_infer = True
 
         return normed_img, orig_img
 
     # device management
     def to(self, *args, **kwargs):
-        super().to(*args, **kwargs)
         if not self.isBuilt:
             raise NotImplementedError('call _build_layers, _build_defaultBox and _build_infBox first')
         self.defaultBox.dboxes.to(*args, **kwargs)
 
-        return self
+        return super().to(*args, **kwargs)
     def cuda(self, device=None):
         self.defaultBox.dboxes = self.defaultBox.dboxes.cuda(device)
 

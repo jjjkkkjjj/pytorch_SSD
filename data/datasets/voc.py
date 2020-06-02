@@ -14,18 +14,17 @@ VOC_classes = ['aeroplane', 'bicycle', 'bird', 'boat',
 VOC_class_nums = len(VOC_classes) + 1
 class VOCDatasetBase(ObjectDetectionDatasetBase):
     class_nums = len(VOC_classes) + 1
-    def __init__(self, voc_dir, focus, **kwargs):
+    def __init__(self, voc_dir, focus, ignore=None, transform=None, target_transform=None, augmentation=None):
         """
         :param voc_dir: str, voc directory path above 'Annotations', 'ImageSets' and 'JPEGImages'
                 e.g.) voc_dir = '~~~~/trainval/VOCdevkit/voc2007'
         :param focus: str, image set name. Assign txt file name under 'ImageSets' directory
-        :param kwargs: keyword is below; default of all are None
-            :param ignore:
-            :param transform:
-            :param target_transform:
-            :param augmentation:
+        :param ignore: target_transforms.Ignore
+        :param transform: instance of transforms
+        :param target_transform: instance of target_transforms
+        :param augmentation:  instance of augmentations
         """
-        super().__init__(**kwargs)
+        super().__init__(ignore=ignore, transform=transform, target_transform=target_transform, augmentation=augmentation)
 
         self._voc_dir = voc_dir
         self._focus = focus

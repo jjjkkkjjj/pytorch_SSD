@@ -1,8 +1,10 @@
-from .utils import decision
+from ._utils import decision
 from numpy import random
 import numpy as np
 import cv2
 from itertools import permutations
+
+from .base import Compose
 
 class RandomBrightness(object):
     def __init__(self, dmin=-32, dmax=32, p=0.5):
@@ -119,5 +121,37 @@ class ConvertImgOrder(object):
             img = cv2.cvtColor(img, eval('cv2.COLOR_{}2{}'.format(self.src_order, self.dst_order)))
         except:
             raise ValueError('Invalid src:{} or dst:{}'.format(self.src_order, self.dst_order))
+
+        return img, bboxes, labels, flags
+
+
+class PhotometricDistortions(Compose):
+    def __init__(self, p=0.5):
+        self.p = p
+
+        self.brigtness = RandomBrightness()
+        self.cotrast = RandomContrast()
+        self.lightingnoise = RandomLightingNoise()
+
+        pmdists = [
+            ConvertImgOrder(src='rgb', dst='hsv'),
+            RandomSaturation(),
+            RandomHue(),
+            ConvertImgOrder(src='hsv', dst='rgb')
+        ]
+        super().__init__(pmdists)
+
+    def __call__(self, img, bboxes, labels, flags):
+        img, bboxes, labels, flags = self.brigtness(img, bboxes, labels, flags)
+
+        if decision(self.p): # random contrast first
+            img, bboxes, labels, flags = self.cotrast(img, bboxes, labels, flags)
+            img, bboxes, labels, flags = super().__call__(img, bboxes, labels, flags)
+
+        else: # random contrast last
+            img, bboxes, labels, flags = super().__call__(img, bboxes, labels, flags)
+            img, bboxes, labels, flags = self.cotrast(img, bboxes, labels, flags)
+
+        img, bboxes, labels, flags = self.lightingnoise(img, bboxes, labels, flags)
 
         return img, bboxes, labels, flags

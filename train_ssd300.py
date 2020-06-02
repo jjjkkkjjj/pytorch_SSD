@@ -1,5 +1,4 @@
-from data import datasets
-from data import transforms, target_transforms, augmentations, utils
+from data import transforms, target_transforms, augmentations, utils, datasets
 
 from ssd.models.ssd300 import SSD300
 from ssd.models._ssd300 import build_ssd

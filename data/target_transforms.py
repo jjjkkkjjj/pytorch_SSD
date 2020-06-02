@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from .utils import _one_hot_encode
+from ._utils import _one_hot_encode
 
 class Compose(object):
     def __init__(self, target_transforms):

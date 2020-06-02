@@ -2,8 +2,9 @@ from numpy import random
 import numpy as np
 import logging
 
-from .utils import decision
+from ._utils import decision
 from ssd.core.boxes.utils import iou_numpy, centroids2minmax_numpy, minmax2centroids_numpy
+from .base import Compose
 
 class RandomExpand(object):
     def __init__(self, filled_rgb_mean=(103.939, 116.779, 123.68), rmin=1, rmax=4, p=0.5):
@@ -205,3 +206,13 @@ class RandomFlip(object):
             bboxes = ret_bboxes.clip(min=0, max=1)
 
         return img, bboxes, labels, flags
+
+
+class GeometricDistortions(Compose):
+    def __init__(self):
+        gmdists = [
+            RandomExpand(),
+            RandomSampled(),
+            RandomFlip()
+        ]
+        super().__init__(gmdists)

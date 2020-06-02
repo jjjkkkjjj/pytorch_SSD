@@ -72,14 +72,14 @@ See [training-voc2007+2012.ipynb](https://github.com/jjjkkkjjj/pytorch_SSD/blob/
 
   ```python
   from data import datasets
-  from data import utils
+  from data import _utils
   
   train_dataset = datasets.VOC2007Dataset(transform=transform, target_transform=target_transform, augmentation = augmentation)
   
   train_loader = DataLoader(train_dataset,
                             batch_size=32,
                             shuffle=True,
-                            collate_fn=utils.batch_ind_fn)
+                            collate_fn=_utils.batch_ind_fn)
   ```
 
   You can use `datasets.Compose` to combine plural datasets.

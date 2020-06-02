@@ -1,5 +1,5 @@
 from data import datasets
-from data import transforms, target_transforms, augmentations, utils
+from data import transforms, target_transforms, augmentations, _utils
 
 from ssd.models.ssd300 import SSD300
 

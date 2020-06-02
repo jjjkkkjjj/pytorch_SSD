@@ -55,7 +55,7 @@ class _Downloader:
             os.remove(dstpath)
 
 
-from .utils import DATA_ROOT
+from ._utils import DATA_ROOT
 
 def voc2007_trainval():
     logging.info('Downloading voc2007_trainval')

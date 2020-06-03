@@ -65,7 +65,7 @@ class ObjectDetectionModelBase(nn.Module):
     def init_weights(self):
         raise NotImplementedError()
 
-class SSDConfig(object):
+class SSDTrainConfig(object):
     def __init__(self, **kwargs):
         self.class_nums = kwargs.get('class_nums')
 
@@ -86,11 +86,6 @@ class SSDConfig(object):
         self.rgb_means = _check_ins('rgb_means', kwargs.get('rgb_means', (0.485, 0.456, 0.406)), (tuple, list, float, int))
         self.rgb_stds = _check_ins('rgb_stds', kwargs.get('rgb_stds', (0.229, 0.224, 0.225)), (tuple, list, float, int))
 
-        self.val_conf_threshold = _check_ins('val_conf_threshold', kwargs.get('val_conf_threshold', 0.01), float)
-        self.vis_conf_threshold = _check_ins('vis_conf_threshold', kwargs.get('vis_conf_threshold', 0.6), float)
-        self.iou_threshold = _check_ins('iou_threshold', kwargs.get('iou_threshold', 0.45), float)
-        self.topk = _check_ins('topk', kwargs.get('topk', 200), int)
-
     @property
     def input_height(self):
         return self.input_shape[0]
@@ -101,23 +96,34 @@ class SSDConfig(object):
     def input_channel(self):
         return self.input_shape[2]
 
+class SSDValConfig(object):
+    def __init__(self, **kwargs):
+        self.val_conf_threshold = _check_ins('val_conf_threshold', kwargs.get('val_conf_threshold', 0.01), float)
+        self.vis_conf_threshold = _check_ins('vis_conf_threshold', kwargs.get('vis_conf_threshold', 0.6), float)
+        self.iou_threshold = _check_ins('iou_threshold', kwargs.get('iou_threshold', 0.45), float)
+        self.topk = _check_ins('topk', kwargs.get('topk', 200), int)
+
 class SSDBase(ObjectDetectionModelBase):
     defaultBox: DefaultBoxBase
     inferenceBox: InferenceBox
-    _config: SSDConfig
+    _train_config: SSDTrainConfig
+    _val_config: SSDValConfig
+
 
     feature_layers: nn.ModuleDict
     localization_layers: nn.ModuleDict
     confidence_layers: nn.ModuleDict
     addon_layers: nn.ModuleDict
 
-    def __init__(self, config, defaultBox, **build_kwargs):
+    def __init__(self, train_config, val_config, defaultBox, **build_kwargs):
         """
-        :param config: SSDvggConfig
+        :param train_config: SSDTrainConfig
+        :param val_config: SSDValConfig
         :param defaultBox: instance inheriting DefaultBoxBase
         """
-        self._config = _check_ins('config', config, SSDConfig)
-        super().__init__(config.class_nums, config.input_shape, config.batch_norm)
+        self._train_config = _check_ins('train_config', train_config, SSDTrainConfig)
+        self._val_config = _check_ins('val_config', val_config, SSDValConfig)
+        super().__init__(train_config.class_nums, train_config.input_shape, train_config.batch_norm)
 
         self.codec = Codec(norm_means=self.codec_means, norm_stds=self.codec_stds)
         self.defaultBox = _check_ins('defaultBox', defaultBox, DefaultBoxBase)
@@ -160,40 +166,40 @@ class SSDBase(ObjectDetectionModelBase):
     def total_dboxes_num(self):
         return self.defaultBox.total_dboxes_nums
 
-    ### config ###
+    ### train_config ###
     @property
     def aspect_ratios(self):
-        return self._config.aspect_ratios
+        return self._train_config.aspect_ratios
     @property
     def classifier_source_names(self):
-        return self._config.classifier_source_names
+        return self._train_config.classifier_source_names
     @property
     def addon_source_names(self):
-        return self._config.addon_source_names
+        return self._train_config.addon_source_names
     @property
     def codec_means(self):
-        return self._config.codec_means
+        return self._train_config.codec_means
     @property
     def codec_stds(self):
-        return self._config.codec_stds
+        return self._train_config.codec_stds
     @property
     def rgb_means(self):
-        return self._config.rgb_means
+        return self._train_config.rgb_means
     @property
     def rgb_stds(self):
-        return self._config.rgb_stds
+        return self._train_config.rgb_stds
     @property
     def val_conf_threshold(self):
-        return self._config.val_conf_threshold
+        return self._val_config.val_conf_threshold
     @property
     def vis_conf_threshold(self):
-        return self._config.vis_conf_threshold
+        return self._val_config.vis_conf_threshold
     @property
     def iou_threshold(self):
-        return self._config.iou_threshold
+        return self._val_config.iou_threshold
     @property
     def topk(self):
-        return self._config.topk
+        return self._val_config.topk
 
     # device management
     def to(self, *args, **kwargs):
@@ -219,7 +225,7 @@ class SSDBase(ObjectDetectionModelBase):
         self.build_classifier(**kwargs)
 
         ### default box ###
-        self.defaultBox = self.defaultBox.build(self.feature_layers, self._config.classifier_source_names,
+        self.defaultBox = self.defaultBox.build(self.feature_layers, self._train_config.classifier_source_names,
                                                 self.localization_layers)
 
         self.init_weights()
@@ -246,13 +252,13 @@ class SSDBase(ObjectDetectionModelBase):
 
             source = x
             if name in self.addon_source_names:
-                if name not in self._config.classifier_source_names:
+                if name not in self._train_config.classifier_source_names:
                     logging.warning("No meaning addon: {}".format(name))
                 source = self.addon_layers['addon_{}'.format(addon_i)](source)
                 addon_i += 1
 
             # get features by feature map convolution
-            if name in self._config.classifier_source_names:
+            if name in self._train_config.classifier_source_names:
                 sources += [source]
 
         # classifier
@@ -325,14 +331,15 @@ class SSDBase(ObjectDetectionModelBase):
 
 class SSDvggBase(SSDBase):
 
-    def __init__(self, config, defaultBox, **build_kwargs):
+    def __init__(self, train_config, val_config, defaultBox, **build_kwargs):
         """
-        :param config: SSDvggConfig
+        :param train_config: SSDTrainConfig
+        :param val_config: SSDValonfig
         :param defaultBox: instance inheriting DefaultBoxBase
         """
         self._vgg_index = -1
 
-        super().__init__(config, defaultBox, **build_kwargs)
+        super().__init__(train_config, val_config, defaultBox, **build_kwargs)
 
     def build_feature(self, **kwargs):
         """

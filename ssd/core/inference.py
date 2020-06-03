@@ -23,6 +23,7 @@ class InferenceBox(Module):
         :param dboxes: Tensor, default boxes Tensor whose shape is (total_dbox_nums, 4)`
         :param conf_threshold: float or None, if it's None, passed default value with 0.01
         :return:
+            ret_boxes: list of tensor, shape = (box num, 5=(class index, cx, cy, w, h))
         """
 
         """
@@ -189,24 +190,33 @@ def toVisualizeRGBImg(img, locs, conf_indices, classes, verbose=False):
     if verbose:
         print(locs_mm)
     for bnum in range(box_num):# box num
-        topleft = locs_mm[bnum, :2]
-        bottomright = locs_mm[bnum, 2:]
+        img = img.copy()
+
+        rect_topleft = locs_mm[bnum, :2]
+        rect_bottomright = locs_mm[bnum, 2:]
 
         if verbose:
-            print(tuple(topleft), tuple(bottomright))
+            print(tuple(rect_topleft), tuple(rect_bottomright))
 
         index = int(conf_indices[bnum].item())
+        if index == -1:
+            continue
 
-        labelSize = cv2.getTextSize(classes[index], cv2.FONT_HERSHEY_COMPLEX, 0.5, 2)
-        _x2 = topleft[0] + labelSize[0][0]
-        _y2 = topleft[1] - int(labelSize[0][1])
+        labelSize = cv2.getTextSize(classes[index], cv2.FONT_HERSHEY_COMPLEX, 0.4, 1)
 
-        topleft = tuple(topleft)
-        bottomright = tuple(bottomright)
+        rect_bottomright = tuple(rect_bottomright)
+        rect_topleft = tuple(rect_topleft)
         rgb = tuple(rgbs[index, 0].tolist())
 
-        cv2.rectangle(img, topleft, (_x2, _y2), rgb, cv2.FILLED)
-        cv2.putText(img, classes[index], topleft, cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 1)
-        cv2.rectangle(img, topleft, bottomright, rgb, thickness)
+        # text area
+        text_bottomleft = (rect_topleft[0], rect_topleft[1] + int(labelSize[0][1] * 1.5))
+        text_topright = (rect_topleft[0] + labelSize[0][0], rect_topleft[1])
+        cv2.rectangle(img, text_bottomleft, text_topright, rgb, cv2.FILLED)
+
+        text_bottomleft = (rect_topleft[0], rect_topleft[1] + labelSize[0][1])
+        cv2.putText(img, classes[index], text_bottomleft, cv2.FONT_HERSHEY_COMPLEX, 0.4, (0, 0, 0), 1)
+
+        # rectangle
+        cv2.rectangle(img, rect_topleft, rect_bottomright, rgb, thickness)
 
     return img

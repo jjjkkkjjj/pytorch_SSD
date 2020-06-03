@@ -9,7 +9,7 @@ from ..core.layers import *
 from ..core.inference import InferenceBox
 from ..core.boxes.codec import Codec
 from .._utils import weights_path, _check_norm
-from ..core.inference import InferenceBox, toVisualizeRGBImg, toVisualizeRectangleRGBimg
+from ..core.inference import InferenceBox, toVisualizeRGBImg
 from ..models.vgg_base import get_model_url
 
 class ObjectDetectionModelBase(nn.Module):
@@ -339,15 +339,17 @@ class SSDBase(ObjectDetectionModelBase):
         if conf_threshold is None:
             conf_threshold = self.vis_conf_threshold if visualize else self.val_conf_threshold
 
-        # predict
-        predicts = self(normed_img)
-        infers = self.inferenceBox(predicts, self.dboxes, conf_threshold)
+        with torch.no_grad():
+            # predict
+            predicts = self(normed_img)
+            # list of tensor, shape = (box num, 5=(class index, cx, cy, w, h))
+            infers = self.inferenceBox(predicts, self.dboxes, conf_threshold)
 
-        img_num = normed_img.shape[0]
-        if visualize:
-            return infers, [toVisualizeRectangleRGBimg(orig_img[i], infers[i][:, 1:], verbose=False) for i in range(img_num)]
-        else:
-            return infers
+            img_num = normed_img.shape[0]
+            if visualize:
+                return infers, [toVisualizeRGBImg(orig_img[i], infers[i][:, 1:], infers[i][:, 0], classes=self.class_labels, verbose=False) for i in range(img_num)]
+            else:
+                return infers
 
 
 class SSDvggBase(SSDBase):

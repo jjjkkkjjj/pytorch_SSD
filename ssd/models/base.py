@@ -1,13 +1,14 @@
 from torchvision.models.utils import load_state_dict_from_url
 import abc
 import logging
+import torch
 
 from .._utils import check_instance, _check_ins
 from ..core.boxes.dbox import *
 from ..core.layers import *
 from ..core.inference import InferenceBox
 from ..core.boxes.codec import Codec
-from ssd._utils import weights_path
+from .._utils import weights_path, _check_norm
 from ..core.inference import InferenceBox, toVisualizeImg, toVisualizeRectangleimg
 from ..models.vgg_base import get_model_url
 
@@ -45,68 +46,12 @@ class ObjectDetectionModelBase(nn.Module):
         return self._batch_norm
 
 
-
-    def infer(self, image, conf_threshold=0.01, toNorm=False,
-              rgb_means=(103.939, 116.779, 123.68), rgb_stds=(1.0, 1.0, 1.0),
-              visualize=False):
-        """
-        :param image: list of ndarray or Tensor, ndarray or Tensor
-        :param conf_threshold: float or None, if it's None, default value (0.01) will be passed
-        :param toNorm: bool, whether to normalize passed image
-        :param rgb_means: number, tuple,
-        :param rgb_stds: number, tuple,
-        :param visualize: bool,
-        :return:
-        """
-        if self.training:
-            raise NotImplementedError("model hasn\'t built as test. Call \'eval()\'")
-
-        if isinstance(image, list):
-            img = []
-            for im in image:
-                if isinstance(im, np.ndarray):
-                    im = torch.tensor(im, requires_grad=False)
-                    img += im.permute((2, 0, 1))
-                elif isinstance(im, torch.Tensor):
-                    img += im
-                else:
-                    raise ValueError('Invalid image type')
-            img = torch.stack(img)
-        elif isinstance(image, np.ndarray):
-            img = torch.tensor(image, requires_grad=False)
-            if img.ndim == 3:
-                img = img.permute((2, 0, 1))
-            elif img.ndim == 4:
-                img = img.permute((0, 3, 1, 2))
-
-        elif isinstance(image, torch.Tensor):
-            img = image
-        else:
-            raise ValueError('Invalid image type')
-
-        if img.ndim == 3:
-            img = img.unsqueeze(0) # shape = (1, ?, ?, ?)
-
-
-
-        # shape = (1, 3, 1, 1)
-        rgb_means = torch.tensor(rgb_means).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-        rgb_stds = torch.tensor(rgb_stds).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-        if toNorm:
-            normed_img = (img - rgb_means) / rgb_stds
-            orig_img = img
-        else:
-            normed_img = img
-            orig_img = img*rgb_stds + rgb_means
-
-
-        input_shape = np.array(self.input_shape)[np.array([2, 0, 1])]
-        if list(img.shape[1:]) != input_shape.tolist():
-            raise ValueError('image shape was not same as input shape: {}, but got {}'.format(input_shape.tolist(), list(img.shape[1:])))
-
-        self._called_learn_infer = True
-
-        return normed_img, orig_img
+    @abc.abstractmethod
+    def learn(self, x, targets):
+        pass
+    @abc.abstractmethod
+    def infer(self, *args, **kwargs):
+        pass
 
 
     def load_weights(self, path):
@@ -129,14 +74,22 @@ class SSDConfig(object):
         assert input_shape[0] == input_shape[1], "input must be square size"
         self.input_shape = input_shape
 
-        self.batch_norm = kwargs.get('batch_norm')
+        self.batch_norm = _check_ins('batch_norm', kwargs.get('batch_norm'), bool)
 
-        self.aspect_ratios = kwargs.get('aspect_ratios')
-        self.classifier_source_names = kwargs.get('classifier_source_names')
-        self.addon_source_names = kwargs.get('addon_source_names')
+        self.aspect_ratios = _check_ins('aspect_ratios', kwargs.get('aspect_ratios'), (tuple, list))
+        self.classifier_source_names = _check_ins('classifier_source_names', kwargs.get('classifier_source_names'), (tuple, list))
+        self.addon_source_names = _check_ins('addon_source_names', kwargs.get('addon_source_names'), (tuple, list))
 
-        self.norm_means = kwargs.get('norm_means')
-        self.norm_stds = kwargs.get('norm_stds')
+        self.codec_means = _check_ins('codec_means', kwargs.get('codec_means'), (tuple, list, float, int))
+        self.codec_stds = _check_ins('codec_stds', kwargs.get('codec_stds'), (tuple, list, float, int))
+
+        self.rgb_means = _check_ins('rgb_means', kwargs.get('rgb_means', (0.485, 0.456, 0.406)), (tuple, list, float, int))
+        self.rgb_stds = _check_ins('rgb_stds', kwargs.get('rgb_stds', (0.229, 0.224, 0.225)), (tuple, list, float, int))
+
+        self.val_conf_threshold = _check_ins('val_conf_threshold', kwargs.get('val_conf_threshold', 0.01), float)
+        self.vis_conf_threshold = _check_ins('vis_conf_threshold', kwargs.get('vis_conf_threshold', 0.6), float)
+        self.iou_threshold = _check_ins('iou_threshold', kwargs.get('iou_threshold', 0.45), float)
+        self.topk = _check_ins('topk', kwargs.get('topk', 200), int)
 
     @property
     def input_height(self):
@@ -150,6 +103,7 @@ class SSDConfig(object):
 
 class SSDBase(ObjectDetectionModelBase):
     defaultBox: DefaultBoxBase
+    inferenceBox: InferenceBox
     _config: SSDConfig
 
     feature_layers: nn.ModuleDict
@@ -157,7 +111,7 @@ class SSDBase(ObjectDetectionModelBase):
     confidence_layers: nn.ModuleDict
     addon_layers: nn.ModuleDict
 
-    def __init__(self, config, defaultBox):
+    def __init__(self, config, defaultBox, **build_kwargs):
         """
         :param config: SSDvggConfig
         :param defaultBox: instance inheriting DefaultBoxBase
@@ -165,26 +119,29 @@ class SSDBase(ObjectDetectionModelBase):
         self._config = _check_ins('config', config, SSDConfig)
         super().__init__(config.class_nums, config.input_shape, config.batch_norm)
 
-        self.codec = Codec(norm_means=self.norm_means, norm_stds=self.norm_stds)
+        self.codec = Codec(norm_means=self.codec_means, norm_stds=self.codec_stds)
         self.defaultBox = _check_ins('defaultBox', defaultBox, DefaultBoxBase)
 
         self.predictor = Predictor(self.class_nums)
+        self.inferenceBox = InferenceBox(conf_threshold=self.val_conf_threshold, iou_threshold=self.iou_threshold, topk=self.topk, decoder=self.decoder)
+
+        self.build(**build_kwargs)
 
     @property
     def isBuilt(self):
-        return not hasattr(self, 'feature_layers') and\
-               not hasattr(self, 'localization_layers') and\
-               not hasattr(self, 'confidence_layers')
+        return hasattr(self, 'feature_layers') and\
+               hasattr(self, 'localization_layers') and\
+               hasattr(self, 'confidence_layers')
 
     ### build ###
     @abc.abstractmethod
-    def build_feature(self, *args, **kwargs):
+    def build_feature(self, **kwargs):
         pass
     @abc.abstractmethod
-    def build_addon(self, *args, **kwargs):
+    def build_addon(self, **kwargs):
         pass
     @abc.abstractmethod
-    def build_classifier(self, *args, **kwargs):
+    def build_classifier(self, **kwargs):
         pass
 
     ### codec ###
@@ -214,11 +171,29 @@ class SSDBase(ObjectDetectionModelBase):
     def addon_source_names(self):
         return self._config.addon_source_names
     @property
-    def norm_means(self):
-        return self._config.norm_means
+    def codec_means(self):
+        return self._config.codec_means
     @property
-    def norm_stds(self):
-        return self._config.norm_stds
+    def codec_stds(self):
+        return self._config.codec_stds
+    @property
+    def rgb_means(self):
+        return self._config.rgb_means
+    @property
+    def rgb_stds(self):
+        return self._config.rgb_stds
+    @property
+    def val_conf_threshold(self):
+        return self._config.val_conf_threshold
+    @property
+    def vis_conf_threshold(self):
+        return self._config.vis_conf_threshold
+    @property
+    def iou_threshold(self):
+        return self._config.iou_threshold
+    @property
+    def topk(self):
+        return self._config.topk
 
     # device management
     def to(self, *args, **kwargs):
@@ -232,20 +207,16 @@ class SSDBase(ObjectDetectionModelBase):
         return super().cuda(device)
 
 
-    def build(self, vgg_layers, extra_layers):
-        """
-        :param vgg_layers: nn.ModuleDict
-        :param extra_layers: nn.ModuleDict
-        :return:
-        """
+    def build(self, **kwargs):
+
         ### feature layers ###
-        self.build_feature(vgg_layers, extra_layers)
+        self.build_feature(**kwargs)
 
         ### addon layers ###
-        self.build_addon()
+        self.build_addon(**kwargs)
 
         ### classifier layers ###
-        self.build_classifier()
+        self.build_classifier(**kwargs)
 
         ### default box ###
         self.defaultBox = self.defaultBox.build(self.feature_layers, self._config.classifier_source_names,
@@ -261,6 +232,12 @@ class SSDBase(ObjectDetectionModelBase):
         :return:
             predicts: localization and confidence Tensor, shape is (batch, total_dbox_num, 4+class_nums)
         """
+        if not self.isBuilt:
+            raise NotImplementedError(
+                "Not initialized, implement \'build_feature\', \'build_classifier\', \'build_addon\'")
+        if not self.training:
+            raise NotImplementedError("call \'train()\' first")
+
         # feature
         sources = []
         addon_i = 1
@@ -296,6 +273,10 @@ class SSDBase(ObjectDetectionModelBase):
             predicts: localization and confidence Tensor, shape is (batch, total_dbox_num, 4+class_nums)
             targets: Tensor, matched targets. shape = (batch num, dbox num, 4 + class num)
         """
+        if not self.isBuilt:
+            raise NotImplementedError(
+                "Not initialized, implement \'build_feature\', \'build_classifier\', \'build_addon\'")
+
         batch_num = x.shape[0]
 
         pos_indicator, targets = self.encoder(targets, self.dboxes, batch_num)
@@ -303,27 +284,65 @@ class SSDBase(ObjectDetectionModelBase):
 
         return pos_indicator, predicts, targets
 
-    def init_weights(self):
-        pass
+    def infer(self, image, conf_threshold=None, toNorm=False, visualize=False):
+        """
+        :param image: ndarray or Tensor of list or tuple, or ndarray, or Tensor. Note that each type will be handled as;
+            ndarray of list or tuple, ndarray: (?, h, w, c). channel order will be handled as RGB
+            Tensor of list or tuple, Tensor: (?, c, h, w). channel order will be handled as RGB
+        :param conf_threshold: float or None, if it's None, default value will be passed
+        :param toNorm: bool, whether to normalize passed image
+        :param visualize: bool,
+        :return:
+        """
+        if not self.isBuilt:
+            raise NotImplementedError("Not initialized, implement \'build_feature\', \'build_classifier\', \'build_addon\'")
+        if self.training:
+            raise NotImplementedError("call \'eval()\' first")
+
+        # img: Tensor, shape = (b, c, h, w)
+        img = check_image(image)
+
+        # normed_img, orig_img: Tensor, shape = (b, c, h, w)
+        normed_img, orig_img = get_normed_and_origin_img(img, self.rgb_means, self.rgb_stds, toNorm)
+
+        if list(img.shape[1:]) != [self.input_channel, self.input_height, self.input_width]:
+            raise ValueError('image shape was not same as input shape: {}, but got {}'.format([self.input_channel, self.input_height, self.input_width], list(img.shape[1:])))
+
+
+        if conf_threshold is None:
+            conf_threshold = self.vis_conf_threshold if visualize else self.val_conf_threshold
+
+        # predict
+        predicts = self(normed_img)
+        infers = self.inferenceBox(predicts, self.dboxes, conf_threshold)
+
+        img_num = normed_img.shape[0]
+        if visualize:
+            return infers, [toVisualizeRectangleimg(orig_img[i], infers[i][:, 1:], verbose=False) for i in range(img_num)]
+        else:
+            return infers
+
 
 class SSDvggBase(SSDBase):
 
-    def __init__(self, config, defaultBox):
+    def __init__(self, config, defaultBox, **build_kwargs):
         """
         :param config: SSDvggConfig
         :param defaultBox: instance inheriting DefaultBoxBase
         """
-        super().__init__(config, defaultBox)
-
         self._vgg_index = -1
 
+        super().__init__(config, defaultBox, **build_kwargs)
 
-    def build_feature(self, vgg_layers, extra_layers):
+    def build_feature(self, **kwargs):
         """
         :param vgg_layers: nn.ModuleDict
         :param extra_layers: nn.ModuleDict
         :return:
         """
+        vgg_layers = kwargs.get('vgg_layers')
+        extra_layers = kwargs.get('extra_layers')
+
         feature_layers = []
         vgg_layers = _check_ins('vgg_layers', vgg_layers, nn.ModuleDict)
         for name, module in vgg_layers.items():
@@ -336,7 +355,7 @@ class SSDvggBase(SSDBase):
 
         self.feature_layers = nn.ModuleDict(OrderedDict(feature_layers))
 
-    def build_addon(self):
+    def build_addon(self, **kwargs):
         addon_layers = []
         for i, name in enumerate(self.addon_source_names):
             addon_layers += [
@@ -344,7 +363,7 @@ class SSDvggBase(SSDBase):
             ]
         self.addon_layers = nn.ModuleDict(addon_layers)
 
-    def build_classifier(self):
+    def build_classifier(self, **kwargs):
         # loc and conf layers
         in_channels = tuple(self.feature_layers[name].out_channels for name in self.classifier_source_names)
 
@@ -365,24 +384,6 @@ class SSDvggBase(SSDBase):
         ]
         self.confidence_layers = nn.ModuleDict(OrderedDict(confidence_layers))
 
-    def infer(self, image, conf_threshold=None, toNorm=False,
-              rgb_means=(103.939, 116.779, 123.68), rgb_stds=(1.0, 1.0, 1.0),
-              visualize=False, visualize_classes=None):
-
-        normed_img, orig_img = super().infer(image, conf_threshold, toNorm, rgb_means, rgb_stds, visualize)
-
-        if conf_threshold is None:
-            conf_threshold = 0.6 if visualize else 0.01
-
-        # predict
-        predicts = self(normed_img)
-        infers = self.inferenceBox(predicts, self.defaultBox.dboxes.clone(), conf_threshold)
-
-        img_num = normed_img.shape[0]
-        if visualize:
-            return infers, [toVisualizeRectangleimg(orig_img[i], infers[i][:, 1:], verbose=False) for i in range(img_num)]
-        else:
-            return infers
 
     def init_weights(self):
         _initialize_xavier_uniform(self.feature_layers)
@@ -413,8 +414,6 @@ def load_vgg_weights(model, name):
     logging.info("model loaded")
 
 
-
-
 def _initialize_xavier_uniform(layers):
     for module in layers.modules():
         if isinstance(module, nn.Conv2d):
@@ -425,3 +424,66 @@ def _initialize_xavier_uniform(layers):
             nn.init.xavier_uniform_(module.conv.weight)
             if module.conv.bias is not None:
                 nn.init.constant_(module.conv.bias, 0)
+
+def check_image(image):
+    """
+    :param image: ndarray or Tensor of list or tuple, or ndarray, or Tensor. Note that each type will be handled as;
+            ndarray of list or tuple, ndarray: (?, h, w, c). channel order will be handled as RGB
+            Tensor of list or tuple, Tensor: (?, c, h, w). channel order will be handled as RGB
+    :return:
+        img: Tensor, shape = (b, c, h, w)
+    """
+    if isinstance(image, (list, tuple)):
+        img = []
+        for im in image:
+            if isinstance(im, np.ndarray):
+                im = torch.tensor(im, requires_grad=False)
+                img += im.permute((2, 0, 1))
+            elif isinstance(im, torch.Tensor):
+                img += im
+            else:
+                raise ValueError('Invalid image type. list or tuple\'s element must be ndarray or Tensor, but got \'{}\''.format(im.__name__))
+
+        img = torch.stack(img)
+    elif isinstance(image, np.ndarray):
+        img = torch.tensor(image, requires_grad=False)
+        if img.ndim == 3:
+            img = img.permute((2, 0, 1))
+        elif img.ndim == 4:
+            img = img.permute((0, 3, 1, 2))
+
+    elif isinstance(image, torch.Tensor):
+        img = image
+    else:
+        raise ValueError('Invalid image type. list or tuple\'s element must be'
+                         '\'list\', \'tuple\', \'ndarray\' or \'Tensor\', but got \'{}\''.format(image.__name__))
+
+    if img.ndim == 3:
+        img = img.unsqueeze(0)  # shape = (1, ?, ?, ?)
+
+    return img
+
+def get_normed_and_origin_img(img, rgb_means, rgb_stds, toNorm):
+    """
+    :param img: Tensor, shape = (b, c, h, w)
+    :param rgb_means: tuple or float
+    :param rgb_stds: tuple or float
+    :param toNorm: Bool
+    :return:
+        normed_img: Tensor, shape = (b, c, h, w)
+        orig_img: Tensor, shape = (b, c, h, w)
+    """
+    rgb_means = _check_norm('rgb_means', rgb_means)
+    rgb_stds = _check_norm('rgb_stds', rgb_stds)
+
+    # shape = (1, 3, 1, 1)
+    rgb_means = rgb_means.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+    rgb_stds = rgb_stds.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+    if toNorm:
+        normed_img = (img - rgb_means) / rgb_stds
+        orig_img = img
+    else:
+        normed_img = img
+        orig_img = img * rgb_stds + rgb_means
+
+    return normed_img, orig_img

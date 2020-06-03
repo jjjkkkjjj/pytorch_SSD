@@ -19,10 +19,10 @@ class SSD300(SSDvggBase):
                            classifier_source_names=('convRL4_3', 'convRL7', 'convRL8_2', 'convRL9_2', 'convRL10_2', 'convRL11_2'),
                            addon_source_names=('convRL4_3',),
 
-                           norm_means=(0.0, 0.0, 0.0, 0.0), norm_stds=(0.1, 0.1, 0.2, 0.2))
+                           codec_means=(0.0, 0.0, 0.0, 0.0), codec_stds=(0.1, 0.1, 0.2, 0.2),
+                           rgb_means=(0.485, 0.456, 0.406), rgb_stds=(0.229, 0.224, 0.225),
 
-        super().__init__(config, defaultBox=DBoxSSD300Original(scale_conv4_3=0.1, scale_range=(0.2, 0.9),
-                                                               aspect_ratios=config.aspect_ratios))
+                           val_conf_threshold=0.01, vis_conf_threshold=0.6, iou_threshold=0.45, topk=200)
 
         ### layers ###
         Conv2d.batch_norm = batch_norm
@@ -61,7 +61,9 @@ class SSD300(SSDvggBase):
         vgg_layers = nn.ModuleDict(vgg_layers)
         extra_layers = nn.ModuleDict(extra_layers)
 
-        self.build(vgg_layers, extra_layers)
+        super().__init__(config, defaultBox=DBoxSSD300Original(scale_conv4_3=0.1, scale_range=(0.2, 0.9),
+                                                               aspect_ratios=config.aspect_ratios),
+                         vgg_layers=vgg_layers, extra_layers=extra_layers)
 
     def load_vgg_weights(self):
         if self.batch_norm:

@@ -2,6 +2,7 @@ from torch import nn
 import torch
 
 from .utils import matching_strategy
+from ..._utils import _check_norm
 
 class Codec(nn.Module):
     def __init__(self, norm_means=(0.0, 0.0, 0.0, 0.0), norm_stds=(0.1, 0.1, 0.2, 0.2)):
@@ -16,9 +17,13 @@ class Codec(nn.Module):
 class Encoder(nn.Module):
     def __init__(self, norm_means=(0.0, 0.0, 0.0, 0.0), norm_stds=(0.1, 0.1, 0.2, 0.2)):
         super().__init__()
+
+        norm_means = _check_norm('norm_means', norm_means)
+        norm_stds = _check_norm('norm_stds', norm_stds)
+
         # shape = (1, 1, 4=(cx, cy, w, h)) or (1, 1, 1)
-        self.norm_means = torch.tensor(norm_means, requires_grad=False).unsqueeze(0).unsqueeze(0)
-        self.norm_stds = torch.tensor(norm_stds, requires_grad=False).unsqueeze(0).unsqueeze(0)
+        self.norm_means = norm_means.unsqueeze(0).unsqueeze(0)
+        self.norm_stds = norm_stds.unsqueeze(0).unsqueeze(0)
 
 
     def forward(self, targets, dboxes, batch_num):
@@ -63,10 +68,13 @@ class Encoder(nn.Module):
 class Decoder(nn.Module):
     def __init__(self, norm_means=(0.0, 0.0, 0.0, 0.0), norm_stds=(0.1, 0.1, 0.2, 0.2)):
         super().__init__()
-        # shape = (1, 1, 4=(cx, cy, w, h)) or (1, 1, 1)
-        self.norm_means = torch.tensor(norm_means, requires_grad=False).unsqueeze(0).unsqueeze(0)
-        self.norm_stds = torch.tensor(norm_stds, requires_grad=False).unsqueeze(0).unsqueeze(0)
 
+        norm_means = _check_norm('norm_means', norm_means)
+        norm_stds = _check_norm('norm_stds', norm_stds)
+
+        # shape = (1, 1, 4=(cx, cy, w, h)) or (1, 1, 1)
+        self.norm_means = norm_means.unsqueeze(0).unsqueeze(0)
+        self.norm_stds = norm_stds.unsqueeze(0).unsqueeze(0)
 
     def forward(self, pred_boxes, default_boxes):
         """

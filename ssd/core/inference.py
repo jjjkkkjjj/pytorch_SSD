@@ -112,12 +112,12 @@ def non_maximum_suppression(conf, loc, iou_threshold=0.45, topk=200):
 
     return inferred_boxes
 
-def tensor2cvimg(img, to8bit=True):
+def tensor2cvrgbimg(img, to8bit=True):
     if to8bit:
         img = img * 255.
     return img.numpy().transpose((1, 2, 0)).astype(np.uint8)
 
-def toVisualizeRectangleimg(img, locs, thickness=2, rgb=(255, 0, 0), verbose=False):
+def toVisualizeRectangleRGBimg(img, locs, thickness=2, rgb=(255, 0, 0), verbose=False):
     """
     :param img: Tensor, shape = ()
     :param locs: Tensor, centered coordinates, shape = ()
@@ -125,9 +125,10 @@ def toVisualizeRectangleimg(img, locs, thickness=2, rgb=(255, 0, 0), verbose=Fal
     :param rgb: tuple of int, order is rgb and range is 0~255
     :param verbose: bool, whether to show information
     :return:
+        img: RGB order
     """
     # convert (c, h, w) to (h, w, c)
-    img = tensor2cvimg(img).copy()
+    img = tensor2cvrgbimg(img, to8bit=True).copy()
     #cv2.imshow('a', img)
     #cv2.waitKey()
     # print(locs)
@@ -153,9 +154,9 @@ def toVisualizeRectangleimg(img, locs, thickness=2, rgb=(255, 0, 0), verbose=Fal
 
     return img
 
-def toVisualizeImg(img, locs, conf_indices, classes, verbose=False):
+def toVisualizeRGBImg(img, locs, conf_indices, classes, verbose=False):
     # convert (c, h, w) to (h, w, c)
-    img = tensor2cvimg(img)
+    img = tensor2cvrgbimg(img)
 
     class_num = len(classes)
     box_num = locs.shape[0]

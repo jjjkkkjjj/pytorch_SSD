@@ -9,7 +9,7 @@ from ..core.layers import *
 from ..core.inference import InferenceBox
 from ..core.boxes.codec import Codec
 from .._utils import weights_path, _check_norm
-from ..core.inference import InferenceBox, toVisualizeImg, toVisualizeRectangleimg
+from ..core.inference import InferenceBox, toVisualizeRGBImg, toVisualizeRectangleRGBimg
 from ..models.vgg_base import get_model_url
 
 class ObjectDetectionModelBase(nn.Module):
@@ -241,8 +241,6 @@ class SSDBase(ObjectDetectionModelBase):
         if not self.isBuilt:
             raise NotImplementedError(
                 "Not initialized, implement \'build_feature\', \'build_classifier\', \'build_addon\'")
-        if not self.training:
-            raise NotImplementedError("call \'train()\' first")
 
         # feature
         sources = []
@@ -282,6 +280,8 @@ class SSDBase(ObjectDetectionModelBase):
         if not self.isBuilt:
             raise NotImplementedError(
                 "Not initialized, implement \'build_feature\', \'build_classifier\', \'build_addon\'")
+        if not self.training:
+            raise NotImplementedError("call \'train()\' first")
 
         batch_num = x.shape[0]
 
@@ -324,7 +324,7 @@ class SSDBase(ObjectDetectionModelBase):
 
         img_num = normed_img.shape[0]
         if visualize:
-            return infers, [toVisualizeRectangleimg(orig_img[i], infers[i][:, 1:], verbose=False) for i in range(img_num)]
+            return infers, [toVisualizeRectangleRGBimg(orig_img[i], infers[i][:, 1:], verbose=False) for i in range(img_num)]
         else:
             return infers
 
@@ -445,9 +445,9 @@ def check_image(image):
         for im in image:
             if isinstance(im, np.ndarray):
                 im = torch.tensor(im, requires_grad=False)
-                img += im.permute((2, 0, 1))
+                img += [im.permute((2, 0, 1))]
             elif isinstance(im, torch.Tensor):
-                img += im
+                img += [im]
             else:
                 raise ValueError('Invalid image type. list or tuple\'s element must be ndarray or Tensor, but got \'{}\''.format(im.__name__))
 
@@ -478,7 +478,7 @@ def get_normed_and_origin_img(img, rgb_means, rgb_stds, toNorm):
     :param toNorm: Bool
     :return:
         normed_img: Tensor, shape = (b, c, h, w)
-        orig_img: Tensor, shape = (b, c, h, w)
+        orig_img: Tensor, shape = (b, c, h, w). Order is rgb
     """
     rgb_means = _check_norm('rgb_means', rgb_means)
     rgb_stds = _check_norm('rgb_stds', rgb_stds)
@@ -487,8 +487,8 @@ def get_normed_and_origin_img(img, rgb_means, rgb_stds, toNorm):
     rgb_means = rgb_means.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
     rgb_stds = rgb_stds.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
     if toNorm:
-        normed_img = (img - rgb_means) / rgb_stds
-        orig_img = img
+        normed_img = (img / 255. - rgb_means) / rgb_stds
+        orig_img = img / 255. # divide 255. for tensor2cvrgbimg
     else:
         normed_img = img
         orig_img = img * rgb_stds + rgb_means

@@ -1,5 +1,5 @@
 from data import datasets
-from data import transforms, target_transforms, augmentations, _utils
+from data import transforms, target_transforms, augmentations, utils
 
 from ssd.models.ssd300 import SSD300
 
@@ -7,24 +7,21 @@ from torch.utils.data import DataLoader
 import cv2
 
 if __name__ == '__main__':
-    """
-    augmentaion = augmentations.Compose(
-        []
-    )
+    augmentation = None
 
     transform = transforms.Compose(
-        [transforms.Normalize(rgb_means=(103.939, 116.779, 123.68), rgb_stds=1),
-         transforms.Resize((300, 300)),
-         transforms.ToTensor()]
+            [transforms.Resize((300, 300)),
+             transforms.ToTensor(),
+             transforms.Normalize(rgb_means=(0.485, 0.456, 0.406), rgb_stds=(0.229, 0.224, 0.225))]
     )
     target_transform = target_transforms.Compose(
-        [target_transforms.Ignore(difficult=True),
-         target_transforms.ToCentroids(),
+        [target_transforms.ToCentroids(),
          target_transforms.OneHot(class_nums=datasets.VOC_class_nums),
          target_transforms.ToTensor()]
     )
-
-    test_dataset = datasets.VOC2012_TestDataset(transform=transform, target_transform=target_transform, augmentation=augmentaion)
+    test_dataset = datasets.Compose(datasets.VOC_class_nums,
+                                     datasets=(datasets.VOC2012_TrainValDataset,),
+                                     transform=transform, target_transform=target_transform, augmentation=augmentation)
 
     test_loader = DataLoader(test_dataset,
                               batch_size=32,
@@ -32,18 +29,17 @@ if __name__ == '__main__':
                               collate_fn=utils.batch_ind_fn)
 
     model = SSD300(class_nums=test_dataset.class_nums, batch_norm=False)
-    model.load_weights('weights/ssd300-voc2007-augmentation/ssd300-voc2007_i-60000.pth')
+    model.load_weights('./weights/ssd300-voc2007-augmentation/ssd300-voc2007_i-60000.pth')
     model.eval()
 
-    images = [test_dataset[i][0] for i in range(10)]
-    """
-
-    model = SSD300(class_nums=datasets.VOC_class_nums, batch_norm=False)
-    model.load_weights('weights/ssd300-voc2007-augmentation/ssd300-voc2007_i-60000.pth')
-    model.eval()
-
-    image = cv2.imread('assets/coco_testimg.jpg')
+    image = cv2.cvtColor(cv2.imread('assets/coco_testimg.jpg'), cv2.COLOR_BGR2RGB)
     infers, imgs = model.infer(cv2.resize(image, (300, 300)), visualize=True, toNorm=True)
     for img in imgs:
+        cv2.imshow('result', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+        cv2.waitKey()
+
+    images = [test_dataset[i][0] for i in range(20)]
+    inf, ret_imgs = model.infer(images, visualize=True, toNorm=False)
+    for img in ret_imgs:
         cv2.imshow('result', img)
         cv2.waitKey()

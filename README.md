@@ -52,20 +52,19 @@ See [training-voc2007+2012.ipynb](https://github.com/jjjkkkjjj/pytorch_SSD/blob/
   augmentation = augmentations.AugmentationOriginal()
   
   transform = transforms.Compose(
-      [transforms.Normalize(rgb_means=(103.939, 116.779, 123.68), rgb_stds=1),
-       transforms.Resize((300, 300)),
-       transforms.ToTensor()]
+          [transforms.Resize((300, 300)),
+           transforms.ToTensor(),
+           transforms.Normalize(rgb_means=(0.485, 0.456, 0.406), rgb_stds=(0.229, 0.224, 0.225))]
   )
   target_transform = target_transforms.Compose(
-      [target_transforms.Ignore(difficult=True),
-       target_transforms.ToCentroids(),
+      [target_transforms.ToCentroids(),
        target_transforms.OneHot(class_nums=datasets.VOC_class_nums),
        target_transforms.ToTensor()]
   )
   ```
-
-  Note that `None` is available to set these instances
-
+  
+Note that `None` is available to set these instances
+  
 - Second, load dataset from `datasets` module in `data`.
 
   Example;
@@ -74,7 +73,7 @@ See [training-voc2007+2012.ipynb](https://github.com/jjjkkkjjj/pytorch_SSD/blob/
   from data import datasets
   from data import _utils
   
-  train_dataset = datasets.VOC2007Dataset(transform=transform, target_transform=target_transform, augmentation = augmentation)
+  train_dataset = datasets.VOC2007Dataset(transform=transform, target_transform=target_transform, augmentation=augmentation)
   
   train_loader = DataLoader(train_dataset,
                             batch_size=32,
@@ -142,15 +141,18 @@ See [training-voc2007+2012.ipynb](https://github.com/jjjkkkjjj/pytorch_SSD/blob/
   Example;
 
   ```python
-  image = cv2.imread('assets/coco_testimg.jpg')
+  # must be passed RGB order
+  image = cv2.cvtColor(cv2.imread('assets/coco_testimg.jpg'), cv2.COLOR_BGR2RGB)
+  # imgs is list of ndarray(img)
   infers, imgs = model.infer(cv2.resize(image, (300, 300)), visualize=True, toNorm=True)
-  for img in imgs:
-      cv2.imshow('result', img)
+  for img in imgs: 
+      # returned img order is BGR
+    cv2.imshow('result', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
       cv2.waitKey()
   ```
-
+  
   Result;
-
+  
   ![result img](assets/coco_testimg-result.jpg?raw=true "result img")
 
 # Pre-trained Weights

@@ -8,7 +8,7 @@ def weights_path(_file_, _root_num, dirname):
     return model_dir
 
 def check_instance(name, val, ins):
-    assert isinstance(val, ins), '{} must be {}'.format(name, ins.__name__)
+    assert isinstance(val, ins), '{} must be {}'.format(name, type(ins).__name__)
     return val
 
 def _check_ins(name, val, cls, allow_none=False):
@@ -16,7 +16,7 @@ def _check_ins(name, val, cls, allow_none=False):
         return val
 
     if not isinstance(val, cls):
-        raise ValueError('Argument \'{}\' must be {}, but got {}'.format(name, cls.__name__, val.__name__))
+        raise ValueError('Argument \'{}\' must be {}, but got {}'.format(name, type(cls).__name__, type(val).__name__))
     return val
 
 def _check_norm(name, val):
@@ -25,6 +25,6 @@ def _check_norm(name, val):
     elif isinstance(val, (list, tuple)):
         val = torch.tensor(val, requires_grad=False).float()
     elif not isinstance(val, torch.Tensor):
-        raise ValueError('{} must be int, float, list, tuple, Tensor, but got {}'.format(name, val.__name__))
+        raise ValueError('{} must be int, float, list, tuple, Tensor, but got {}'.format(name, type(val).__name__))
 
     return val

@@ -19,7 +19,7 @@ class InferenceBox(Module):
 
     def forward(self, predicts, dboxes, conf_threshold=None):
         """
-        :param predicts: localization and confidence Tensor, shape is (batch, total_dbox_num, 4+class_nums)
+        :param predicts: localization and confidence Tensor, shape is (batch, total_dbox_num, 4+class_labels)
         :param dboxes: Tensor, default boxes Tensor whose shape is (total_dbox_nums, 4)`
         :param conf_threshold: float or None, if it's None, passed default value with 0.01
         :return:

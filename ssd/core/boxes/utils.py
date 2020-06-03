@@ -5,7 +5,7 @@ from torch import nn
 
 def matching_strategy(targets, dboxes, **kwargs):
     """
-    :param targets: Tensor, shape is (batch*object num(batch), 1+4+class_nums)
+    :param targets: Tensor, shape is (batch*object num(batch), 1+4+class_labels)
     :param dboxes: shape is (default boxes num, 4)
     IMPORTANT: Note that means (cx, cy, w, h)
     :param kwargs:

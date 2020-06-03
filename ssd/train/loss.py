@@ -15,8 +15,8 @@ class SSDLoss(nn.Module):
     def forward(self, pos_indicator, predicts, targets):
         """
         :param pos_indicator: Bool Tensor, shape = (batch, default box num). this represents whether each default box is object or background.
-        :param predicts: Tensor, shape is (batch, total_dbox_nums, 4+class_nums=(cx, cy, w, h, p_class,...)
-        :param targets: Tensor, shape is (batch, total_dbox_nums, 4+class_nums=(cx, cy, w, h, p_class,...)
+        :param predicts: Tensor, shape is (batch, total_dbox_nums, 4+class_labels=(cx, cy, w, h, p_class,...)
+        :param targets: Tensor, shape is (batch, total_dbox_nums, 4+class_labels=(cx, cy, w, h, p_class,...)
         :return:
             loss: float
         """

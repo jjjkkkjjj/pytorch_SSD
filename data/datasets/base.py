@@ -16,7 +16,17 @@ __getitem__ to support the indexing such that dataset[i] can be used to get ith 
 
 """
 
-class ObjectDetectionDatasetBase(Dataset):
+class _DatasetBase(Dataset):
+    @property
+    @abc.abstractmethod
+    def class_nums(self):
+        pass
+    @property
+    @abc.abstractmethod
+    def class_labels(self):
+        pass
+
+class ObjectDetectionDatasetBase(_DatasetBase):
     def __init__(self, ignore=None, transform=None, target_transform=None, augmentation=None):
         """
         :param ignore: target_transforms.Ignore
@@ -29,6 +39,15 @@ class ObjectDetectionDatasetBase(Dataset):
         self.transform = transform
         self.target_transform = _contain_ignore(target_transform)
         self.augmentation = augmentation
+
+    @property
+    @abc.abstractmethod
+    def class_nums(self):
+        pass
+    @property
+    @abc.abstractmethod
+    def class_labels(self):
+        pass
 
     @abc.abstractmethod
     def _get_image(self, index):
@@ -112,11 +131,8 @@ class ObjectDetectionDatasetBase(Dataset):
 
 
 
-from .voc import VOC2007Dataset, VOC2012Dataset
-
-class Compose(Dataset):
-    class_nums = -1
-    def __init__(self, class_nums, datasets=(VOC2007Dataset, VOC2012Dataset), **kwargs):
+class Compose(_DatasetBase):
+    def __init__(self, datasets, **kwargs):
         """
         :param class_nums: int, class number
         :param datasets: tuple of Dataset
@@ -133,12 +149,20 @@ class Compose(Dataset):
         datasets = _check_ins('datasets', datasets, (tuple, list))
 
         _datasets, _lens = [], []
+        _class_labels = None
         for dataset in datasets:
             try:
                 dataset = dataset(**kwargs)
             except Exception as e:
                 raise ValueError('Invalid arguments were passed. {} could not be initialized because\n{}'.format(dataset.__name__, e))
-            dataset = _check_ins('element of datasets', dataset, Dataset)
+            dataset = _check_ins('element of datasets', dataset, _DatasetBase)
+            if _class_labels is None:
+                _class_labels = dataset.class_labels
+            else:
+                #if set(_class_labels) != set(dataset.class_labels):
+                if _class_labels != dataset.class_labels:
+                    raise ValueError('all of datasets must be same class labels')
+
             # initialization
             _datasets += [dataset]
 
@@ -146,8 +170,14 @@ class Compose(Dataset):
 
         self.datasets = _datasets
         self.lens = _lens
-        Compose.class_nums = class_nums
+        self._class_labels = _class_labels
 
+    @property
+    def class_labels(self):
+        return self._class_labels
+    @property
+    def class_nums(self):
+        return len(self._class_labels)
 
     def __getitem__(self, index):
         for i in range(len(self.lens)):

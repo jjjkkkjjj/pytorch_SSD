@@ -14,15 +14,15 @@ from ..models.vgg_base import get_model_url
 
 class ObjectDetectionModelBase(nn.Module):
 
-    def __init__(self, class_nums, input_shape, batch_norm):
+    def __init__(self, class_labels, input_shape, batch_norm):
         """
-        :param class_nums: int, class number
+        :param class_labels: int, class number
         :param input_shape: tuple, 3d and (height, width, channel)
         :param batch_norm: bool, whether to add batch normalization layers
         """
         super().__init__()
 
-        self._class_nums = class_nums
+        self._class_labels = class_labels
         assert len(input_shape) == 3, "input dimension must be 3"
         assert input_shape[0] == input_shape[1], "input must be square size"
         self._input_shape = input_shape
@@ -39,8 +39,15 @@ class ObjectDetectionModelBase(nn.Module):
         return self._input_shape[2]
 
     @property
+    def class_labels(self):
+        return self._class_labels
+    @property
     def class_nums(self):
-        return self._class_nums
+        return len(self._class_labels)
+    @property
+    def class_nums_with_background(self):
+        return self.class_nums + 1
+
     @property
     def batch_norm(self):
         return self._batch_norm
@@ -67,7 +74,7 @@ class ObjectDetectionModelBase(nn.Module):
 
 class SSDTrainConfig(object):
     def __init__(self, **kwargs):
-        self.class_nums = kwargs.get('class_nums')
+        self._class_labels = _check_ins('class_labels', kwargs.get('class_labels'), (tuple, list))
 
         input_shape = kwargs.get('input_shape')
         assert len(input_shape) == 3, "input dimension must be 3"
@@ -85,6 +92,13 @@ class SSDTrainConfig(object):
 
         self.rgb_means = _check_ins('rgb_means', kwargs.get('rgb_means', (0.485, 0.456, 0.406)), (tuple, list, float, int))
         self.rgb_stds = _check_ins('rgb_stds', kwargs.get('rgb_stds', (0.229, 0.224, 0.225)), (tuple, list, float, int))
+
+    @property
+    def class_labels(self):
+        return self._class_labels
+    @property
+    def class_nums(self):
+        return len(self._class_labels)
 
     @property
     def input_height(self):
@@ -123,12 +137,12 @@ class SSDBase(ObjectDetectionModelBase):
         """
         self._train_config = _check_ins('train_config', train_config, SSDTrainConfig)
         self._val_config = _check_ins('val_config', val_config, SSDValConfig)
-        super().__init__(train_config.class_nums, train_config.input_shape, train_config.batch_norm)
+        super().__init__(train_config.class_labels, train_config.input_shape, train_config.batch_norm)
 
         self.codec = Codec(norm_means=self.codec_means, norm_stds=self.codec_stds)
         self.defaultBox = _check_ins('defaultBox', defaultBox, DefaultBoxBase)
 
-        self.predictor = Predictor(self.class_nums)
+        self.predictor = Predictor(self.class_nums_with_background)
         self.inferenceBox = InferenceBox(conf_threshold=self.val_conf_threshold, iou_threshold=self.iou_threshold, topk=self.topk, decoder=self.decoder)
 
         self.build(**build_kwargs)
@@ -167,6 +181,13 @@ class SSDBase(ObjectDetectionModelBase):
         return self.defaultBox.total_dboxes_nums
 
     ### train_config ###
+    @property
+    def class_labels(self):
+        return self._train_config.class_labels
+    @property
+    def class_nums(self):
+        return self._train_config.class_nums
+
     @property
     def aspect_ratios(self):
         return self._train_config.aspect_ratios
@@ -236,7 +257,7 @@ class SSDBase(ObjectDetectionModelBase):
         """
         :param x: Tensor, input Tensor whose shape is (batch, c, h, w)
         :return:
-            predicts: localization and confidence Tensor, shape is (batch, total_dbox_num, 4+class_nums)
+            predicts: localization and confidence Tensor, shape is (batch, total_dbox_num, 4+class_labels)
         """
         if not self.isBuilt:
             raise NotImplementedError(
@@ -274,7 +295,7 @@ class SSDBase(ObjectDetectionModelBase):
         :param targets: Tensor, list of Tensor, whose shape = (object num, 4 + class num) including background
         :return:
             pos_indicator: Bool Tensor, shape = (batch, default box num). this represents whether each default box is object or background.
-            predicts: localization and confidence Tensor, shape is (batch, total_dbox_num, 4+class_nums)
+            predicts: localization and confidence Tensor, shape is (batch, total_dbox_num, 4+class_labels)
             targets: Tensor, matched targets. shape = (batch num, dbox num, 4 + class num)
         """
         if not self.isBuilt:
@@ -384,7 +405,7 @@ class SSDvggBase(SSDBase):
         self.localization_layers = nn.ModuleDict(OrderedDict(localization_layers))
 
         # conf
-        out_channels = tuple(dbox_num * self.class_nums for dbox_num in _dbox_num_per_fpixel)
+        out_channels = tuple(dbox_num * self.class_nums_with_background for dbox_num in _dbox_num_per_fpixel)
         confidence_layers = [
             *Conv2d.block('_conf', len(_dbox_num_per_fpixel), in_channels, out_channels, kernel_size=(3, 3),
                           padding=1, batch_norm=False)

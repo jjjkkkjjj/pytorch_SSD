@@ -58,7 +58,7 @@ class Predictor(nn.Module):
         """
         :param locs: list of Tensor, Tensor's shape is (batch, c, h, w)
         :param confs: list of Tensor, Tensor's shape is (batch, c, h, w)
-        :return: predicts: localization and confidence Tensor, shape is (batch, total_dbox_num * (4+class_nums))
+        :return: predicts: localization and confidence Tensor, shape is (batch, total_dbox_num * (4+class_labels))
         """
         locs_reshaped, confs_reshaped = [], []
         for loc, conf in zip(locs, confs):

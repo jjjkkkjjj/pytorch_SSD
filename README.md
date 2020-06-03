@@ -52,19 +52,20 @@ See [training-voc2007+2012.ipynb](https://github.com/jjjkkkjjj/pytorch_SSD/blob/
   augmentation = augmentations.AugmentationOriginal()
   
   transform = transforms.Compose(
-          [transforms.Resize((300, 300)),
-           transforms.ToTensor(),
-           transforms.Normalize(rgb_means=(0.485, 0.456, 0.406), rgb_stds=(0.229, 0.224, 0.225))]
+      [transforms.Resize((300, 300)),
+       transforms.ToTensor(),
+       transforms.Normalize(rgb_means=(0.485, 0.456, 0.406), rgb_stds=(0.229, 0.224, 0.225))]
   )
   target_transform = target_transforms.Compose(
       [target_transforms.ToCentroids(),
-       target_transforms.OneHot(class_nums=datasets.VOC_class_nums),
+       target_transforms.OneHot(class_nums=datasets.VOC_class_nums, add_background=True),
        target_transforms.ToTensor()]
   )
   ```
   
+
 Note that `None` is available to set these instances
-  
+
 - Second, load dataset from `datasets` module in `data`.
 
   Example;
@@ -90,7 +91,7 @@ Note that `None` is available to set these instances
   ```python
   from ssd.models.ssd300 import SSD300
   
-  model = SSD300(class_nums=train_dataset.class_nums, batch_norm=False)
+  model = SSD300(class_labels=train_dataset.class_labels, batch_norm=False)
   model.load_vgg_weights()
   ```
 
@@ -130,9 +131,10 @@ Note that `None` is available to set these instances
 
   ```python
   from ssd.models.ssd300 import SSD300
+  from data import datasets
   
-  model = SSD300(class_nums=test_dataset.class_nums, batch_norm=False)
-  model.load_weights('weights/ssd300-voc2007-augmentation/ssd300-voc2007_i-60000.pth')
+  model = SSD300(class_labels=datasets.VOC_class_labels, batch_norm=False)
+  model.load_weights('./weights/ssd300-voc2007-augmentation/ssd300-voc2007_i-60000.pth')
   model.eval() ## Required!!!
   ```
 

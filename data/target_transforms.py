@@ -83,8 +83,11 @@ class Ignore(object):
         return ret_bboxes, ret_labels, ret_flags
 
 class OneHot(object):
-    def __init__(self, class_nums):
+    def __init__(self, class_nums, add_background=True):
         self._class_nums = class_nums
+        self._add_background = add_background
+        if add_background:
+            self._class_nums += 1
 
     def __call__(self, bboxes, labels, flags):
         if labels.ndim != 1:

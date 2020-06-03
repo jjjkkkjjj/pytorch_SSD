@@ -28,7 +28,7 @@ class Encoder(nn.Module):
 
     def forward(self, targets, dboxes, batch_num):
         """
-        :param targets: Tensor, shape is (batch*object num(batch), 1+4+class_nums)
+        :param targets: Tensor, shape is (batch*object num(batch), 1+4+class_labels)
         :param dboxes: Tensor, shape is (total_dbox_nums, 4=(cx,cy,w,h))
         :param batch_num: int
         :return:

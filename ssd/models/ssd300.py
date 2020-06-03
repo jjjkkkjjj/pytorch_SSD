@@ -6,15 +6,15 @@ from torch import nn
 
 
 class SSD300(SSDvggBase):
-    def __init__(self, class_nums, input_shape=(300, 300, 3), batch_norm=False,
+    def __init__(self, class_labels, input_shape=(300, 300, 3), batch_norm=False,
                  val_config=SSDValConfig(val_conf_threshold=0.01, vis_conf_threshold=0.6, iou_threshold=0.45, topk=200)):
         """
-        :param class_nums: int, class number
+        :param class_labels: list or tuple of str
         :param input_shape: tuple, 3d and (height, width, channel)
         :param batch_norm: bool, whether to add batch normalization layers
         """
         ### train_config ###
-        train_config = SSDTrainConfig(class_nums=class_nums, input_shape=input_shape, batch_norm=batch_norm,
+        train_config = SSDTrainConfig(class_labels=class_labels, input_shape=input_shape, batch_norm=batch_norm,
 
                                       aspect_ratios=((1, 2), (1, 2, 3), (1, 2, 3), (1, 2, 3), (1, 2), (1, 2)),
                                       classifier_source_names=('convRL4_3', 'convRL7', 'convRL8_2', 'convRL9_2', 'convRL10_2', 'convRL11_2'),

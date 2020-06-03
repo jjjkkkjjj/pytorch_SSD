@@ -3,18 +3,17 @@ from xml.etree import ElementTree as ET
 import cv2, os
 import numpy as np
 
-from .base import ObjectDetectionDatasetBase
-from .._utils import DATA_ROOT, _get_xml_et_value
+from .base import ObjectDetectionDatasetBase, Compose
+from .._utils import DATA_ROOT, _get_xml_et_value, _check_ins
 
-VOC_classes = ['aeroplane', 'bicycle', 'bird', 'boat',
+VOC_class_labels = ['aeroplane', 'bicycle', 'bird', 'boat',
     'bottle', 'bus', 'car', 'cat', 'chair',
     'cow', 'diningtable', 'dog', 'horse',
     'motorbike', 'person', 'pottedplant',
     'sheep', 'sofa', 'train', 'tvmonitor']
-VOC_class_nums = len(VOC_classes) + 1
+VOC_class_nums = len(VOC_class_labels)
 class VOCDatasetBase(ObjectDetectionDatasetBase):
-    class_nums = len(VOC_classes) + 1
-    def __init__(self, voc_dir, focus, ignore=None, transform=None, target_transform=None, augmentation=None):
+    def __init__(self, voc_dir, focus, ignore=None, transform=None, target_transform=None, augmentation=None, class_labels=None):
         """
         :param voc_dir: str, voc directory path above 'Annotations', 'ImageSets' and 'JPEGImages'
                 e.g.) voc_dir = '~~~~/trainval/VOCdevkit/voc2007'
@@ -23,11 +22,16 @@ class VOCDatasetBase(ObjectDetectionDatasetBase):
         :param transform: instance of transforms
         :param target_transform: instance of target_transforms
         :param augmentation:  instance of augmentations
+        :param class_labels: None or list or tuple, if it's None use VOC_class_labels
         """
         super().__init__(ignore=ignore, transform=transform, target_transform=target_transform, augmentation=augmentation)
 
         self._voc_dir = voc_dir
         self._focus = focus
+        self._class_labels = _check_ins('class_labels', class_labels, (list, tuple), allow_none=True)
+        if self._class_labels is None:
+            self._class_labels = VOC_class_labels
+
         layouttxt_path = os.path.join(self._voc_dir, 'ImageSets', 'Main', self._focus + '.txt')
         if os.path.exists(layouttxt_path):
             with open(layouttxt_path, 'r') as f:
@@ -36,6 +40,13 @@ class VOCDatasetBase(ObjectDetectionDatasetBase):
                 self._annopaths = [os.path.join(self._voc_dir, 'Annotations', '{}.xml'.format(filename)) for filename in filenames]
         else:
             raise FileNotFoundError('layout: {} was invalid arguments'.format(focus))
+
+    @property
+    def class_nums(self):
+        return len(self._class_labels)
+    @property
+    def class_labels(self):
+        return self._class_labels
 
     def _jpgpath(self, filename):
         """
@@ -76,7 +87,7 @@ class VOCDatasetBase(ObjectDetectionDatasetBase):
 
         root = ET.parse(self._annopaths[index]).getroot()
         for obj in root.iter('object'):
-            linds.append(VOC_classes.index(_get_xml_et_value(obj, 'name')))
+            linds.append(self._class_labels.index(_get_xml_et_value(obj, 'name')))
 
             bndbox = obj.find('bndbox')
 
@@ -89,20 +100,9 @@ class VOCDatasetBase(ObjectDetectionDatasetBase):
         return np.array(bboxes, dtype=np.float32), np.array(linds, dtype=np.float32), flags
 
 
-class VOC2007Dataset(Dataset):
-    class_nums = VOCDatasetBase.class_nums
+class VOC2007Dataset(Compose):
     def __init__(self, **kwargs):
-        self.trainval = VOC2007_TrainValDataset(**kwargs)
-        self.test = VOC2007_TestDataset(**kwargs)
-
-    def __getitem__(self, index):
-        if index < len(self.trainval):
-            return self.trainval[index]
-        else:
-            return self.test[index - len(self.trainval)]
-
-    def __len__(self):
-        return len(self.trainval) + len(self.test)
+        super().__init__(datasets=(VOC2007_TrainValDataset, VOC2007_TestDataset), **kwargs)
 
 
 class VOC2007_TrainValDataset(VOCDatasetBase):
@@ -115,20 +115,10 @@ class VOC2007_TestDataset(VOCDatasetBase):
         super().__init__(DATA_ROOT + '/voc/voc2007/test/VOCdevkit/VOC2007', focus='test', **kwargs)
 
 
-class VOC2012Dataset(Dataset):
-    class_nums = VOCDatasetBase.class_nums
+class VOC2012Dataset(Compose):
     def __init__(self, **kwargs):
-        self.trainval = VOC2012_TrainValDataset(**kwargs)
-        self.test = VOC2012_TestDataset(**kwargs)
+        super().__init__(datasets=(VOC2012_TrainValDataset, VOC2012_TestDataset), **kwargs)
 
-    def __getitem__(self, index):
-        if index < len(self.trainval):
-            return self.trainval[index]
-        else:
-            return self.test[index - len(self.trainval)]
-
-    def __len__(self):
-        return len(self.trainval) + len(self.test)
 
 class VOC2012_TrainValDataset(VOCDatasetBase):
     def __init__(self, **kwargs):

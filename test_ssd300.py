@@ -16,19 +16,18 @@ if __name__ == '__main__':
     )
     target_transform = target_transforms.Compose(
         [target_transforms.ToCentroids(),
-         target_transforms.OneHot(class_nums=datasets.VOC_class_nums),
+         target_transforms.OneHot(class_nums=datasets.VOC_class_nums, add_background=True),
          target_transforms.ToTensor()]
     )
-    test_dataset = datasets.Compose(datasets.VOC_class_nums,
-                                     datasets=(datasets.VOC2012_TrainValDataset,),
-                                     transform=transform, target_transform=target_transform, augmentation=augmentation)
+    test_dataset = datasets.Compose(datasets=(datasets.VOC2012_TrainValDataset,),
+                                    transform=transform, target_transform=target_transform, augmentation=augmentation)
 
     test_loader = DataLoader(test_dataset,
                               batch_size=32,
                               shuffle=False,
                               collate_fn=utils.batch_ind_fn)
 
-    model = SSD300(class_nums=test_dataset.class_nums, batch_norm=False)
+    model = SSD300(class_labels=datasets.VOC_class_labels, batch_norm=False)
     model.load_weights('./weights/ssd300-voc2007-augmentation/ssd300-voc2007_i-60000.pth')
     model.eval()
 
@@ -41,5 +40,5 @@ if __name__ == '__main__':
     images = [test_dataset[i][0] for i in range(20)]
     inf, ret_imgs = model.infer(images, visualize=True, toNorm=False)
     for img in ret_imgs:
-        cv2.imshow('result', img)
+        cv2.imshow('result', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
         cv2.waitKey()

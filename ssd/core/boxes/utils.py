@@ -26,7 +26,7 @@ def matching_strategy(targets, dboxes, **kwargs):
     class_num = targets[0].shape[1] - 4
 
     # convert centered coordinated to minmax coordinates
-    dboxes_mm = centroids2minmax(dboxes)
+    dboxes_mm = centroids2corners(dboxes)
 
     # create returned empty Tensor
     pos_indicator, matched_targets = torch.empty((batch_num, dboxes_num), device=device, dtype=torch.bool), torch.empty((batch_num, dboxes_num, 4 + class_num), device=device)
@@ -37,7 +37,7 @@ def matching_strategy(targets, dboxes, **kwargs):
         targets_loc, targets_conf = target[:, :4], target[:, 4:]
 
         # overlaps' shape = (object num, default box num)
-        overlaps = iou(centroids2minmax(targets_loc), dboxes_mm.clone())
+        overlaps = iou(centroids2corners(targets_loc), dboxes_mm.clone())
         """
         best_overlap_per_object, best_dbox_ind_per_object = overlaps.max(dim=1)
         best_overlap_per_dbox, best_object_ind_per_dbox = overlaps.max(dim=0)
@@ -164,7 +164,7 @@ def iou_numpy(a, b):
 
     return intersectionArea / (A + B - intersectionArea)
 
-def centroids2minmax(a):
+def centroids2corners(a):
     """
     :param a: Box Tensor, shape is (nums, 4=(cx, cy, w, h))
     :return:
@@ -172,7 +172,7 @@ def centroids2minmax(a):
     """
     return torch.cat((a[:, :2] - a[:, 2:]/2, a[:, :2] + a[:, 2:]/2), dim=1)
 
-def minmax2centroids(a):
+def corners2centroids(a):
     """
     :param a: Box Tensor, shape is (nums, 4=(xmin, ymin, xmax, ymax))
     :return:
@@ -180,7 +180,7 @@ def minmax2centroids(a):
     """
     return torch.cat(((a[:, 2:] + a[:, :2])/2, a[:, 2:] - a[:, :2]), dim=1)
 
-def centroids2minmax_numpy(a):
+def centroids2corners_numpy(a):
     """
     :param a: Box Tensor, shape is (nums, 4=(cx, cy, w, h))
     :return:
@@ -188,7 +188,7 @@ def centroids2minmax_numpy(a):
     """
     return np.concatenate((a[:, :2] - a[:, 2:]/2, a[:, :2] + a[:, 2:]/2), axis=1)
 
-def minmax2centroids_numpy(a):
+def corners2centroids_numpy(a):
     """
     :param a: Box Tensor, shape is (nums, 4=(xmin, ymin, xmax, ymax))
     :return:

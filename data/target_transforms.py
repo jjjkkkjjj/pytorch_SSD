@@ -32,7 +32,7 @@ class ToCentroids(object):
 
         return bboxes, labels, flags
 
-class ToMinMax(object):
+class ToCorners(object):
     def __call__(self, bboxes, labels, flags):
         # bbox = [cx, cy, w, h]
         bboxes = np.concatenate((bboxes[:, :2] - bboxes[:, 2:]/2,

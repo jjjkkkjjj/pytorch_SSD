@@ -1,4 +1,4 @@
-from .boxes import iou, centroids2minmax
+from .boxes import iou, centroids2corners
 from ssd.core.boxes.codec import Decoder
 
 from torch.nn import Module
@@ -91,7 +91,7 @@ def non_maximum_suppression(conf, loc, iou_threshold=0.45, topk=200):
     # get topk indices
     conf_des_inds = conf_des_inds[:topk]
     # converted into minmax coordinates
-    loc_mm = centroids2minmax(loc)
+    loc_mm = centroids2corners(loc)
 
     inferred_boxes = []
     while conf_des_inds.nelement() > 0:
@@ -107,7 +107,7 @@ def non_maximum_suppression(conf, loc, iou_threshold=0.45, topk=200):
             break
 
         # get iou, shape = (1, loc_des num)
-        overlap = iou(centroids2minmax(largest_conf_loc), loc_mm[conf_des_inds])
+        overlap = iou(centroids2corners(largest_conf_loc), loc_mm[conf_des_inds])
         # filter out overlapped boxes for box with largest conf, shape = (loc_des num)
         indicator = overlap.reshape((overlap.nelement())) <= iou_threshold
 
@@ -135,7 +135,7 @@ def toVisualizeRectangleRGBimg(img, locs, thickness=2, rgb=(255, 0, 0), verbose=
     #cv2.imshow('a', img)
     #cv2.waitKey()
     # print(locs)
-    locs_mm = centroids2minmax(locs).detach().numpy()
+    locs_mm = centroids2corners(locs).detach().numpy()
 
     h, w, c = img.shape
     locs_mm[:, 0::2] *= w
@@ -181,7 +181,7 @@ def toVisualizeRGBImg(img, locs, conf_indices, classes, verbose=False):
 
     h, w, c = img.shape
     # print(locs)
-    locs_mm = centroids2minmax(locs).numpy()
+    locs_mm = centroids2corners(locs).numpy()
     locs_mm[:, ::2] *= w
     locs_mm[:, 1::2] *= h
     locs_mm = locs_mm

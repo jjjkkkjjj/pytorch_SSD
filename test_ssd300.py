@@ -23,10 +23,6 @@ if __name__ == '__main__':
     test_dataset = datasets.Compose(datasets=(datasets.VOC2012_TrainValDataset,),
                                     transform=transform, target_transform=target_transform, augmentation=augmentation)
 
-    test_loader = DataLoader(test_dataset,
-                              batch_size=32,
-                              shuffle=False,
-                              collate_fn=utils.batch_ind_fn)
 
     model = SSD300(class_labels=datasets.VOC_class_labels, batch_norm=False).cuda()
     model.load_weights('./weights/ssd300-voc2007-augmentation/ssd300-voc2007_i-60000.pth')

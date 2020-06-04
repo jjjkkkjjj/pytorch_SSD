@@ -3,7 +3,7 @@ import numpy as np
 import logging
 
 from ._utils import decision
-from ssd.core.boxes.utils import iou_numpy, centroids2minmax_numpy, minmax2centroids_numpy
+from ssd.core.boxes.utils import iou_numpy, centroids2corners_numpy, corners2centroids_numpy
 from .base import Compose
 
 class RandomExpand(object):
@@ -111,7 +111,7 @@ class RandomIoUSampledPatch(_SampledPatchOp):
 
         # convert minmax to centroids coordinates of bboxes
         # shape = (*, 4=(cx, cy, w, h))
-        centroids_boxes = minmax2centroids_numpy(ret_bboxes)
+        centroids_boxes = corners2centroids_numpy(ret_bboxes)
 
         # check if centroids of boxes is in patch
         mask_box = (centroids_boxes[:, 0] > patch_topleft_x) * (centroids_boxes[:, 0] < patch_topleft_x+patch_w) *\

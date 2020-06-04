@@ -1,6 +1,6 @@
 from .utils import *
 
-__all__ = ['matching_strategy', 'iou', 'centroids2minmax', 'minmax2centroids',]
+__all__ = ['matching_strategy', 'iou', 'centroids2corners', 'corners2centroids', ]
 
 from .dbox import *
 __all__ += ['DBoxSSD300Original',]

@@ -7,7 +7,7 @@ sys.path.append('...')
 from data.datasets.base import _DatasetBase
 from ..models.base import ObjectDetectionModelBase
 from .._utils import _check_ins
-from ..core.boxes.utils import centroids2minmax_numpy, minmax2centroids_numpy, iou_numpy
+from ..core.boxes.utils import centroids2corners_numpy, corners2centroids_numpy, iou_numpy
 
 # mAP: https://datascience.stackexchange.com/questions/25119/how-to-calculate-map-for-detection-task-for-the-pascal-voc-challenge
 class EvaluatorBase(object):
@@ -147,7 +147,7 @@ def calc_PR(targets_loc, targets_label, infers_loc, infers_label, iou_threshold,
         # above 4 values are ndarray
 
         # shape = (targets box num, inferred box num)
-        overlap = iou_numpy(centroids2minmax_numpy(t_locs), centroids2minmax_numpy(i_locs))
+        overlap = iou_numpy(centroids2corners_numpy(t_locs), centroids2corners_numpy(i_locs))
 
         # shape = (targets box num, inferred box num)
         match = np.expand_dims(t_labels, axis=1) == np.expand_dims(i_labels, axis=0)

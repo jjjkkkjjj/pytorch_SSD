@@ -2,6 +2,7 @@ from data import datasets
 from data import transforms, target_transforms, augmentations, utils
 
 from ssd.models.ssd300 import SSD300
+from ssd.train.eval import VOC2007Evaluator
 
 from torch.utils.data import DataLoader
 import cv2
@@ -27,9 +28,13 @@ if __name__ == '__main__':
                               shuffle=False,
                               collate_fn=utils.batch_ind_fn)
 
-    model = SSD300(class_labels=datasets.VOC_class_labels, batch_norm=False)
+    model = SSD300(class_labels=datasets.VOC_class_labels, batch_norm=False).cuda()
     model.load_weights('./weights/ssd300-voc2007-augmentation/ssd300-voc2007_i-60000.pth')
     model.eval()
+
+    evaluator = VOC2007Evaluator(test_dataset, iteration_interval=5000)
+    ap = evaluator(model)
+    print(ap)
 
     image = cv2.cvtColor(cv2.imread('assets/coco_testimg.jpg'), cv2.COLOR_BGR2RGB)
     infers, imgs = model.infer(cv2.resize(image, (300, 300)), visualize=True, toNorm=True)

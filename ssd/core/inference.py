@@ -30,6 +30,8 @@ class InferenceBox(Module):
         pred_loc, inf_cand_loc: shape = (batch number, default boxes number, 4)
         pred_conf: shape = (batch number, default boxes number, class number)
         """
+        device = predicts.device
+
         pred_loc, pred_conf = predicts[:, :, :4], predicts[:, :, 4:]
         inf_cand_loc, inf_cand_conf = self.decoder(pred_loc, dboxes), self.softmax(pred_conf, dim=-1)
 
@@ -62,7 +64,7 @@ class InferenceBox(Module):
                     # append class flag
                     # shape = (inferred boxes num, 1)
                     flag = np.broadcast_to([c], shape=(len(inferred_boxes), 1))
-                    flag = torch.from_numpy(flag).float()
+                    flag = torch.from_numpy(flag).float().to(device)
 
                     # shape = (inferred box num, 5=(class index, cx, cy, w, h))
                     ret_box += [torch.cat((flag, inferred_boxes), dim=1)]

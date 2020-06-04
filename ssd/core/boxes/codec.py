@@ -90,7 +90,9 @@ class Decoder(nn.Module):
         """
         assert pred_boxes.shape[1:] == default_boxes.shape, "pred_boxes and default_boxes must be same shape"
 
-        pred_unnormalized = pred_boxes * self.norm_stds + self.norm_means
+        device = pred_boxes.device
+
+        pred_unnormalized = pred_boxes * self.norm_stds.to(device) + self.norm_means.to(device)
 
         inf_cx = pred_unnormalized[:, :, 0] * default_boxes[:, 2] + default_boxes[:, 0]
         inf_cy = pred_unnormalized[:, :, 1] * default_boxes[:, 3] + default_boxes[:, 1]

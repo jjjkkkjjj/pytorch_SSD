@@ -7,9 +7,6 @@ def weights_path(_file_, _root_num, dirname):
     model_dir = os.path.abspath(os.path.join(basepath, *backs, dirname))
     return model_dir
 
-def check_instance(name, val, ins):
-    assert isinstance(val, ins), '{} must be {}'.format(name, type(ins).__name__)
-    return val
 
 def _check_ins(name, val, cls, allow_none=False):
     if allow_none and val is None:

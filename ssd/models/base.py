@@ -3,7 +3,7 @@ import abc
 import logging
 import torch
 
-from .._utils import check_instance, _check_ins
+from .._utils import _check_ins
 from ..core.boxes.dbox import *
 from ..core.layers import *
 from ..core.inference import InferenceBox
@@ -57,7 +57,16 @@ class ObjectDetectionModelBase(nn.Module):
     def learn(self, x, targets):
         pass
     @abc.abstractmethod
-    def infer(self, *args, **kwargs):
+    def infer(self, image, visualize=False, **kwargs):
+        """
+        :param image:
+        :param visualize:
+        :param kwargs:
+        :return:
+            infers: Tensor, shape = (box_num, 5=(conf, cx, cy, w, h))
+            Note: if there is no boxes, all of infers' elements are -1, which means (-1, -1, -1, -1, -1)
+            visualized_images: list of ndarray, if visualize=True
+        """
         pass
 
 
@@ -506,9 +515,10 @@ def get_normed_and_origin_img(img, rgb_means, rgb_stds, toNorm):
     rgb_means = _check_norm('rgb_means', rgb_means)
     rgb_stds = _check_norm('rgb_stds', rgb_stds)
 
+    device = img.device
     # shape = (1, 3, 1, 1)
-    rgb_means = rgb_means.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-    rgb_stds = rgb_stds.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+    rgb_means = rgb_means.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).to(device)
+    rgb_stds = rgb_stds.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).to(device)
     if toNorm:
         normed_img = (img / 255. - rgb_means) / rgb_stds
         orig_img = img / 255. # divide 255. for tensor2cvrgbimg

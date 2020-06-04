@@ -31,6 +31,8 @@ if __name__ == '__main__':
 
     train_dataset = datasets.Compose(datasets=(datasets.VOC2007Dataset, datasets.VOC2012_TrainValDataset),
                                      ignore=target_transforms.Ignore(difficult=True), transform=transform, target_transform=target_transform, augmentation=augmentation)
+    val_dataset = datasets.VOC2007_TestDataset(ignore=target_transforms.Ignore(difficult=True), transform=transform, target_transform=target_transform)
+
     #train_dataset = datasets.VOC2007Dataset(transform=transform)
     train_loader = DataLoader(train_dataset,
                               batch_size=32,
@@ -64,4 +66,4 @@ if __name__ == '__main__':
     trainer = TrainLogger(model, loss_func=SSDLoss(), optimizer=optimizer, scheduler=iter_sheduler,
                           log_manager=log_manager, gpu=True)
 
-    trainer.train(80000, train_loader)
+    trainer.train(80000, train_loader, evaluator=VOC2007Evaluator(val_dataset, iteration_interval=10))

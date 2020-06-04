@@ -2,8 +2,9 @@ import math
 import torch
 
 from .log import LogManager
-from .._utils import check_instance
+from .._utils import _check_ins
 from ..models.base import SSDBase
+from .eval import EvaluatorBase
 """
     ref: https://nextjournal.com/gkoehler/pytorch-mnist
 """
@@ -13,7 +14,7 @@ class TrainLogger(object):
     def __init__(self, model, loss_func, optimizer, log_manager, scheduler=None, gpu=True):
         self.gpu = gpu
 
-        self.model = check_instance('model', model, SSDBase)
+        self.model = _check_ins('model', model, SSDBase)
         self.model = model.cuda() if self.gpu else model
         # convert to float
         self.model = self.model.to(dtype=torch.float)
@@ -35,12 +36,15 @@ class TrainLogger(object):
         return self.model.__class__.__name__.lower()
     """
 
-    def train(self, max_iterations, train_loader):
+    def train(self, max_iterations, train_loader):#, evaluator=None):
         """
         :param max_iterations: int, how many iterations during training
         :param train_loader: Dataloader, must return Tensor of images and ground truthes
+        :param evaluator: EvaluatorBase, if it's None, Evaluation will not be run
         :return:
         """
+
+        #evaluator = _check_ins('evaluator', evaluator, EvaluatorBase, allow_none=True)
 
         # calculate epochs
         iter_per_epoch = math.ceil(len(train_loader.dataset) / float(max_iterations))
@@ -78,7 +82,13 @@ class TrainLogger(object):
                 # update train
                 self.log_manager.update_iteration(self.model, epoch, _iteration + 1, batch_num=len(images), data_num=len(train_loader.dataset),
                                                   iter_per_epoch=len(train_loader), loclossval=locloss.item(), conflossval=confloss.item())
-
+                """
+                too slow...
+                if evaluator and self.log_manager.now_iteration % evaluator.iteration_interval:
+                    self.model.eval()
+                    print(evaluator(self.model))
+                    self.model.train()
+                """
                 if self.log_manager.isFinish:
                     break
 

@@ -7,36 +7,25 @@ import torch, cv2
 import numpy as np
 
 class InferenceBox(Module):
-    def __init__(self, conf_threshold=0.01, iou_threshold=0.45, topk=200, decoder=None):
+    def __init__(self, conf_threshold=0.01, iou_threshold=0.45, topk=200):
         super().__init__()
         self.conf_threshold = conf_threshold
         self.iou_threshold = iou_threshold
         self.topk = topk
 
-        self.decoder = Decoder() if decoder is None else decoder
 
-        self.softmax = F.softmax
-
-    def forward(self, predicts, dboxes, conf_threshold=None):
+    def forward(self, inf_cand_loc, inf_cand_conf, conf_threshold=None):
         """
-        :param predicts: localization and confidence Tensor, shape is (batch, total_dbox_num, 4+class_labels)
-        :param dboxes: Tensor, default boxes Tensor whose shape is (total_dbox_nums, 4)`
+        :param inf_cand_loc: Tensor, shape = (batch number, default boxes number, 4)
+        :param inf_cand_conf: Tensor, shape = (batch number, default boxes number, class number)
         :param conf_threshold: float or None, if it's None, passed default value with 0.01
         :return:
             ret_boxes: list of tensor, shape = (box num, 5=(class index, cx, cy, w, h))
         """
+        device = inf_cand_loc.device
 
-        """
-        pred_loc, inf_cand_loc: shape = (batch number, default boxes number, 4)
-        pred_conf: shape = (batch number, default boxes number, class number)
-        """
-        device = predicts.device
-
-        pred_loc, pred_conf = predicts[:, :, :4], predicts[:, :, 4:]
-        inf_cand_loc, inf_cand_conf = self.decoder(pred_loc, dboxes), self.softmax(pred_conf, dim=-1)
-
-        batch_num = predicts.shape[0]
-        class_num = pred_conf.shape[2]
+        batch_num = inf_cand_loc.shape[0]
+        class_num = inf_cand_conf.shape[2]
 
         conf_threshold = conf_threshold if conf_threshold else self.conf_threshold
 
@@ -181,7 +170,7 @@ def toVisualizeRGBImg(img, locs, conf_indices, classes, verbose=False):
 
     h, w, c = img.shape
     # print(locs)
-    locs_mm = centroids2corners(locs).numpy()
+    locs_mm = centroids2corners(locs).cpu().numpy()
     locs_mm[:, ::2] *= w
     locs_mm[:, 1::2] *= h
     locs_mm = locs_mm

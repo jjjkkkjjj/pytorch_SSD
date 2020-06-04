@@ -152,7 +152,7 @@ class SSDBase(ObjectDetectionModelBase):
         self.defaultBox = _check_ins('defaultBox', defaultBox, DefaultBoxBase)
 
         self.predictor = Predictor(self.class_nums_with_background)
-        self.inferenceBox = InferenceBox(conf_threshold=self.val_conf_threshold, iou_threshold=self.iou_threshold, topk=self.topk, decoder=self.decoder)
+        self.inferenceBox = InferenceBox(conf_threshold=self.val_conf_threshold, iou_threshold=self.iou_threshold, topk=self.topk)
 
         self.build(**build_kwargs)
 
@@ -349,10 +349,15 @@ class SSDBase(ObjectDetectionModelBase):
             conf_threshold = self.vis_conf_threshold if visualize else self.val_conf_threshold
 
         with torch.no_grad():
+
             # predict
-            predicts = self(normed_img)
+            predicts = self(normed_img.to(self.dboxes.device))# TODO: use proerty
+
+            pred_loc, pred_conf = predicts[:, :, :4], predicts[:, :, 4:]
+            inf_cand_loc, inf_cand_conf = self.decoder(pred_loc, self.dboxes), F.softmax(pred_conf, dim=-1)
+
             # list of tensor, shape = (box num, 5=(class index, cx, cy, w, h))
-            infers = self.inferenceBox(predicts, self.dboxes, conf_threshold)
+            infers = self.inferenceBox(inf_cand_loc, inf_cand_conf, conf_threshold)
 
             img_num = normed_img.shape[0]
             if visualize:

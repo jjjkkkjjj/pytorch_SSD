@@ -54,6 +54,10 @@ class EvaluatorBase(object):
                 sys.stdout.write('\rinferring...\t{}/{}:\t{}%'.format(i+1, len(self.dataset), int(100.*(i+1.)/len(self.dataset))))
                 sys.stdout.flush()
 
+        if self.verbose:
+            sys.stdout.write('\n')
+            sys.stdout.flush()
+
         return self.eval(targets_loc, targets_label, infers_loc, infers_label, **self.eval_kwargs)
 
     @abc.abstractmethod

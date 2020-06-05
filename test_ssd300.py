@@ -27,6 +27,7 @@ if __name__ == '__main__':
     model = SSD300(class_labels=datasets.VOC_class_labels, batch_norm=False).cuda()
     model.load_weights('./weights/ssd300-voc2007-augmentation/ssd300-voc2007_i-60000.pth')
     model.eval()
+    print(model)
 
     evaluator = VOC2007Evaluator(test_dataset, iteration_interval=5000)
     ap = evaluator(model)

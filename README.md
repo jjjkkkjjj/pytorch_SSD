@@ -121,7 +121,11 @@ Note that `None` is available to set these instances
 - Result
   Learning curve example(voc2007-trainval and voc2007-test)
 
-  ![learning curve](assets/ssd300-voc2007_learning-curve_i-60000.png?raw=true "learning curve")
+  ![learning curve07](assets/ssd300-voc2007_learning-curve_i-60000.png?raw=true "learning curve")
+  
+  
+  Learning curve example(voc2007-trainval and voc2012-trainval)
+  ![learning curve07+12](assets/ssd300-voc2007+2012_learning-curve_i-80000.png?raw=true "learning curve")
 
 # Testing
 
@@ -160,6 +164,16 @@ Note that `None` is available to set these instances
 # Pre-trained Weights
 
 Sorry! I haven't uploaded them yet!! Please train yourself... :(
+
+# TODO
+
+- [x] Implement SSD300
+- [ ] Implement SSD512
+- [x] Visualize inference result
+- [ ] Share pre-trained weights
+- [ ] Support COCO Dataset
+- [ ] Speed up
+- [ ] mAP
 
 # About SSD
 

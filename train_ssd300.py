@@ -38,6 +38,7 @@ if __name__ == '__main__':
                               batch_size=32,
                               shuffle=True,
                               collate_fn=utils.batch_ind_fn,
+                              num_workers=4,
                               pin_memory=True)
 
     model = SSD300(class_labels=train_dataset.class_labels, batch_norm=False)

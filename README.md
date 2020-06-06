@@ -1,6 +1,8 @@
 # PyTorch SSD
 The implementation of SSD (Single shot detector) in PyTorch.
 
+![result img](assets/coco_testimg-result.jpg?raw=true "result img")
+
 # Requirements and Settings
 
 - Anaconda
@@ -79,6 +81,7 @@ Note that `None` is available to set these instances
   train_loader = DataLoader(train_dataset,
                             batch_size=32,
                             shuffle=True,
+                            num_workers=4,
                             collate_fn=_utils.batch_ind_fn)
   ```
 
@@ -153,7 +156,7 @@ Note that `None` is available to set these instances
   infers, imgs = model.infer(cv2.resize(image, (300, 300)), visualize=True, toNorm=True)
   for img in imgs: 
       # returned img order is BGR
-    cv2.imshow('result', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+    	cv2.imshow('result', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
       cv2.waitKey()
   ```
   
@@ -170,9 +173,10 @@ Sorry! I haven't uploaded them yet!! Please train yourself... :(
 - [x] Implement SSD300
 - [ ] Implement SSD512
 - [x] Visualize inference result
+- [ ] Arg parse
 - [ ] Share pre-trained weights
 - [ ] Support COCO Dataset
-- [ ] Speed up
+- [x] Speed up
 - [ ] mAP
 
 # About SSD

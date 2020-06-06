@@ -12,6 +12,8 @@ VOC_class_labels = ['aeroplane', 'bicycle', 'bird', 'boat',
     'motorbike', 'person', 'pottedplant',
     'sheep', 'sofa', 'train', 'tvmonitor']
 VOC_class_nums = len(VOC_class_labels)
+
+VOC2007_ROOT = os.path.join(DATA_ROOT, 'voc/voc2007/trainval/VOCdevkit/VOC2007')
 class VOCDatasetBase(ObjectDetectionDatasetBase):
     def __init__(self, voc_dir, focus, ignore=None, transform=None, target_transform=None, augmentation=None, class_labels=None):
         """

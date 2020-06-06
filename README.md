@@ -23,7 +23,9 @@ The implementation of SSD (Single shot detector) in PyTorch.
 
   
 
-# Get VOC and COCO Dataset
+# How to start
+
+## Get VOC and COCO Dataset
 
 - You can download VOC2007-trainval, VOC2007-test, VOC2012-trainval, VOC2012-test, COCO2014-trainval and COCO2014-test dataset following command;
 
@@ -40,9 +42,87 @@ The implementation of SSD (Single shot detector) in PyTorch.
   - `coco2014_trainval` 
   - `coco2014_test`
 
-# Training
+## Easy training for VOC2007-trainval
 
-See [training-voc2007+2012.ipynb](https://github.com/jjjkkkjjj/pytorch_SSD/blob/master/demo/training-voc2007%2B2012.ipynb) or [training-voc2007.ipynb](https://github.com/jjjkkkjjj/pytorch_SSD/blob/master/demo/training-voc2007.ipynb).
+You can run (your) voc style dataset easily when you use `train_easy_voc.py`!
+
+Example;
+
+```bash
+python train_easy_voc.py -r {your-voc-style-dataset-path} --focus trainval -l ball person -lr 0.003
+```
+
+```bash
+usage: train_easy_voc.py [-h] [-r DATASET_ROOTDIR] [--focus FOCUS]
+                         [-l LABELS [LABELS ...]] [-igd] [-m {SSD300,SSD512}]
+                         [-n MODEL_NAME] [-bn] [-w WEIGHTS_PATH]
+                         [-bs BATCH_SIZE] [-nw NUM_WORKERS] [-d DEVICE] [-na]
+                         [-optimizer {SGD,Adam}] [-lr LEARNING_RATE]
+                         [--momentum MOMENTUM] [-wd WEIGHT_DECAY]
+                         [--steplr_gamma STEPLR_GAMMA]
+                         [--steplr_milestones STEPLR_MILESTONES [STEPLR_MILESTONES ...]]
+                         [-mi MAX_ITERATION] [-ci CHECKPOINTS_INTERVAL]
+                         [--loss_alpha LOSS_ALPHA]
+
+Easy training script for VOC style dataset
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -r DATASET_ROOTDIR, --dataset_rootdir DATASET_ROOTDIR
+                        Dataset root directory path
+  --focus FOCUS         Image set name
+  -l LABELS [LABELS ...], --labels LABELS [LABELS ...]
+                        Dataset class labels
+  -igd, --ignore_difficult
+                        Whether to ignore difficult object
+  -m {SSD300,SSD512}, --model {SSD300,SSD512}
+                        Trained model
+  -n MODEL_NAME, --model_name MODEL_NAME
+                        Model name, which will be used as save name
+  -bn, --batch_norm     Whether to construct model with batch normalization
+  -w WEIGHTS_PATH, --weights_path WEIGHTS_PATH
+                        Pre-trained weights path. Default is pytorch's pre-
+                        trained one for vgg
+  -bs BATCH_SIZE, --batch_size BATCH_SIZE
+                        Batch size
+  -nw NUM_WORKERS, --num_workers NUM_WORKERS
+                        Number of workers used in DataLoader
+  -d DEVICE, --device DEVICE
+                        Device for Tensor
+  -na, --no_augmentation
+                        Whether to do augmentation to your dataset
+  -optimizer {SGD,Adam}
+                        Optimizer for training
+  -lr LEARNING_RATE, --learning_rate LEARNING_RATE
+                        Initial learning rate
+  --momentum MOMENTUM   Momentum value for Optimizer
+  -wd WEIGHT_DECAY, --weight_decay WEIGHT_DECAY
+                        Weight decay for SGD
+  --steplr_gamma STEPLR_GAMMA
+                        Gamma for stepLR
+  --steplr_milestones STEPLR_MILESTONES [STEPLR_MILESTONES ...]
+                        Milestones for stepLR
+  -mi MAX_ITERATION, --max_iteration MAX_ITERATION
+  -ci CHECKPOINTS_INTERVAL, --checkpoints_interval CHECKPOINTS_INTERVAL
+                        Checkpoints interval
+  --loss_alpha LOSS_ALPHA
+                        Loss's alpha
+
+```
+
+- Caution!!
+  When your terminal window is small, print training summary for each iteration
+
+  ![smallconsole.png](assets/smallconsole.png?raw=true "smallconsole")
+
+  To avoid this, please expand your terminal window.
+
+  ![bigconsole.png](assets/bigconsole.png?raw=true "bigconsole")
+
+# Script Example
+## Training
+
+See also [training-voc2007+2012.ipynb](https://github.com/jjjkkkjjj/pytorch_SSD/blob/master/demo/training-voc2007%2B2012.ipynb) or [training-voc2007.ipynb](https://github.com/jjjkkkjjj/pytorch_SSD/blob/master/demo/training-voc2007.ipynb).
 
 - First, create `augmentation`, `transform`, `target_transform` instance using `augmentations`, `transforms` and `target_transforms` module in `data`
 
@@ -51,6 +131,7 @@ See [training-voc2007+2012.ipynb](https://github.com/jjjkkkjjj/pytorch_SSD/blob/
   ```python
   from data import transforms, target_transforms, augmentations
   
+  ignore = target_transforms.Ignore(difficult=True)
   augmentation = augmentations.AugmentationOriginal()
   
   transform = transforms.Compose(
@@ -76,7 +157,7 @@ Note that `None` is available to set these instances
   from data import datasets
   from data import _utils
   
-  train_dataset = datasets.VOC2007Dataset(transform=transform, target_transform=target_transform, augmentation=augmentation)
+  train_dataset = datasets.VOC2007Dataset(ignore=ignore, transform=transform, target_transform=target_transform, augmentation=augmentation)
   
   train_loader = DataLoader(train_dataset,
                             batch_size=32,
@@ -98,7 +179,7 @@ Note that `None` is available to set these instances
   model.load_vgg_weights()
   ```
 
-  You can load your trained weights by using `model.load_weights(path)`
+  You can load your trained weights by using `model.load_weights(path)` too.
 
 - Last, create `Optimizer`, `SaveManager`, `LogManager` and `TrainLogger` to train.
 
@@ -122,15 +203,13 @@ Note that `None` is available to set these instances
   ```
 
 - Result
-  Learning curve example(voc2007-trainval and voc2007-test)
+  Learning curve example(voc2007-trainval and voc2007-test)![learning curve07](assets/ssd300-voc2007_learning-curve_i-60000.png?raw=true "learning curve")
 
-  ![learning curve07](assets/ssd300-voc2007_learning-curve_i-60000.png?raw=true "learning curve")
-  
   
   Learning curve example(voc2007-trainval and voc2012-trainval)
   ![learning curve07+12](assets/ssd300-voc2007+2012_learning-curve_i-80000.png?raw=true "learning curve")
 
-# Testing
+## Testing
 
 - First, create model.
 
@@ -166,15 +245,19 @@ Note that `None` is available to set these instances
 
 # Pre-trained Weights
 
-Sorry! I haven't uploaded them yet!! Please train yourself... :(
+|                   | SSD300                                                       | SSD512 |
+| ----------------- | ------------------------------------------------------------ | ------ |
+| VOC2007+2012      | [mAP: No Implementation yet](https://drive.google.com/file/d/19qEEozVLj33OXNV5zUsEoqkBkojziODw/view?usp=sharing) | mAP:   |
+| VOC2007+2012+COCO | mAP:                                                         | mAP:   |
 
 # TODO
 
 - [x] Implement SSD300
 - [ ] Implement SSD512
 - [x] Visualize inference result
-- [ ] Arg parse
+- [x] Arg parse (easy training)
 - [ ] Share pre-trained weights
+- [ ] Well-introduction
 - [ ] Support COCO Dataset
 - [x] Speed up
 - [ ] mAP

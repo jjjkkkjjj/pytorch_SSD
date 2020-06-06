@@ -1,5 +1,6 @@
 import math
 import torch
+import time
 
 from .log import LogManager
 from .._utils import _check_ins
@@ -64,6 +65,7 @@ class TrainLogger(object):
                 if self.gpu:
                     images = images.cuda()
                     targets = [target.cuda() for target in targets]
+                start = time.time()
 
                 # set variable
                 # images.requires_grad = True
@@ -79,9 +81,11 @@ class TrainLogger(object):
                 if self.scheduler:
                     self.scheduler.step()
 
+                end = time.time()
+
                 # update train
                 self.log_manager.update_iteration(self.model, epoch, _iteration + 1, batch_num=len(images), data_num=len(train_loader.dataset),
-                                                  iter_per_epoch=len(train_loader), loclossval=locloss.item(), conflossval=confloss.item())
+                                                  iter_per_epoch=len(train_loader), loclossval=locloss.item(), conflossval=confloss.item(), iter_time=end-start)
                 """
                 too slow...
                 if evaluator and self.log_manager.now_iteration % evaluator.iteration_interval:

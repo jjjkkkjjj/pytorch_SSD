@@ -1,5 +1,6 @@
 import logging
 import os, sys
+import numpy as np
 
 from .save import SaveManager
 from .graph import LiveGraph
@@ -43,7 +44,7 @@ class LogManager(object):
         self.save_manager.initialize(max_iterations)
 
     def update_iteration(self, model, epoch, iteration, batch_num,
-                         data_num, iter_per_epoch, loclossval, conflossval):
+                         data_num, iter_per_epoch, loclossval, conflossval, iter_time):
 
         if self.isFinish:
             return
@@ -51,12 +52,12 @@ class LogManager(object):
         self._losses_manager.update_iteration(totalval=loclossval+conflossval, locval=loclossval, confval=conflossval)
 
         # template = 'Epoch {}, Loss: {:.5f}, Accuracy: {:.5f}, Test Loss: {:.5f}, Test Accuracy: {:.5f}, elapsed_time {:.5f}'
-        iter_template = '\rTraining... Epoch: {}, Iter: {},\t [{}/{}\t ({:.0f}%)]\tLoss: {:.6f}, Loc Loss: {:.6f}, Conf Loss: {:.6f}'
+        iter_template = '\rTraining... Epoch: {}, Iter: {},\t [{}/{}\t ({:.0f}%)]\tLoss: {:.6f}, Loc Loss: {:.6f}, Conf Loss: {:.6f}\tIter time: {:.4f}'
 
         sys.stdout.write(iter_template.format(
             epoch, self.now_iteration, iteration * batch_num, data_num,
                                          100. * iteration / iter_per_epoch, loclossval + conflossval, loclossval,
-            conflossval))
+            conflossval, iter_time))
         sys.stdout.flush()
 
         self._update_log_iteration(epoch)

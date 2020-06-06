@@ -66,4 +66,4 @@ if __name__ == '__main__':
     trainer = TrainLogger(model, loss_func=SSDLoss(), optimizer=optimizer, scheduler=iter_sheduler,
                           log_manager=log_manager, gpu=True)
 
-    trainer.train(80000, train_loader, evaluator=VOC2007Evaluator(val_dataset, iteration_interval=10))
+    trainer.train(80000, train_loader)#, evaluator=VOC2007Evaluator(val_dataset, iteration_interval=10))

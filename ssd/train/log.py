@@ -40,8 +40,9 @@ class LogManager(object):
     def max_iterations(self):
         return self.save_manager.max_iterations
 
-    def initialize(self, max_iterations):
+    def initialize(self, max_iterations, start_iteration=0):
         self.save_manager.initialize(max_iterations)
+        self._losses_manager.now_iteration = start_iteration
 
     def update_iteration(self, model, epoch, iteration, batch_num,
                          data_num, iter_per_epoch, loclossval, conflossval, iter_time):

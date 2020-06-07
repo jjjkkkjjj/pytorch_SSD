@@ -42,8 +42,9 @@ parser.add_argument('-d', '--device', default='cuda', choices=['cpu', 'cuda'], t
                     help='Device for Tensor')
 #parser.add_argument('--resume', default=None, type=str,
 #                    help='Checkpoint state_dict file to resume training from')
-#parser.add_argument('--start_iter', default=0, type=int,
-#                    help='Resume training at this iter')
+# start iteration
+parser.add_argument('-si', '--start_iteration', default=0, type=int,
+                    help='Resume training at this iteration')
 # augmentation
 parser.add_argument('-na', '--no_augmentation', action='store_false', default=False,
                     help='Whether to do augmentation to your dataset')
@@ -182,4 +183,4 @@ logging.info('Save Info:'
 
 logging.info('Start Training\n\n')
 
-trainer.train(args.max_iteration, train_loader)
+trainer.train(args.max_iteration, train_loader, start_iteration=args.start_iteration)

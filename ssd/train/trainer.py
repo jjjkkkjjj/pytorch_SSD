@@ -43,10 +43,11 @@ class TrainLogger(object):
         return self.model.__class__.__name__.lower()
     """
 
-    def train(self, max_iterations, train_loader):#, evaluator=None):
+    def train(self, max_iterations, train_loader, start_iteration=0):#, evaluator=None):
         """
         :param max_iterations: int, how many iterations during training
         :param train_loader: Dataloader, must return Tensor of images and ground truthes
+        :param start_iteration: int
         :param evaluator: EvaluatorBase, if it's None, Evaluation will not be run
         :return:
         """
@@ -59,7 +60,7 @@ class TrainLogger(object):
 
         self.model.train()
 
-        self.log_manager.initialize(max_iterations)
+        self.log_manager.initialize(max_iterations, start_iteration=start_iteration)
 
         for epoch in range(1, epochs + 1):
             if self.log_manager.isFinish:

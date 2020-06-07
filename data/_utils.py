@@ -22,10 +22,14 @@ def _get_xml_et_value(xml_et, key, rettype=str):
     :return: rettype's value
     Note that if there is no keys in xml object, return None
     """
+    elm = xml_et.find(key)
+    if elm is None:
+        return elm
+
     if isinstance(rettype, str):
-        return xml_et.find(key).text
+        return elm.text
     else:
-        return rettype(xml_et.find(key).text)
+        return rettype(elm.text)
 
 def _one_hot_encode(indices, class_num):
     """

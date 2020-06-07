@@ -69,6 +69,14 @@ class ObjectDetectionModelBase(nn.Module):
         """
         pass
 
+    @property
+    def device(self):
+        devices = ({param.device for param in self.parameters()} |
+                   {buf.device for buf in self.buffers()})
+        if len(devices) != 1:
+            raise RuntimeError('Cannot determine device: {} different devices found'
+                               .format(len(devices)))
+        return next(iter(devices))
 
     def load_weights(self, path):
         """
@@ -233,12 +241,20 @@ class SSDBase(ObjectDetectionModelBase):
 
     # device management
     def to(self, *args, **kwargs):
-        self.defaultBox.dboxes = self.defaultBox.dboxes.to(*args, **kwargs)
+        self.defaultBox.dboxes = self.dboxes.to(*args, **kwargs)
+
+        self.codec = self.codec.to(*args, **kwargs)
+
+        self.inferenceBox.device = self.dboxes.device
 
         return super().to(*args, **kwargs)
 
     def cuda(self, device=None):
-        self.defaultBox.dboxes = self.defaultBox.dboxes.cuda(device)
+        self.defaultBox.dboxes = self.dboxes.cuda(device)
+
+        self.codec = self.codec.cuda(device)
+
+        self.inferenceBox.device = self.dboxes.device
 
         return super().cuda(device)
 
@@ -336,10 +352,10 @@ class SSDBase(ObjectDetectionModelBase):
             raise NotImplementedError("call \'eval()\' first")
 
         # img: Tensor, shape = (b, c, h, w)
-        img = check_image(image)
+        img = check_image(image, self.device)
 
         # normed_img, orig_img: Tensor, shape = (b, c, h, w)
-        normed_img, orig_img = get_normed_and_origin_img(img, self.rgb_means, self.rgb_stds, toNorm)
+        normed_img, orig_img = get_normed_and_origin_img(img, self.rgb_means, self.rgb_stds, toNorm, self.device)
 
         if list(img.shape[1:]) != [self.input_channel, self.input_height, self.input_width]:
             raise ValueError('image shape was not same as input shape: {}, but got {}'.format([self.input_channel, self.input_height, self.input_width], list(img.shape[1:])))
@@ -351,7 +367,7 @@ class SSDBase(ObjectDetectionModelBase):
         with torch.no_grad():
 
             # predict
-            predicts = self(normed_img.to(self.dboxes.device))# TODO: use proerty
+            predicts = self(normed_img)
 
             pred_loc, pred_conf = predicts[:, :, :4], predicts[:, :, 4:]
             inf_cand_loc, inf_cand_conf = self.decoder(pred_loc, self.dboxes), F.softmax(pred_conf, dim=-1)
@@ -469,11 +485,12 @@ def _initialize_xavier_uniform(layers):
             if module.conv.bias is not None:
                 nn.init.constant_(module.conv.bias, 0)
 
-def check_image(image):
+def check_image(image, device):
     """
     :param image: ndarray or Tensor of list or tuple, or ndarray, or Tensor. Note that each type will be handled as;
             ndarray of list or tuple, ndarray: (?, h, w, c). channel order will be handled as RGB
             Tensor of list or tuple, Tensor: (?, c, h, w). channel order will be handled as RGB
+    :param device: torch.device
     :return:
         img: Tensor, shape = (b, c, h, w)
     """
@@ -505,14 +522,15 @@ def check_image(image):
     if img.ndim == 3:
         img = img.unsqueeze(0)  # shape = (1, ?, ?, ?)
 
-    return img
+    return img.to(device)
 
-def get_normed_and_origin_img(img, rgb_means, rgb_stds, toNorm):
+def get_normed_and_origin_img(img, rgb_means, rgb_stds, toNorm, device):
     """
     :param img: Tensor, shape = (b, c, h, w)
     :param rgb_means: tuple or float
     :param rgb_stds: tuple or float
     :param toNorm: Bool
+    :param device: torch.device
     :return:
         normed_img: Tensor, shape = (b, c, h, w)
         orig_img: Tensor, shape = (b, c, h, w). Order is rgb
@@ -520,7 +538,8 @@ def get_normed_and_origin_img(img, rgb_means, rgb_stds, toNorm):
     rgb_means = _check_norm('rgb_means', rgb_means)
     rgb_stds = _check_norm('rgb_stds', rgb_stds)
 
-    device = img.device
+    img = img.to(device)
+
     # shape = (1, 3, 1, 1)
     rgb_means = rgb_means.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).to(device)
     rgb_stds = rgb_stds.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).to(device)

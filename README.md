@@ -111,6 +111,7 @@ optional arguments:
 ```
 
 - Caution!!
+
   When your terminal window is small, print training summary for each iteration
 
   ![smallconsole.png](assets/smallconsole.png?raw=true "smallconsole")
@@ -168,14 +169,14 @@ Note that `None` is available to set these instances
 
   You can use `datasets.Compose` to combine plural datasets.
 
-- Third, create model.
+- Third, create model. You can create model with specified device by `.to(device)`
 
   Example;
 
   ```python
   from ssd.models.ssd300 import SSD300
   
-  model = SSD300(class_labels=train_dataset.class_labels, batch_norm=False)
+  model = SSD300(class_labels=train_dataset.class_labels, batch_norm=False).cuda()
   model.load_vgg_weights()
   ```
 
@@ -197,7 +198,7 @@ Note that `None` is available to set these instances
   
   save_manager = SaveManager(modelname='ssd300-voc2007', interval=5000, max_checkpoints=15, plot_yrange=(0, 8))
   log_manager = LogManager(interval=10, save_manager=save_manager, loss_interval=10, live_graph=LiveGraph((0, 8)))
-  trainer = TrainLogger(model, loss_func=SSDLoss(), optimizer=optimizer, scheduler=iter_sheduler, log_manager=log_manager, gpu=True)
+  trainer = TrainLogger(model, loss_func=SSDLoss(), optimizer=optimizer, scheduler=iter_sheduler, log_manager=log_manager)
   
   trainer.train(60000, train_loader)
   ```
@@ -211,7 +212,7 @@ Note that `None` is available to set these instances
 
 ## Testing
 
-- First, create model.
+- First, create model. You can create model with specified device by `.to(device)`
 
   Example;
 
@@ -219,8 +220,8 @@ Note that `None` is available to set these instances
   from ssd.models.ssd300 import SSD300
   from data import datasets
   
-  model = SSD300(class_labels=datasets.VOC_class_labels, batch_norm=False)
-  model.load_weights('./weights/ssd300-voc2007-augmentation/ssd300-voc2007_i-60000.pth')
+  model = SSD300(class_labels=datasets.VOC_class_labels, batch_norm=False).cuda()
+  model.load_weights('./weights/ssd300-voc2007/ssd300-voc2007_i-60000.pth')
   model.eval() ## Required!!!
   ```
 
@@ -235,7 +236,7 @@ Note that `None` is available to set these instances
   infers, imgs = model.infer(cv2.resize(image, (300, 300)), visualize=True, toNorm=True)
   for img in imgs: 
       # returned img order is BGR
-    	cv2.imshow('result', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+      cv2.imshow('result', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
       cv2.waitKey()
   ```
   
@@ -247,17 +248,21 @@ Note that `None` is available to set these instances
 
 |                   | SSD300                                                       | SSD512 |
 | ----------------- | ------------------------------------------------------------ | ------ |
+| VOC2007           | [mAP: No Implementation yet](https://drive.google.com/file/d/1N37Rn2pr_VPov6-Z5OXLkOWAxPgpzLSu/view?usp=sharing) | mAP:   |
+| VOC2007++         | [mAP: No Implementation yet](https://drive.google.com/file/d/17ehKZwH4C0fYM0xMYB79Pwa8UD0ZgLaD/view?usp=sharing) | mAP:   |
 | VOC2007+2012      | [mAP: No Implementation yet](https://drive.google.com/file/d/19qEEozVLj33OXNV5zUsEoqkBkojziODw/view?usp=sharing) | mAP:   |
 | VOC2007+2012+COCO | mAP:                                                         | mAP:   |
 
 # TODO
 
 - [x] Implement SSD300
+- [ ] Implement SSD300 with batch normalization
 - [ ] Implement SSD512
+- [ ] Implement SSD512 with batch normalization
 - [x] Visualize inference result
 - [x] Arg parse (easy training)
 - [ ] Share pre-trained weights
-- [ ] Well-introduction
+- [x] Well-introduction?
 - [ ] Support COCO Dataset
 - [x] Speed up
 - [ ] mAP

@@ -1,6 +1,6 @@
 import math
 import torch
-import time
+import time, logging
 
 from .log import LogManager
 from .._utils import _check_ins
@@ -12,13 +12,19 @@ from .eval import EvaluatorBase
 class TrainLogger(object):
     model: SSDBase
 
-    def __init__(self, model, loss_func, optimizer, log_manager, scheduler=None, gpu=True):
-        self.gpu = gpu
+    def __init__(self, model, loss_func, optimizer, log_manager, scheduler=None):
+
 
         self.model = _check_ins('model', model, SSDBase)
-        self.model = model.cuda() if self.gpu else model
+        if torch.cuda.is_available():
+            if not 'cuda' in model.device.type:
+                logging.warning('You can use CUDA device but you didn\'t set CUDA device.'
+                                'To use CUDA, call \"model.cuda()\"')
+        self.device = model.device
+        torch.set_default_tensor_type(torch.FloatTensor)
+
         # convert to float
-        self.model = self.model.to(dtype=torch.float)
+        #self.model = self.model.to(dtype=torch.float)
         self.loss_func = loss_func
         self.optimizer = optimizer
 
@@ -62,9 +68,8 @@ class TrainLogger(object):
             for _iteration, (images, targets) in enumerate(train_loader):
                 self.optimizer.zero_grad()
 
-                if self.gpu:
-                    images = images.cuda()
-                    targets = [target.cuda() for target in targets]
+                images = images.to(self.device)
+                targets = [target.to(self.device) for target in targets]
                 start = time.time()
 
                 # set variable

@@ -41,7 +41,7 @@ if __name__ == '__main__':
                               num_workers=4,
                               pin_memory=True)
 
-    model = SSD300(class_labels=train_dataset.class_labels, batch_norm=False)
+    model = SSD300(class_labels=train_dataset.class_labels, batch_norm=False).cuda()
     model.load_vgg_weights()
     #model = build_ssd('train')
     print(model)
@@ -65,6 +65,6 @@ if __name__ == '__main__':
     save_manager = SaveManager(modelname='ssd300', interval=5000, max_checkpoints=3)
     log_manager = LogManager(interval=10, save_manager=save_manager, loss_interval=10, live_graph=None)
     trainer = TrainLogger(model, loss_func=SSDLoss(), optimizer=optimizer, scheduler=iter_sheduler,
-                          log_manager=log_manager, gpu=True)
+                          log_manager=log_manager)
 
     trainer.train(80000, train_loader)#, evaluator=VOC2007Evaluator(val_dataset, iteration_interval=10))

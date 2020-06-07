@@ -38,7 +38,7 @@ parser.add_argument('-bs', '--batch_size', default=32, type=int,
 parser.add_argument('-nw', '--num_workers', default=4, type=int,
                     help='Number of workers used in DataLoader')
 # device
-parser.add_argument('-d', '--device', default='cuda', type=str,
+parser.add_argument('-d', '--device', default='cuda', choices=['cpu', 'cuda'], type=str,
                     help='Device for Tensor')
 #parser.add_argument('--resume', default=None, type=str,
 #                    help='Checkpoint state_dict file to resume training from')
@@ -91,7 +91,8 @@ from ssd.train import *
 if torch.cuda.is_available():
     if args.device != 'cuda':
         logging.warning('You can use CUDA device but you didn\'t set CUDA device.'
-                        ' Run with \'-d CUDA\' or \'--device CUDA\'')
+                        ' Run with \'-d cuda\' or \'--device cuda\'')
+device = torch.device(args.device)
 
 #### dataset ####
 augmentation = None if args.no_augmentation else augmentations.AugmentationOriginal()
@@ -172,7 +173,7 @@ logging.info('Multi Step Info:'
 save_manager = SaveManager(modelname=args.model_name, interval=args.checkpoints_interval, max_checkpoints=15)
 log_manager = LogManager(interval=10, save_manager=save_manager, loss_interval=10, live_graph=None)
 trainer = TrainLogger(model, loss_func=SSDLoss(alpha=args.loss_alpha), optimizer=optimizer, scheduler=iter_scheduler,
-                      log_manager=log_manager, gpu=True)
+                      log_manager=log_manager)
 
 logging.info('Save Info:'
              '\nfilename: {}'

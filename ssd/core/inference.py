@@ -12,7 +12,7 @@ class InferenceBox(Module):
         self.conf_threshold = conf_threshold
         self.iou_threshold = iou_threshold
         self.topk = topk
-
+        self.device = torch.device('cpu')
 
     def forward(self, inf_cand_loc, inf_cand_conf, conf_threshold=None):
         """
@@ -22,8 +22,6 @@ class InferenceBox(Module):
         :return:
             ret_boxes: list of tensor, shape = (box num, 5=(class index, cx, cy, w, h))
         """
-        device = inf_cand_loc.device
-
         batch_num = inf_cand_loc.shape[0]
         class_num = inf_cand_conf.shape[2]
 
@@ -53,7 +51,7 @@ class InferenceBox(Module):
                     # append class flag
                     # shape = (inferred boxes num, 1)
                     flag = np.broadcast_to([c], shape=(len(inferred_boxes), 1))
-                    flag = torch.from_numpy(flag).float().to(device)
+                    flag = torch.from_numpy(flag).float().to(self.device)
 
                     # shape = (inferred box num, 5=(class index, cx, cy, w, h))
                     ret_box += [torch.cat((flag, inferred_boxes), dim=1)]
@@ -107,7 +105,7 @@ def non_maximum_suppression(conf, loc, iou_threshold=0.45, topk=200):
 def tensor2cvrgbimg(img, to8bit=True):
     if to8bit:
         img = img * 255.
-    return img.numpy().transpose((1, 2, 0)).astype(np.uint8)
+    return img.cpu().numpy().transpose((1, 2, 0)).astype(np.uint8)
 
 def toVisualizeRectangleRGBimg(img, locs, thickness=2, rgb=(255, 0, 0), verbose=False):
     """

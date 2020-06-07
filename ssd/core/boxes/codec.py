@@ -14,6 +14,18 @@ class Codec(nn.Module):
         self.encoder = Encoder(self.norm_means, self.norm_stds)
         self.decoder = Decoder(self.norm_means, self.norm_stds)
 
+    def to(self, *args, **kwargs):
+        self.encoder = self.encoder.to(*args, **kwargs)
+        self.decoder = self.decoder.to(*args, **kwargs)
+
+        return super().to(*args, **kwargs)
+
+    def cuda(self, device=None):
+        self.encoder = self.encoder.cuda(device)
+        self.decoder = self.decoder.cuda(device)
+
+        return super().cuda(device)
+
 class Encoder(nn.Module):
     def __init__(self, norm_means=(0.0, 0.0, 0.0, 0.0), norm_stds=(0.1, 0.1, 0.2, 0.2)):
         super().__init__()
@@ -60,9 +72,21 @@ class Encoder(nn.Module):
                           gt_h.unsqueeze(2)), dim=2)
 
         # normalization
-        targets[:, :, :4] = (encoded_boxes - self.norm_means.to(targets_loc.device)) / self.norm_stds.to(targets_loc.device)
+        targets[:, :, :4] = (encoded_boxes - self.norm_means) / self.norm_stds
 
         return pos_indicator, targets
+
+    def to(self, *args, **kwargs):
+        self.norm_means = self.norm_means.to(*args, **kwargs)
+        self.norm_stds = self.norm_stds.to(*args, **kwargs)
+
+        return super().to(*args, **kwargs)
+
+    def cuda(self, device=None):
+        self.norm_means = self.norm_means.cuda(device)
+        self.norm_stds = self.norm_stds.cuda(device)
+
+        return super().cuda(device)
 
 
 class Decoder(nn.Module):
@@ -92,7 +116,7 @@ class Decoder(nn.Module):
 
         device = pred_boxes.device
 
-        pred_unnormalized = pred_boxes * self.norm_stds.to(device) + self.norm_means.to(device)
+        pred_unnormalized = pred_boxes * self.norm_stds + self.norm_means
 
         inf_cx = pred_unnormalized[:, :, 0] * default_boxes[:, 2] + default_boxes[:, 0]
         inf_cy = pred_unnormalized[:, :, 1] * default_boxes[:, 3] + default_boxes[:, 1]
@@ -104,3 +128,14 @@ class Decoder(nn.Module):
                           inf_w.unsqueeze(2),
                           inf_h.unsqueeze(2)), dim=2)
 
+    def to(self, *args, **kwargs):
+        self.norm_means = self.norm_means.to(*args, **kwargs)
+        self.norm_stds = self.norm_stds.to(*args, **kwargs)
+
+        return super().to(*args, **kwargs)
+
+    def cuda(self, device=None):
+        self.norm_means = self.norm_means.cuda(device)
+        self.norm_stds = self.norm_stds.cuda(device)
+
+        return super().cuda(device)

@@ -20,6 +20,7 @@ def _get_xml_et_value(xml_et, key, rettype=str):
     :param key:
     :param rettype: class, force to convert it from str
     :return: rettype's value
+    Note that if there is no keys in xml object, return None
     """
     if isinstance(rettype, str):
         return xml_et.find(key).text

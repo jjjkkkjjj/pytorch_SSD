@@ -1,7 +1,8 @@
 import numpy as np
 import torch
+import logging
 
-from ._utils import _one_hot_encode
+from ._utils import _one_hot_encode, _check_ins
 
 class Compose(object):
     def __init__(self, target_transforms):
@@ -41,16 +42,21 @@ class ToCorners(object):
         return bboxes, labels, flags
 
 class Ignore(object):
-    def __init__(self, difficult=True, **kwargs):
+    supported_key = ['difficult', 'truncated', 'occluded']
+    def __init__(self, **kwargs):
         """
-        :param difficult: if true, difficult bbox will be ignored, otherwise the relu_one will be kept
         :param kwargs: if true, specific keyword will be ignored
         """
-        self.difficult = difficult
-        self.kwargs = kwargs
-        if len(kwargs) > 0:
-            import logging
-            logging.warning('Unsupported arguments: {}'.format(self.kwargs.keys()))
+        self.ignore_key = []
+        for key, val in kwargs.items():
+            if key in Ignore.supported_key:
+                val = _check_ins(key, val, bool)
+                if not val:
+                    logging.warning('No meaning: {}=False'.format(key))
+                else:
+                    self.ignore_key += [key]
+            else:
+                logging.warning('Unsupported arguments: {}'.format(key))
 
     def __call__(self, bboxes, labels, flags):
         ret_bboxes = []
@@ -58,7 +64,9 @@ class Ignore(object):
         ret_flags = []
 
         for bbox, label, flag in zip(bboxes, labels, flags):
-            if self.difficult and flag['difficult']:
+            flag_keys = list(flag.keys())
+            ig_flag = [flag[ig_key] if ig_key in flag_keys else False for ig_key in self.ignore_key]
+            if any(ig_flag):
                 continue
             """
             isIgnore = False

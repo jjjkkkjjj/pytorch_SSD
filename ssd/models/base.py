@@ -372,12 +372,13 @@ class SSDBase(ObjectDetectionModelBase):
             pred_loc, pred_conf = predicts[:, :, :4], predicts[:, :, 4:]
             inf_cand_loc, inf_cand_conf = self.decoder(pred_loc, self.dboxes), F.softmax(pred_conf, dim=-1)
 
-            # list of tensor, shape = (box num, 5=(class index, cx, cy, w, h))
+            # list of tensor, shape = (box num, 6=(class index, confidence, cx, cy, w, h))
             infers = self.inferenceBox(inf_cand_loc, inf_cand_conf, conf_threshold)
 
             img_num = normed_img.shape[0]
             if visualize:
-                return infers, [toVisualizeRGBImg(orig_img[i], infers[i][:, 1:], infers[i][:, 0], classes=self.class_labels, verbose=False) for i in range(img_num)]
+                return infers, [toVisualizeRGBImg(orig_img[i], locs=infers[i][:, 2:], conf_indices=infers[i][:, 0],
+                                                  confs=infers[i][:, 1], classes=self.class_labels, verbose=False) for i in range(img_num)]
             else:
                 return infers
 

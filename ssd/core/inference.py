@@ -40,12 +40,12 @@ class InferenceBox(Module):
                     continue
                 loc = inf_loc[indicator, :] # shape = (filtered default boxes num, 4)
 
-                # list of Tensor, shape = (1, 4=(cx, cy, w, h))
+                # list of Tensor, shape = (1, 5=(confidence, cx, cy, w, h))
                 inferred_boxes = non_maximum_suppression(conf, loc, self.iou_threshold, self.topk)
                 if len(inferred_boxes) == 0:
                     continue
                 else:
-                    # shape = (inferred boxes num, 4)
+                    # shape = (inferred boxes num, 5)
                     inferred_boxes = torch.cat(inferred_boxes, dim=0)
 
                     # append class flag
@@ -53,15 +53,15 @@ class InferenceBox(Module):
                     flag = np.broadcast_to([c], shape=(len(inferred_boxes), 1))
                     flag = torch.from_numpy(flag).float().to(self.device)
 
-                    # shape = (inferred box num, 5=(class index, cx, cy, w, h))
+                    # shape = (inferred box num, 6=(class index, confidence, cx, cy, w, h))
                     ret_box += [torch.cat((flag, inferred_boxes), dim=1)]
 
             if len(ret_box) == 0:
-                ret_boxes += [torch.from_numpy(np.ones((1, 5))*-1)]
+                ret_boxes += [torch.from_numpy(np.ones((1, 6))*-1)]
             else:
                 ret_boxes += [torch.cat(ret_box, dim=0)]
 
-        # list of tensor, shape = (box num, 5=(class index, cx, cy, w, h))
+        # list of tensor, shape = (box num, 6=(class index, confidence, cx, cy, w, h))
         return ret_boxes
 
 
@@ -71,7 +71,7 @@ def non_maximum_suppression(conf, loc, iou_threshold=0.45, topk=200):
     :param loc: tensor, shape = (filtered default boxes num, 4)
     Note that filtered default boxes number must be more than 1
     :param iou_threshold: int
-    :return: inferred_boxes: list of inferred boxes(Tensor). inferred boxes' Tensor shape = (inferred boxes number, 4)
+    :return: inferred_boxes: list of inferred boxes(Tensor). inferred boxes' Tensor shape = (inferred boxes number, 5=(conf, cx, cy, w, h))
     """
     # sort confidence and default boxes with descending order
     c, conf_des_inds = conf.sort(dim=0, descending=True)
@@ -83,9 +83,11 @@ def non_maximum_suppression(conf, loc, iou_threshold=0.45, topk=200):
     inferred_boxes = []
     while conf_des_inds.nelement() > 0:
         largest_conf_index = conf_des_inds[0]
+        # conf[largest_conf_index]'s shape = []
+        largest_conf = conf[largest_conf_index].unsqueeze(0).unsqueeze(0) # shape = (1, 1)
         largest_conf_loc = loc[largest_conf_index, :].unsqueeze(0)  # shape = (1, 4=(xmin, ymin, xmax, ymax))
         # append to result
-        inferred_boxes.append(largest_conf_loc)
+        inferred_boxes.append(torch.cat((largest_conf, largest_conf_loc), dim=1)) # shape = (1, 5)
 
         # remove largest element
         conf_des_inds = conf_des_inds[1:]
@@ -144,13 +146,21 @@ def toVisualizeRectangleRGBimg(img, locs, thickness=2, rgb=(255, 0, 0), verbose=
 
     return img
 
-def toVisualizeRGBImg(img, locs, conf_indices, classes, verbose=False):
+def toVisualizeRGBImg(img, locs, conf_indices, classes, confs=None, verbose=False):
     # convert (c, h, w) to (h, w, c)
     img = tensor2cvrgbimg(img)
 
     class_num = len(classes)
     box_num = locs.shape[0]
     assert box_num == conf_indices.shape[0], 'must be same boxes number'
+    if confs is not None:
+        if isinstance(confs, torch.Tensor):
+            confs = confs.cpu().numpy()
+        elif not isinstance(confs, np.ndarray):
+            raise ValueError(
+                'Invalid \'confs\' argment were passed. confs must be ndarray or Tensor, but got {}'.format(
+                    type(confs).__name__))
+        assert confs.ndim == 1 and confs.size == box_num, "Invalid confs"
 
     # color
     angles = np.linspace(0, 255, class_num).astype(np.uint8)
@@ -191,7 +201,9 @@ def toVisualizeRGBImg(img, locs, conf_indices, classes, verbose=False):
         if index == -1:
             continue
 
-        labelSize = cv2.getTextSize(classes[index], cv2.FONT_HERSHEY_COMPLEX, 0.4, 1)
+        text = classes[index] + ':{:.2f}'.format(confs[bnum])
+
+        labelSize = cv2.getTextSize(text, cv2.FONT_HERSHEY_COMPLEX, 0.4, 1)
 
         rect_bottomright = tuple(rect_bottomright)
         rect_topleft = tuple(rect_topleft)
@@ -203,7 +215,7 @@ def toVisualizeRGBImg(img, locs, conf_indices, classes, verbose=False):
         cv2.rectangle(img, text_bottomleft, text_topright, rgb, cv2.FILLED)
 
         text_bottomleft = (rect_topleft[0], rect_topleft[1] + labelSize[0][1])
-        cv2.putText(img, classes[index], text_bottomleft, cv2.FONT_HERSHEY_COMPLEX, 0.4, (0, 0, 0), 1)
+        cv2.putText(img, text, text_bottomleft, cv2.FONT_HERSHEY_COMPLEX, 0.4, (0, 0, 0), 1)
 
         # rectangle
         cv2.rectangle(img, rect_topleft, rect_bottomright, rgb, thickness)

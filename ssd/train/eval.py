@@ -45,8 +45,10 @@ class EvaluatorBase(object):
             sys.stdout.flush()
 
         # predict
-        #for i in range(2000): # debug
-        for i, (images, targets) in enumerate(self.dataloader):
+        dataloader = iter(self.dataloader)
+        for i in range(10): # debug
+            images, targets = next(dataloader)
+        #for i, (images, targets) in enumerate(self.dataloader):
             images = images.to(self.device)
 
             # infer is list of Tensor, shape = (box num, 5=(class index, cx, cy, w, h))
@@ -186,10 +188,12 @@ def calc_PR(targets_loc, targets_label, infers_loc, infers_label, iou_threshold,
         target_true = match[rank]
 
         # calculate TP, FP and FN
-        pred_true = overlap > iou_threshold
-        tp = np.cumsum(target_true & pred_true)
-        fp = np.cumsum(np.logical_not(target_true) & pred_true)
-        fn = np.cumsum(target_true & np.logical_not(pred_true))
+        pred_truepositive = overlap > iou_threshold
+        pred_falsepositive = (1e-6 <= overlap) & (overlap <= iou_threshold)
+        pred_false = overlap < 1e-6
+        tp = np.cumsum(target_true & pred_truepositive)
+        fp = np.cumsum(np.logical_not(target_true) & pred_falsepositive)
+        fn = np.cumsum(target_true & pred_false)
 
         # if divide 0, nan will be passed
         prec = tp / (tp + fp)

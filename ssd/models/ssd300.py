@@ -14,14 +14,24 @@ class SSD300(SSDvggBase):
         :param batch_norm: bool, whether to add batch normalization layers
         """
         ### train_config ###
-        train_config = SSDTrainConfig(class_labels=class_labels, input_shape=input_shape, batch_norm=batch_norm,
+        if not batch_norm:
+            train_config = SSDTrainConfig(class_labels=class_labels, input_shape=input_shape, batch_norm=batch_norm,
 
-                                      aspect_ratios=((1, 2), (1, 2, 3), (1, 2, 3), (1, 2, 3), (1, 2), (1, 2)),
-                                      classifier_source_names=('convRL4_3', 'convRL7', 'convRL8_2', 'convRL9_2', 'convRL10_2', 'convRL11_2'),
-                                      addon_source_names=('convRL4_3',),
+                                          aspect_ratios=((1, 2), (1, 2, 3), (1, 2, 3), (1, 2, 3), (1, 2), (1, 2)),
+                                          classifier_source_names=('convRL4_3', 'convRL7', 'convRL8_2', 'convRL9_2', 'convRL10_2', 'convRL11_2'),
+                                          addon_source_names=('convRL4_3',),
 
-                                      codec_means=(0.0, 0.0, 0.0, 0.0), codec_stds=(0.1, 0.1, 0.2, 0.2),
-                                      rgb_means=(0.485, 0.456, 0.406), rgb_stds=(0.229, 0.224, 0.225))
+                                          codec_means=(0.0, 0.0, 0.0, 0.0), codec_stds=(0.1, 0.1, 0.2, 0.2),
+                                          rgb_means=(0.485, 0.456, 0.406), rgb_stds=(0.229, 0.224, 0.225))
+        else:
+            train_config = SSDTrainConfig(class_labels=class_labels, input_shape=input_shape, batch_norm=batch_norm,
+
+                                          aspect_ratios=((1, 2), (1, 2, 3), (1, 2, 3), (1, 2, 3), (1, 2), (1, 2)),
+                                          classifier_source_names=('convBnRL4_3', 'convBnRL7', 'convBnRL8_2', 'convBnRL9_2', 'convBnRL10_2', 'convRL11_2'),
+                                          addon_source_names=('convBnRL4_3',),
+
+                                          codec_means=(0.0, 0.0, 0.0, 0.0), codec_stds=(0.1, 0.1, 0.2, 0.2),
+                                          rgb_means=(0.485, 0.456, 0.406), rgb_stds=(0.229, 0.224, 0.225))
 
         ### layers ###
         Conv2d.batch_norm = batch_norm

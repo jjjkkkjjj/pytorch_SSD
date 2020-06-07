@@ -464,12 +464,23 @@ def load_vgg_weights(model, name):
     # rename
     renamed = []
     pre_keys, mod_keys = list(pretrained_state_dict.keys()), list(model_state_dict.keys())
+    # to avoid Error regarding num_batches_tracked
+    pre_ind = 0
+    for mod_ind in range(model._vgg_index):
+        pre_key, mod_key = pre_keys[pre_ind], mod_keys[mod_ind]
+        if 'num_batches_tracked' in mod_key:
+            continue
+        renamed += [(mod_key, pretrained_state_dict[pre_key])]
+        pre_ind += 1
+    """
     for (pre_key, mod_key) in zip(pre_keys[:model._vgg_index], mod_keys[:model._vgg_index]):
         renamed += [(mod_key, pretrained_state_dict[pre_key])]
+    """
+
 
     # set vgg layer's parameters
     model_state_dict.update(OrderedDict(renamed))
-    model.load_state_dict(model_state_dict)
+    model.load_state_dict(model_state_dict, strict=False)
 
     logging.info("model loaded")
 

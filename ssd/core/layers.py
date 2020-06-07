@@ -37,9 +37,10 @@ class ConvRelu(nn.Module):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.bn = nn.BatchNorm2d(out_channels) if bn else None
+
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, **kwargs)
         self.relu = nn.ReLU(relu_inplace)
+        self.bn = nn.BatchNorm2d(out_channels) if bn else None
 
     def forward(self, x):
         x = self.conv(x)
@@ -132,8 +133,8 @@ class Conv2d:
             else:
                 layers += [
                     ('convBnRL{}'.format(postfix), ConvRelu(in_c, out_channels, kernel_size,
-                                                          stride=stride, padding=padding,
-                                                          bn=True, relu_inplace=relu_inplace))
+                                                            stride=stride, padding=padding,
+                                                            bn=True, relu_inplace=relu_inplace))
                 ]
 
             in_c = out_channels

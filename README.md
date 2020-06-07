@@ -246,17 +246,17 @@ Note that `None` is available to set these instances
 
 # Pre-trained Weights
 
-|                   | SSD300                                                       | SSD512 |
-| ----------------- | ------------------------------------------------------------ | ------ |
-| VOC2007           | [mAP: No Implementation yet](https://drive.google.com/file/d/1N37Rn2pr_VPov6-Z5OXLkOWAxPgpzLSu/view?usp=sharing) | mAP:   |
-| VOC2007++         | [mAP: No Implementation yet](https://drive.google.com/file/d/17ehKZwH4C0fYM0xMYB79Pwa8UD0ZgLaD/view?usp=sharing) | mAP:   |
-| VOC2007+2012      | [mAP: No Implementation yet](https://drive.google.com/file/d/19qEEozVLj33OXNV5zUsEoqkBkojziODw/view?usp=sharing) | mAP:   |
-| VOC2007+2012+COCO | mAP:                                                         | mAP:   |
+|                   | SSD300 (no batchnormed)                                      | SSD512 (no batchnormed) |
+| ----------------- | ------------------------------------------------------------ | ----------------------- |
+| VOC2007           | [mAP: No Implementation yet](https://drive.google.com/file/d/1N37Rn2pr_VPov6-Z5OXLkOWAxPgpzLSu/view?usp=sharing) | mAP:                    |
+| VOC2007++         | [mAP: No Implementation yet](https://drive.google.com/file/d/17ehKZwH4C0fYM0xMYB79Pwa8UD0ZgLaD/view?usp=sharing) | mAP:                    |
+| VOC2007+2012      | [mAP: No Implementation yet](https://drive.google.com/file/d/19qEEozVLj33OXNV5zUsEoqkBkojziODw/view?usp=sharing) | mAP:                    |
+| VOC2007+2012+COCO | mAP:                                                         | mAP:                    |
 
 # TODO
 
 - [x] Implement SSD300
-- [ ] Implement SSD300 with batch normalization
+- [x] Implement SSD300 with batch normalization
 - [ ] Implement SSD512
 - [ ] Implement SSD512 with batch normalization
 - [x] Visualize inference result

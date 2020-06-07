@@ -1,5 +1,5 @@
 from data.downloader import *
-from data.downloader import choices
+from data.downloader import choices, _concat_trainval_images
 
 import argparse
 
@@ -19,5 +19,8 @@ if __name__ == '__main__':
         voc2012_test()
     if 'coco2014_trainval' in args.datasets:
         coco2014_trainval()
-    if 'coco2014_test' in args.datasets:
-        coco2014_test()
+    if 'coco2017_trainval' in args.datasets:
+        coco2017_trainval()
+
+    # debug
+    #_concat_trainval_images('/coco/coco2017-debug', srcdirs=('train', 'val'), dstdir='trainval')

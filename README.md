@@ -40,7 +40,7 @@ The implementation of SSD (Single shot detector) in PyTorch.
   - `voc2012_trainval`
   - `voc2012_test`
   - `coco2014_trainval` 
-  - `coco2014_test`
+  - `coco2017_trainval`
 
 ## Easy training for VOC2007-trainval
 

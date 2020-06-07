@@ -1,9 +1,9 @@
-choices = ['voc2007_trainval', 'voc2007_test', 'voc2012_trainval', 'voc2012_test', 'coco2014_trainval', 'coco2014_test']
+choices = ['voc2007_trainval', 'voc2007_test', 'voc2012_trainval', 'voc2012_test', 'coco2014_trainval', 'coco2017_trainval']
 __all__ = choices
 import os
 import pycurl
 import tarfile, zipfile
-import glob
+import glob, shutil
 import logging
 
 class _Downloader:
@@ -31,7 +31,7 @@ class _Downloader:
 
         os.makedirs(out_dir, exist_ok=True)
 
-        dstpath = os.path.join(out_base_dir, 'tmp.{}'.format(self.compress_ext))
+        dstpath = os.path.join(out_base_dir, '{}.{}'.format(dirname, self.compress_ext))
 
         with open(dstpath, 'wb') as f:
             curl.setopt(pycurl.WRITEFUNCTION, f.write)
@@ -94,26 +94,54 @@ def coco2014_trainval():
 
     # get images
     train_downloader = _Downloader('http://images.cocodataset.org/zips/train2014.zip', 'zip')
-    train_downloader.run(DATA_ROOT + '/coco/coco2014/images', 'train', remove_comp_file=False)
+    train_downloader.run(DATA_ROOT + '/coco/coco2014/train', 'images', remove_comp_file=True)
 
     val_downloader = _Downloader('http://images.cocodataset.org/zips/val2014.zip', 'zip')
-    val_downloader.run(DATA_ROOT + '/coco/coco2014/images', 'val', remove_comp_file=False)
+    val_downloader.run(DATA_ROOT + '/coco/coco2014/val', 'images', remove_comp_file=True)
+
+    _concat_trainval_images('/coco/coco2014', srcdirs=('train', 'val'), dstdir='trainval')
 
     # annotations
     trainval_downloader = _Downloader('http://images.cocodataset.org/annotations/annotations_trainval2014.zip', 'zip')
-    trainval_downloader.run(DATA_ROOT + '/coco/coco2014/annotations', 'train', remove_comp_file=False)
+    trainval_downloader.run(DATA_ROOT + '/coco/coco2014/trainval', 'annotations', remove_comp_file=True)
 
     logging.info('Downloaded coco2014_trainval')
 
-def coco2014_test():
-    logging.info('Downloading coco2014_test')
+def coco2017_trainval():
+    logging.info('Downloading coco2017_trainval')
 
     # get images
-    test_downloader = _Downloader('http://images.cocodataset.org/zips/test2014.zip', 'zip')
-    test_downloader.run(DATA_ROOT + '/coco/coco2014/images', 'test', remove_comp_file=False)
+    train_downloader = _Downloader('http://images.cocodataset.org/zips/train2017.zip', 'zip')
+    train_downloader.run(DATA_ROOT + '/coco/coco2017/train', 'images', remove_comp_file=True)
+
+    val_downloader = _Downloader('http://images.cocodataset.org/zips/val2017.zip', 'zip')
+    val_downloader.run(DATA_ROOT + '/coco/coco2017/val', 'images', remove_comp_file=True)
+
+    _concat_trainval_images('/coco/coco2017', srcdirs=('train', 'val'), dstdir='trainval')
 
     # annotations
-    test_downloader = _Downloader('http://images.cocodataset.org/annotations/annotations_trainval2014.zip', 'zip')
-    test_downloader.run(DATA_ROOT + '/coco/coco2014/annotations', 'test', remove_comp_file=False)
+    trainval_downloader = _Downloader('http://images.cocodataset.org/annotations/annotations_trainval2017.zip', 'zip')
+    trainval_downloader.run(DATA_ROOT + '/coco/coco2017/trainval', 'annotations', remove_comp_file=True)
 
-    logging.info('Downloaded coco2014_test')
+    logging.info('Downloaded coco2017_trainval')
+
+
+
+def _concat_trainval_images(basedir, srcdirs=('train', 'val'), dstdir='trainval'):
+    srcpaths = []
+    for srcname in srcdirs:
+        srcpaths.extend(glob.glob(os.path.join(DATA_ROOT + basedir, srcname, 'images', '*')))
+
+    dstpath = os.path.join(DATA_ROOT + basedir, dstdir, 'images')
+
+    os.makedirs(dstpath, exist_ok=True)
+
+    for srcpath in srcpaths:
+        shutil.move(srcpath, dstpath)
+
+    if len(glob.glob(os.path.join(dstpath, '*'))) > 0:
+        # remove source
+        for srcname in srcdirs:
+            shutil.rmtree(os.path.join(DATA_ROOT + basedir, srcname))
+    else:
+        raise AssertionError('could not move files!!')

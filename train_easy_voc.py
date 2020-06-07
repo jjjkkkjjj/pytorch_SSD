@@ -86,6 +86,7 @@ from torch.optim.sgd import SGD
 
 from data import transforms, target_transforms, augmentations, utils, datasets
 from ssd.models.ssd300 import SSD300
+from ssd.models.ssd512 import SSD512
 from ssd.train import *
 
 if torch.cuda.is_available():
@@ -138,9 +139,9 @@ logging.info('Dataset info:'
 
 #### model ####
 if args.model == 'SSD300':
-    model = SSD300(class_labels=args.labels, batch_norm=args.batch_norm)
+    model = SSD300(class_labels=args.labels, batch_norm=args.batch_norm).to(device)
 elif args.model == 'SSD512': # SSD512
-    raise NotImplementedError('Unsupported yet!')
+    model = SSD512(class_labels=args.labels, batch_norm=args.batch_norm).to(device)
 else:
     assert False, "Invalid model name"
 

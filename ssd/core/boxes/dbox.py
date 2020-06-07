@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import abc
 from torch import nn
 
 class DefaultBoxBase(nn.Module):
@@ -97,14 +98,14 @@ class DefaultBoxBase(nn.Module):
 
         return self
 
-
+    @abc.abstractmethod
     def forward(self):
-        pass
+        NotImplementedError()
 
 
-class DBoxSSD300Original(DefaultBoxBase):
-    def __init__(self, scale_conv4_3=0.1, scale_range=(0.2, 0.9), **kwargs):
-        super().__init__(scale_range=scale_range, **kwargs)
+class DBoxSSDOriginal(DefaultBoxBase):
+    def __init__(self, img_shape, scale_conv4_3=0.1, scale_range=(0.2, 0.9), **kwargs):
+        super().__init__(img_shape=img_shape, scale_range=scale_range, **kwargs)
         self.scale_conv4_3 = scale_conv4_3
 
     def forward(self):

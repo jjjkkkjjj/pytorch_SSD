@@ -7,7 +7,7 @@ from math import sqrt as sqrt
 from itertools import product as product
 
 from ..core.layers import *
-from ..core.boxes.dbox import DBoxSSD300Original, _DefaultBox
+from ..core.boxes.dbox import DBoxSSDOriginal, _DefaultBox
 from ..core.boxes.codec import Codec
 
 import os
@@ -175,7 +175,7 @@ class SSD(nn.Module):
 
         localization_layers = nn.ModuleDict(OrderedDict(localization_layers))
 
-        self.defaultBox = DBoxSSD300Original(scale_range=(0.2, 0.9)).build(feature_layers, _classifier_source_names, localization_layers)
+        self.defaultBox = DBoxSSDOriginal(scale_range=(0.2, 0.9)).build(feature_layers, _classifier_source_names, localization_layers)
         #self.defaultBox = _DefaultBox().build(feature_layers, _classifier_source_names, localization_layers)
 
         #self.defaultBox = PriorBox(self.cfg)

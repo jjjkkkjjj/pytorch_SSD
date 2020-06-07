@@ -257,8 +257,8 @@ Note that `None` is available to set these instances
 
 - [x] Implement SSD300
 - [x] Implement SSD300 with batch normalization
-- [ ] Implement SSD512
-- [ ] Implement SSD512 with batch normalization
+- [x] Implement SSD512
+- [x] Implement SSD512 with batch normalization
 - [x] Visualize inference result
 - [x] Arg parse (easy training)
 - [ ] Share pre-trained weights

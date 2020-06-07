@@ -1,6 +1,7 @@
 import abc
 import sys
 import torch
+from torch.utils.data import DataLoader
 import numpy as np
 
 sys.path.append('...')
@@ -11,19 +12,27 @@ from ..core.boxes.utils import centroids2corners_numpy, corners2centroids_numpy,
 
 # mAP: https://datascience.stackexchange.com/questions/25119/how-to-calculate-map-for-detection-task-for-the-pascal-voc-challenge
 class EvaluatorBase(object):
-    def __init__(self, dataset, iteration_interval=5000, verbose=True, gpu=True, **eval_kwargs):
-        self.dataset = _check_ins('dataset', dataset, _DatasetBase)
+    def __init__(self, dataloader, iteration_interval=5000, verbose=True, **eval_kwargs):
+        self.dataloader = _check_ins('dataloader', dataloader, DataLoader)
+        self.dataset = _check_ins('dataloader.dataset', dataloader.dataset, _DatasetBase)
         self.iteration_interval = _check_ins('iteration_interval', iteration_interval, int)
         self.verbose = verbose
-        self.gpu = gpu
+        self.device = None
         self.eval_kwargs = eval_kwargs
 
         self._result = {}
 
+    @property
+    def class_labels(self):
+        return self.dataset.class_labels
+    @property
+    def class_nums(self):
+        return self.dataset.class_nums
+
     def __call__(self, model):
         model = _check_ins('model', model, ObjectDetectionModelBase)
-        if self.gpu:
-            model = model.cuda()
+        self.device = model.device
+
         # targets_loc: list of ndarray, whose shape = (targets box num, 4)
         # targets_label: list of ndarray, whose shape = (targets box num, 1)
         targets_loc, targets_label = [], []
@@ -37,21 +46,20 @@ class EvaluatorBase(object):
 
         # predict
         #for i in range(2000): # debug
-        for i in range(len(self.dataset)):
-            img, target = self.dataset[i]
-            if self.gpu:
-                img = img.cuda()
+        for i, (images, targets) in enumerate(self.dataloader):
+            images = images.to(self.device)
 
-            infer = model.infer(img, visualize=False)
+            # infer is list of Tensor, shape = (box num, 5=(class index, cx, cy, w, h))
+            infer = model.infer(images, visualize=False)
 
-            targets_loc += [target[:, :4].cpu().numpy()]
-            targets_label += [np.argmax(target[:, 4:].cpu().numpy(), axis=1)]
+            targets_loc += [target[:, :4].cpu().numpy() for target in targets]
+            targets_label += [np.argmax(target[:, 4:].cpu().numpy(), axis=1) for target in targets]
 
-            infers_loc += [infer[0][:, 1:].cpu().numpy()]
-            infers_label += [infer[0][:, 0].cpu().numpy().astype(np.int)]
+            infers_loc += [inf[:, 1:].cpu().numpy() for inf in infer]
+            infers_label += [inf[:, 0].cpu().numpy().astype(np.int) for inf in infer]
 
             if self.verbose:
-                sys.stdout.write('\rinferring...\t{}/{}:\t{}%'.format(i+1, len(self.dataset), int(100.*(i+1.)/len(self.dataset))))
+                sys.stdout.write('\rinferring...\t{}/{}:\t{}%'.format(i+1, len(self.dataloader), int(100.*(i+1.)/len(self.dataloader))))
                 sys.stdout.flush()
 
         if self.verbose:
@@ -91,10 +99,10 @@ class VOC2007Evaluator(EvaluatorBase):
         iou_threshold = _check_ins('iou_threshold', kwargs.get('iou_threshold', 0.5), float)
 
         precisions, recalls = calc_PR(targets_loc, targets_label, infers_loc, infers_label,
-                                      iou_threshold, self.dataset.class_nums)
+                                      iou_threshold, self.class_nums)
 
         AP = {}
-        for i, label in enumerate(self.dataset.class_labels):
+        for i, label in enumerate(self.class_labels):
             if recalls[i] is None:
                 AP[label] = 0.
                 continue
@@ -128,7 +136,7 @@ class VOCStyleEvaluator(EvaluatorBase):
         iou_threshold = _check_ins('iou_threshold', kwargs.get('iou_threshold', 0.5), float)
 
         precisions, recalls = calc_PR(targets_loc, targets_label, infers_loc, infers_label,
-                                      iou_threshold, self.dataset.class_nums)
+                                      iou_threshold, self.class_nums)
 
 
 def calc_PR(targets_loc, targets_label, infers_loc, infers_label, iou_threshold, class_nums):

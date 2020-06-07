@@ -13,7 +13,7 @@ def _check_ins(name, val, cls, allow_none=False):
         return val
 
     if not isinstance(val, cls):
-        raise ValueError('Argument \'{}\' must be {}, but got {}'.format(name, type(cls).__name__, type(val).__name__))
+        raise ValueError('Argument \'{}\' must be {}, but got {}'.format(name, cls.__name__, type(val).__name__))
     return val
 
 def _check_norm(name, val):

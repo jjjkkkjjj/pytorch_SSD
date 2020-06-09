@@ -1,5 +1,5 @@
-from data.downloader import *
-from data.downloader import choices, _concat_trainval_images
+from ssd_data.downloader import *
+from ssd_data.downloader import choices, _concat_trainval_images
 
 import argparse
 

@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 import numpy as np
 
 sys.path.append('...')
-from data.datasets.base import _DatasetBase
+from ssd_data.datasets.base import _DatasetBase
 from ..models.base import ObjectDetectionModelBase
 from .._utils import _check_ins
 from ..core.boxes.utils import centroids2corners_numpy, corners2centroids_numpy, iou_numpy
@@ -255,12 +255,13 @@ def calc_PR(targets_loc, targets_label, infers_loc, infers_label, infers_conf, i
 
         # calculate TP
         tp = np.cumsum(corrects)
+        fp = np.cumsum(~corrects)
 
         # if divide 0, nan will be passed
         # prec = tp / all detection, rec = tp / all ground truth
         # ref > https://github.com/rafaelpadilla/Object-Detection-Metrics#different-competitions-different-metrics
         # ref > https://github.com/Cartucho/mAP
-        prec = tp / np.arange(1, tp.size + 1)
+        prec = tp / np.maximum(tp + fp, 1e-15)
         rec = tp / tp[-1]
 
         precisions += [np.nan_to_num(prec)]

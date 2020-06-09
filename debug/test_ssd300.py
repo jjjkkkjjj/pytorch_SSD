@@ -1,5 +1,5 @@
-from data import datasets
-from data import transforms, target_transforms, augmentations, utils
+from ssd_data import datasets
+from ssd_data import transforms, target_transforms, augmentations, utils
 
 from ssd.models.ssd300 import SSD300
 from ssd.train.eval import VOC2007Evaluator

@@ -31,6 +31,14 @@ The implementation of SSD (Single shot detector) in PyTorch.
   conda install -c conda-forge numpy opencv ffmpeg scipy jupyter_contrib_nbextensions jupyter_nbextensions_configurator pycocotools
   ```
 
+- pip (optional)
+
+  ```bash
+  pip install git+https://github.com/jjjkkkjjj/pytorch_SSD.git
+  ```
+
+  
+
 - Jupyter
 
   ```bash
@@ -189,7 +197,7 @@ See also [training-voc2007+2012.ipynb](https://github.com/jjjkkkjjj/pytorch_SSD/
   Example;
 
   ```python
-  from data import transforms, target_transforms, augmentations
+  from ssd_data import transforms, target_transforms, augmentations
   
   ignore = target_transforms.Ignore(difficult=True)
   augmentation = augmentations.AugmentationOriginal()
@@ -214,8 +222,8 @@ Note that `None` is available to set these instances
   Example;
 
   ```python
-  from data import datasets
-  from data import _utils
+  from ssd_data import datasets
+  from ssd_data import _utils
   
   train_dataset = datasets.VOC2007Dataset(ignore=ignore, transform=transform, target_transform=target_transform, augmentation=augmentation)
   
@@ -277,7 +285,7 @@ Note that `None` is available to set these instances
 
   ```python
   from ssd.models.ssd300 import SSD300
-  from data import datasets
+  from ssd_data import datasets
   
   model = SSD300(class_labels=datasets.VOC_class_labels, batch_norm=False).cuda()
   model.load_weights('./weights/ssd300-voc2007/ssd300-voc2007_i-60000.pth')

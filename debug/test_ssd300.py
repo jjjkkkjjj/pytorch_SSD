@@ -20,8 +20,7 @@ if __name__ == '__main__':
          target_transforms.OneHot(class_nums=datasets.VOC_class_nums, add_background=True),
          target_transforms.ToTensor()]
     )
-    test_dataset = datasets.Compose(datasets=(datasets.VOC2012_TrainValDataset,),
-                                    transform=transform, target_transform=target_transform, augmentation=augmentation)
+    test_dataset = datasets.VOC2007_TestDataset(transform=transform, target_transform=target_transform, augmentation=augmentation)
 
     test_loader = DataLoader(test_dataset,
                              batch_size=32,

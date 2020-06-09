@@ -3,6 +3,8 @@ The implementation of SSD (Single shot detector) in PyTorch.
 
 ![result img](assets/coco_testimg-result.jpg?raw=true "result img")
 
+![result2 img](assets/coco_testimg-result2.jpg?raw=true "result2 img")
+
 # Requirements and Settings
 
 - Anaconda
@@ -10,7 +12,7 @@ The implementation of SSD (Single shot detector) in PyTorch.
   ```bash
   conda install -c anaconda pycurl
   conda install -c pytorch pytorch
-  conda install -c conda-forge numpy opencv ffmpeg scipy jupyter_contrib_nbextensions jupyter_nbextensions_configurator
+  conda install -c conda-forge numpy opencv ffmpeg scipy jupyter_contrib_nbextensions jupyter_nbextensions_configurator pycocotools
   ```
 
 - Jupyter
@@ -56,10 +58,10 @@ python train_easy_voc.py -r {your-voc-style-dataset-path} --focus trainval -l ba
 usage: train_easy_voc.py [-h] [-r DATASET_ROOTDIR] [--focus FOCUS]
                          [-l LABELS [LABELS ...]] [-igd] [-m {SSD300,SSD512}]
                          [-n MODEL_NAME] [-bn] [-w WEIGHTS_PATH]
-                         [-bs BATCH_SIZE] [-nw NUM_WORKERS] [-d DEVICE] [-na]
-                         [-optimizer {SGD,Adam}] [-lr LEARNING_RATE]
-                         [--momentum MOMENTUM] [-wd WEIGHT_DECAY]
-                         [--steplr_gamma STEPLR_GAMMA]
+                         [-bs BATCH_SIZE] [-nw NUM_WORKERS] [-d {cpu,cuda}]
+                         [-si START_ITERATION] [-na] [-optimizer {SGD,Adam}]
+                         [-lr LEARNING_RATE] [--momentum MOMENTUM]
+                         [-wd WEIGHT_DECAY] [--steplr_gamma STEPLR_GAMMA]
                          [--steplr_milestones STEPLR_MILESTONES [STEPLR_MILESTONES ...]]
                          [-mi MAX_ITERATION] [-ci CHECKPOINTS_INTERVAL]
                          [--loss_alpha LOSS_ALPHA]
@@ -87,8 +89,10 @@ optional arguments:
                         Batch size
   -nw NUM_WORKERS, --num_workers NUM_WORKERS
                         Number of workers used in DataLoader
-  -d DEVICE, --device DEVICE
+  -d {cpu,cuda}, --device {cpu,cuda}
                         Device for Tensor
+  -si START_ITERATION, --start_iteration START_ITERATION
+                        Resume training at this iteration
   -na, --no_augmentation
                         Whether to do augmentation to your dataset
   -optimizer {SGD,Adam}
@@ -246,11 +250,13 @@ Note that `None` is available to set these instances
 
 # Pre-trained Weights
 
+※mAP for voc2007test
+
 |                   | SSD300 (no batchnormed)                                      | SSD512 (no batchnormed) |
 | ----------------- | ------------------------------------------------------------ | ----------------------- |
-| VOC2007           | [mAP: No Implementation yet](https://drive.google.com/file/d/1N37Rn2pr_VPov6-Z5OXLkOWAxPgpzLSu/view?usp=sharing) | mAP:                    |
-| VOC2007++         | [mAP: No Implementation yet](https://drive.google.com/file/d/17ehKZwH4C0fYM0xMYB79Pwa8UD0ZgLaD/view?usp=sharing) | mAP:                    |
-| VOC2007+2012      | [mAP: No Implementation yet](https://drive.google.com/file/d/19qEEozVLj33OXNV5zUsEoqkBkojziODw/view?usp=sharing) | mAP:                    |
+| VOC2007           | [mAP: 0.7572](https://drive.google.com/file/d/1N37Rn2pr_VPov6-Z5OXLkOWAxPgpzLSu/view?usp=sharing) | mAP:                    |
+| VOC2007++         | [mAP: N/A](https://drive.google.com/file/d/17ehKZwH4C0fYM0xMYB79Pwa8UD0ZgLaD/view?usp=sharing) | mAP:                    |
+| VOC2007+2012      | [mAP: 0.7636](https://drive.google.com/file/d/19qEEozVLj33OXNV5zUsEoqkBkojziODw/view?usp=sharing) | mAP:                    |
 | VOC2007+2012+COCO | mAP:                                                         | mAP:                    |
 
 # TODO
@@ -262,10 +268,11 @@ Note that `None` is available to set these instances
 - [x] Visualize inference result
 - [x] Arg parse (easy training)
 - [ ] Share pre-trained weights
+  →SSD300's model has shared partially!
 - [x] Well-introduction?
 - [ ] Support COCO Dataset
 - [x] Speed up
-- [ ] mAP
+- [x] mAP
 
 # About SSD
 

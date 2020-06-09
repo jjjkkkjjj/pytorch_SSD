@@ -4,6 +4,7 @@ from ssd.core.boxes.codec import Decoder
 from torch.nn import Module
 from torch.nn import functional as F
 import torch, cv2
+import math
 import numpy as np
 
 class InferenceBox(Module):
@@ -57,7 +58,7 @@ class InferenceBox(Module):
                     ret_box += [torch.cat((flag, inferred_boxes), dim=1)]
 
             if len(ret_box) == 0:
-                ret_boxes += [torch.from_numpy(np.ones((1, 6))*-1)]
+                ret_boxes += [torch.from_numpy(np.ones((1, 6))*np.nan)]
             else:
                 ret_boxes += [torch.cat(ret_box, dim=0)]
 
@@ -111,8 +112,8 @@ def tensor2cvrgbimg(img, to8bit=True):
 
 def toVisualizeRectangleRGBimg(img, locs, thickness=2, rgb=(255, 0, 0), verbose=False):
     """
-    :param img: Tensor, shape = ()
-    :param locs: Tensor, centered coordinates, shape = ()
+    :param img: Tensor, shape = (c, h, w)
+    :param locs: Tensor, centered coordinates, shape = (box num, 4=(cx, cy, w, h)).
     :param thickness: int
     :param rgb: tuple of int, order is rgb and range is 0~255
     :param verbose: bool, whether to show information
@@ -146,21 +147,30 @@ def toVisualizeRectangleRGBimg(img, locs, thickness=2, rgb=(255, 0, 0), verbose=
 
     return img
 
-def toVisualizeRGBImg(img, locs, conf_indices, classes, confs=None, verbose=False):
+def toVisualizeRGBImg(img, locs, inf_labels, classe_labels, inf_confs=None, verbose=False):
+    """
+    :param img: Tensor, shape = (c, h, w)
+    :param locs: Tensor, centered coordinates, shape = (box num, 4=(cx, cy, w, h)).
+    :param inf_labels:
+    :param classe_labels: list of str
+    :param inf_confs: Tensor, (box_num,)
+    :param verbose:
+    :return:
+    """
     # convert (c, h, w) to (h, w, c)
     img = tensor2cvrgbimg(img)
 
-    class_num = len(classes)
+    class_num = len(classe_labels)
     box_num = locs.shape[0]
-    assert box_num == conf_indices.shape[0], 'must be same boxes number'
-    if confs is not None:
-        if isinstance(confs, torch.Tensor):
-            confs = confs.cpu().numpy()
-        elif not isinstance(confs, np.ndarray):
+    assert box_num == inf_labels.shape[0], 'must be same boxes number'
+    if inf_confs is not None:
+        if isinstance(inf_confs, torch.Tensor):
+            inf_confs = inf_confs.cpu().numpy()
+        elif not isinstance(inf_confs, np.ndarray):
             raise ValueError(
-                'Invalid \'confs\' argment were passed. confs must be ndarray or Tensor, but got {}'.format(
-                    type(confs).__name__))
-        assert confs.ndim == 1 and confs.size == box_num, "Invalid confs"
+                'Invalid \'inf_confs\' argment were passed. inf_confs must be ndarray or Tensor, but got {}'.format(
+                    type(inf_confs).__name__))
+        assert inf_confs.ndim == 1 and inf_confs.size == box_num, "Invalid inf_confs"
 
     # color
     angles = np.linspace(0, 255, class_num).astype(np.uint8)
@@ -197,11 +207,12 @@ def toVisualizeRGBImg(img, locs, conf_indices, classes, confs=None, verbose=Fals
         if verbose:
             print(tuple(rect_topleft), tuple(rect_bottomright))
 
-        index = int(conf_indices[bnum].item())
-        if index == -1:
+        index = inf_labels[bnum].item()
+        if math.isnan(index):
             continue
+        index = int(index)
 
-        text = classes[index] + ':{:.2f}'.format(confs[bnum])
+        text = classe_labels[index] + ':{:.2f}'.format(inf_confs[bnum])
 
         labelSize = cv2.getTextSize(text, cv2.FONT_HERSHEY_COMPLEX, 0.4, 1)
 

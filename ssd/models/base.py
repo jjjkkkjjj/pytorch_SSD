@@ -377,8 +377,8 @@ class SSDBase(ObjectDetectionModelBase):
 
             img_num = normed_img.shape[0]
             if visualize:
-                return infers, [toVisualizeRGBImg(orig_img[i], locs=infers[i][:, 2:], conf_indices=infers[i][:, 0],
-                                                  confs=infers[i][:, 1], classes=self.class_labels, verbose=False) for i in range(img_num)]
+                return infers, [toVisualizeRGBImg(orig_img[i], locs=infers[i][:, 2:], inf_labels=infers[i][:, 0],
+                                                  inf_confs=infers[i][:, 1], classe_labels=self.class_labels, verbose=False) for i in range(img_num)]
             else:
                 return infers
 

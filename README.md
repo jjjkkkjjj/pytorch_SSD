@@ -60,9 +60,9 @@ The implementation of SSD (Single shot detector) in PyTorch.
   - `coco2014_trainval` 
   - `coco2017_trainval`
 
-## Easy training for VOC2007-trainval
+## Easy training
 
-You can run (your) voc style dataset easily when you use `train_easy_voc.py`!
+You can train (**your**) voc or coco style dataset easily when you use `easy_train.py`!
 
 Example;
 

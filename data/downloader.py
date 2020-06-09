@@ -92,6 +92,10 @@ def voc2012_test():
 def coco2014_trainval():
     logging.info('Downloading coco2014_trainval')
 
+    # annotations
+    trainval_downloader = _Downloader('http://images.cocodataset.org/annotations/annotations_trainval2014.zip', 'zip')
+    trainval_downloader.run(DATA_ROOT + '/coco/coco2014', 'trainval', remove_comp_file=True)
+
     # get images
     train_downloader = _Downloader('http://images.cocodataset.org/zips/train2014.zip', 'zip')
     train_downloader.run(DATA_ROOT + '/coco/coco2014/train', 'images', remove_comp_file=True)
@@ -101,14 +105,14 @@ def coco2014_trainval():
 
     _concat_trainval_images('/coco/coco2014', srcdirs=('train', 'val'), dstdir='trainval')
 
-    # annotations
-    trainval_downloader = _Downloader('http://images.cocodataset.org/annotations/annotations_trainval2014.zip', 'zip')
-    trainval_downloader.run(DATA_ROOT + '/coco/coco2014/trainval', 'annotations', remove_comp_file=True)
-
     logging.info('Downloaded coco2014_trainval')
 
 def coco2017_trainval():
     logging.info('Downloading coco2017_trainval')
+
+    # annotations
+    trainval_downloader = _Downloader('http://images.cocodataset.org/annotations/annotations_trainval2017.zip', 'zip')
+    trainval_downloader.run(DATA_ROOT + '/coco/coco2017', 'trainval', remove_comp_file=True)
 
     # get images
     train_downloader = _Downloader('http://images.cocodataset.org/zips/train2017.zip', 'zip')
@@ -118,10 +122,6 @@ def coco2017_trainval():
     val_downloader.run(DATA_ROOT + '/coco/coco2017/val', 'images', remove_comp_file=True)
 
     _concat_trainval_images('/coco/coco2017', srcdirs=('train', 'val'), dstdir='trainval')
-
-    # annotations
-    trainval_downloader = _Downloader('http://images.cocodataset.org/annotations/annotations_trainval2017.zip', 'zip')
-    trainval_downloader.run(DATA_ROOT + '/coco/coco2017/trainval', 'annotations', remove_comp_file=True)
 
     logging.info('Downloaded coco2017_trainval')
 

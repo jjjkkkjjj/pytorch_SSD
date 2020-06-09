@@ -270,7 +270,7 @@ Note that `None` is available to set these instances
 - [ ] Share pre-trained weights
   →SSD300's model has shared partially!
 - [x] Well-introduction?
-- [ ] Support COCO Dataset
+- [x] Support COCO Dataset
 - [x] Speed up
 - [x] mAP
 

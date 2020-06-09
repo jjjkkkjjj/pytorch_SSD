@@ -42,7 +42,7 @@ class ToCorners(object):
         return bboxes, labels, flags
 
 class Ignore(object):
-    supported_key = ['difficult', 'truncated', 'occluded']
+    supported_key = ['difficult', 'truncated', 'occluded', 'iscrowd']
     def __init__(self, **kwargs):
         """
         :param kwargs: if true, specific keyword will be ignored

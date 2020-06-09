@@ -23,7 +23,7 @@ COCO_class_labels = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus'
 COCO_class_nums = len(COCO_class_labels)
 
 COCO2014_ROOT = os.path.join(DATA_ROOT, 'coco', 'coco2014')
-class COCODatasetBase(ObjectDetectionDatasetBase):
+class COCOSingleDatasetBase(ObjectDetectionDatasetBase):
     def __init__(self, coco_dir, focus, ignore=None, transform=None, target_transform=None, augmentation=None, class_labels=None):
         """
         :param coco_dir: str, coco directory path above 'annotations' and 'images'
@@ -158,26 +158,63 @@ class COCODatasetBase(ObjectDetectionDatasetBase):
         return np.array(bboxes, dtype=np.float32), np.array(linds, dtype=np.float32), flags
 
 
-class COCO2014_TrainDataset(COCODatasetBase):
+class COCOMultiDatasetBase(Compose):
+    def __init__(self, **kwargs):
+        """
+        :param datasets: tuple of Dataset
+        :param kwargs:
+            :param ignore:
+            :param transform:
+            :param target_transform:
+            :param augmentation:
+        """
+        super().__init__(datasets=(), **kwargs)
+
+        coco_dir = _check_ins('coco_dir', kwargs.pop('coco_dir'), (tuple, list, str))
+        focus = _check_ins('focus', kwargs.pop('focus'), (tuple, list, str))
+
+        if isinstance(coco_dir, str) and isinstance(focus, str):
+            datasets = [COCOSingleDatasetBase(coco_dir, focus, **kwargs)]
+            lens = [len(datasets[0])]
+
+        elif isinstance(coco_dir, (list, tuple)) and isinstance(focus, (list, tuple)):
+            if len(coco_dir) != len(focus):
+                raise ValueError('coco_dir and focus must be same length, but got {}, {}'.format(len(coco_dir), len(focus)))
+
+            datasets = [COCOSingleDatasetBase(cdir, f, **kwargs) for cdir, f in zip(coco_dir, focus)]
+            lens = [len(d) for d in datasets]
+        else:
+            raise ValueError('Invalid coco_dir and focus combination')
+
+        self.datasets = datasets
+        self.lens = lens
+        self._class_labels = datasets[0].class_labels
+
+
+class COCO2014_TrainDataset(COCOSingleDatasetBase):
     def __init__(self, **kwargs):
         super().__init__(DATA_ROOT + '/coco/coco2014/trainval', 'train2014', **kwargs)
 
-class COCO2014_ValDataset(COCODatasetBase):
+class COCO2014_ValDataset(COCOSingleDatasetBase):
     def __init__(self, **kwargs):
         super().__init__(DATA_ROOT + '/coco/coco2014/trainval', 'val2014', **kwargs)
 
-class COCO2014_TrainValDataset(Compose):
+class COCO2014_TrainValDataset(COCOMultiDatasetBase):
     def __init__(self, **kwargs):
-        super().__init__(datasets=(COCO2014_TrainDataset, COCO2014_ValDataset), **kwargs)
+        super().__init__(coco_dir=(DATA_ROOT + '/coco/coco2014/trainval',
+                                   DATA_ROOT + '/coco/coco2014/trainval'),
+                         focus=('train2014', 'val2014'), **kwargs)
 
-class COCO2017_TrainDataset(COCODatasetBase):
+class COCO2017_TrainDataset(COCOSingleDatasetBase):
     def __init__(self, **kwargs):
         super().__init__(DATA_ROOT + '/coco/coco2017/trainval', 'train2014', **kwargs)
 
-class COCO2017_ValDataset(COCODatasetBase):
+class COCO2017_ValDataset(COCOSingleDatasetBase):
     def __init__(self, **kwargs):
         super().__init__(DATA_ROOT + '/coco/coco2017/trainval', 'val2014', **kwargs)
 
-class COCO2017_TrainValDataset(Compose):
+class COCO2017_TrainValDataset(COCOMultiDatasetBase):
     def __init__(self, **kwargs):
-        super().__init__(datasets=(COCO2017_TrainDataset, COCO2017_ValDataset), **kwargs)
+        super().__init__(coco_dir=(DATA_ROOT + '/coco/coco2017/trainval',
+                                   DATA_ROOT + '/coco/coco2017/trainval'),
+                         focus=('train2017', 'val2017'), **kwargs)

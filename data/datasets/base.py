@@ -134,7 +134,6 @@ class ObjectDetectionDatasetBase(_DatasetBase):
 class Compose(_DatasetBase):
     def __init__(self, datasets, **kwargs):
         """
-        :param class_nums: int, class number
         :param datasets: tuple of Dataset
         :param kwargs:
             :param ignore:

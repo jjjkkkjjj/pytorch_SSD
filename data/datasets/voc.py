@@ -14,7 +14,7 @@ VOC_class_labels = ['aeroplane', 'bicycle', 'bird', 'boat',
 VOC_class_nums = len(VOC_class_labels)
 
 VOC2007_ROOT = os.path.join(DATA_ROOT, 'voc/voc2007/trainval/VOCdevkit/VOC2007')
-class VOCDatasetBase(ObjectDetectionDatasetBase):
+class VOCSingleDatasetBase(ObjectDetectionDatasetBase):
     def __init__(self, voc_dir, focus, ignore=None, transform=None, target_transform=None, augmentation=None, class_labels=None):
         """
         :param voc_dir: str, voc directory path above 'Annotations', 'ImageSets' and 'JPEGImages'
@@ -102,34 +102,70 @@ class VOCDatasetBase(ObjectDetectionDatasetBase):
 
         return np.array(bboxes, dtype=np.float32), np.array(linds, dtype=np.float32), flags
 
-
-class VOC2007Dataset(Compose):
+class VOCMultiDatasetBase(Compose):
     def __init__(self, **kwargs):
-        super().__init__(datasets=(VOC2007_TrainValDataset, VOC2007_TestDataset), **kwargs)
+        """
+        :param datasets: tuple of Dataset
+        :param kwargs:
+            :param ignore:
+            :param transform:
+            :param target_transform:
+            :param augmentation:
+        """
+        super().__init__(datasets=(), **kwargs)
+
+        voc_dir = _check_ins('voc_dir', kwargs.pop('voc_dir'), (tuple, list, str))
+        focus = _check_ins('focus', kwargs.pop('focus'), (tuple, list, str))
+
+        if isinstance(voc_dir, str) and isinstance(focus, str):
+            datasets = [VOCSingleDatasetBase(voc_dir, focus, **kwargs)]
+            lens = [len(datasets[0])]
+
+        elif isinstance(voc_dir, (list, tuple)) and isinstance(focus, (list, tuple)):
+            if len(voc_dir) != len(focus):
+                raise ValueError('coco_dir and focus must be same length, but got {}, {}'.format(len(voc_dir), len(focus)))
+
+            datasets = [VOCSingleDatasetBase(vdir, f, **kwargs) for vdir, f in zip(voc_dir, focus)]
+            lens = [len(d) for d in datasets]
+        else:
+            raise ValueError('Invalid coco_dir and focus combination')
+
+        self.datasets = datasets
+        self.lens = lens
+        self._class_labels = datasets[0].class_labels
 
 
-class VOC2007_TrainValDataset(VOCDatasetBase):
+class VOC2007Dataset(VOCMultiDatasetBase):
+    def __init__(self, **kwargs):
+        super().__init__(voc_dir=(DATA_ROOT + '/voc/voc2007/trainval/VOCdevkit/VOC2007',
+                                  DATA_ROOT + '/voc/voc2007/test/VOCdevkit/VOC2007'),
+                         focus=('trainval', 'test'), **kwargs)
+
+
+class VOC2007_TrainValDataset(VOCSingleDatasetBase):
     def __init__(self, **kwargs):
         super().__init__(DATA_ROOT + '/voc/voc2007/trainval/VOCdevkit/VOC2007', focus='trainval', **kwargs)
 
 
-class VOC2007_TestDataset(VOCDatasetBase):
+class VOC2007_TestDataset(VOCSingleDatasetBase):
     def __init__(self, **kwargs):
         super().__init__(DATA_ROOT + '/voc/voc2007/test/VOCdevkit/VOC2007', focus='test', **kwargs)
 
 
 class VOC2012Dataset(Compose):
     def __init__(self, **kwargs):
-        super().__init__(datasets=(VOC2012_TrainValDataset, VOC2012_TestDataset), **kwargs)
+        super().__init__(voc_dir=(DATA_ROOT + '/voc/voc2012/trainval/VOCdevkit/VOC2012',
+                                  DATA_ROOT + '/voc/voc2012/test/VOCdevkit/VOC2012'),
+                         focus=('trainval', 'test'), **kwargs)
 
 
-class VOC2012_TrainValDataset(VOCDatasetBase):
+class VOC2012_TrainValDataset(VOCSingleDatasetBase):
     def __init__(self, **kwargs):
         super().__init__(DATA_ROOT + '/voc/voc2012/trainval/VOCdevkit/VOC2012',
                          focus='trainval', **kwargs)
 
 
-class VOC2012_TestDataset(VOCDatasetBase):
+class VOC2012_TestDataset(VOCSingleDatasetBase):
     def __init__(self, **kwargs):
         super().__init__(DATA_ROOT + '/voc/voc2012/test/VOCdevkit/VOC2012',
                          focus='test', **kwargs)

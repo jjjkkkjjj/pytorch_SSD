@@ -1,24 +1,40 @@
 import argparse
 import os
 
-
+from data.datasets.voc import VOC2007_ROOT, VOC_class_labels
 from data.datasets.coco import COCO2014_ROOT, COCO_class_labels
 
-parser = argparse.ArgumentParser(description='Easy training script for VOC style dataset')
+voc_rootdir_default = [VOC2007_ROOT]
+coco_rootdir_default = [os.path.join(COCO2014_ROOT, 'trainval')]
 
+voc_focus_default = ['trainval']
+coco_focus_default = ['train2014']
 
+parser = argparse.ArgumentParser(description='Easy training script for VOC or COCO style dataset')
+
+# dataset type
+# required
+parser.add_argument('dataset_type', choices=['VOC', 'COCO'],
+                    type=str, help='Dataset type')
 # root directory
-parser.add_argument('-r', '--dataset_rootdir', default=os.path.join(COCO2014_ROOT, 'trainval'),
-                    type=str, help='Dataset root directory path')
+parser.add_argument('-r', '--dataset_rootdir', default=None, nargs='+',
+                    type=str, help='Dataset root directory path.\n'
+                                   'If dataset type is \'VOC\', Default is;\n\'{}\'\n\n'
+                                   'If dataset type is \'COCO\', Default is;\n\'{}\''.format(voc_rootdir_default, coco_rootdir_default))
 # focus
-parser.add_argument('--focus', default='train2014',
-                    type=str, help='Image set name')
+parser.add_argument('--focus', default=None, nargs='+',
+                    type=str, help='Image set name.\n'
+                                   'If dataset type is \'VOC\', Default is;\n\'{}\'\n\n'
+                                   'if dataset type is \'COCO\', Default is;\n\'{}\''.format(voc_focus_default, coco_focus_default))
 # class labels
-parser.add_argument('-l', '--labels', default=COCO_class_labels, nargs='+',
-                    type=str, help='Dataset class labels')
+parser.add_argument('-l', '--labels', default=None, nargs='+',
+                    type=str, help='Dataset class labels.\n'
+                                   'If dataset type is \'VOC\', Default is;\n\'{}\'\n\n'
+                                   'If dataset type is \'COCO\', Default is;\n\'{}\''.format(VOC_class_labels, COCO_class_labels)
+                    )
 # ignore difficult
-parser.add_argument('-igc', '--ignore_crowd', action='store_true',
-                    help='Whether to ignore difficult object')
+parser.add_argument('-ig', '--ignore', choices=['difficult', 'truncated', 'occluded', 'iscrowd'], nargs='*',
+                    type=str, help='Whether to ignore object')
 # model
 parser.add_argument('-m', '--model', default='SSD300', choices=['SSD300', 'SSD512'],
                     help='Trained model')
@@ -90,6 +106,28 @@ from ssd.models.ssd300 import SSD300
 from ssd.models.ssd512 import SSD512
 from ssd.train import *
 
+
+rootdir = args.dataset_rootdir
+if rootdir is None:
+    if args.dataset_type == 'VOC':
+        rootdir = voc_rootdir_default
+    else:
+        rootdir = coco_rootdir_default
+
+class_labels = args.labels
+if class_labels is None:
+    if args.dataset_type == 'VOC':
+        class_labels = VOC_class_labels
+    else:
+        class_labels = COCO_class_labels
+
+focus = args.focus
+if focus is None:
+    if args.dataset_type == 'VOC':
+        focus = voc_focus_default
+    else:
+        focus = coco_focus_default
+
 if torch.cuda.is_available():
     if args.device != 'cuda':
         logging.warning('You can use CUDA device but you didn\'t set CUDA device.'
@@ -113,15 +151,24 @@ transform = transforms.Compose(
 )
 target_transform = target_transforms.Compose(
     [target_transforms.ToCentroids(),
-     target_transforms.OneHot(class_nums=len(args.labels), add_background=True),
+     target_transforms.OneHot(class_nums=len(class_labels), add_background=True),
      target_transforms.ToTensor()]
 )
 
+if args.ignore:
+    kwargs = {key: True for key in args.ignore}
+    ignore = target_transforms.Ignore(**kwargs)
+else:
+    ignore = None
 
-train_dataset = datasets.COCODatasetBase(coco_dir=args.dataset_rootdir, focus=args.focus,
-                                        ignore=target_transforms.Ignore(iscrowd=args.ignore_crowd),
-                                        transform=transform, target_transform=target_transform, augmentation=augmentation,
-                                        class_labels=args.labels)
+if args.dataset_type == 'VOC':
+    train_dataset = datasets.VOCMultiDatasetBase(voc_dir=rootdir, focus=focus, ignore=ignore,
+                                                 transform=transform, target_transform=target_transform, augmentation=augmentation,
+                                                 class_labels=class_labels)
+else:
+    train_dataset = datasets.COCOMultiDatasetBase(coco_dir=rootdir, focus=focus, ignore=ignore,
+                                                  transform=transform, target_transform=target_transform, augmentation=augmentation,
+                                                  class_labels=class_labels)
 
 train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True,
                           collate_fn=utils.batch_ind_fn, num_workers=args.num_workers, pin_memory=True)
@@ -130,19 +177,19 @@ logging.info('Dataset info:'
              '\nroot dir: {},'
              '\nfocus: {},'
              '\nlabels:{}'
-             '\nignore difficult object: {}'
+             '\nignore object: {}'
              '\naugmentation: {}'
              '\nbatch size: {}'
-             '\nnum_workers: {}\n'.format(args.dataset_rootdir, args.focus, args.labels,
-                                         args.ignore_crowd, not args.no_augmentation,
-                                        args.batch_size, args.num_workers))
+             '\nnum_workers: {}\n'.format(rootdir, focus, class_labels,
+                                          args.ignore, not args.no_augmentation,
+                                          args.batch_size, args.num_workers))
 
 
 #### model ####
 if args.model == 'SSD300':
-    model = SSD300(class_labels=args.labels, batch_norm=args.batch_norm).to(device)
+    model = SSD300(class_labels=class_labels, batch_norm=args.batch_norm).to(device)
 elif args.model == 'SSD512': # SSD512
-    model = SSD512(class_labels=args.labels, batch_norm=args.batch_norm).to(device)
+    model = SSD512(class_labels=class_labels, batch_norm=args.batch_norm).to(device)
 else:
     assert False, "Invalid model name"
 

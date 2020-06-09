@@ -5,6 +5,22 @@ The implementation of SSD (Single shot detector) in PyTorch.
 
 ![result2 img](assets/coco_testimg-result2.jpg?raw=true "result2 img")
 
+# TODO
+
+- [x] Implement SSD300
+- [x] Implement SSD300 with batch normalization
+- [x] Implement SSD512
+- [x] Implement SSD512 with batch normalization
+- [x] Visualize inference result
+- [x] Arg parse (easy training)
+- [ ] Share pre-trained weights
+  →SSD300's model has shared partially!
+- [x] Well-introduction?
+- [x] Support COCO Dataset
+- [x] Support Custom Dataset
+- [x] Speed up
+- [x] mAP (I have no confidence...)
+
 # Requirements and Settings
 
 - Anaconda
@@ -51,32 +67,72 @@ You can run (your) voc style dataset easily when you use `train_easy_voc.py`!
 Example;
 
 ```bash
-python train_easy_voc.py -r {your-voc-style-dataset-path} --focus trainval -l ball person -lr 0.003
+python easy_train.py VOC -r {your-voc-style-dataset-path} --focus trainval -l ball person -lr 0.003
+```
+
+or
+
+```bash
+python easy_train.py COCO -r {your-coco-style-dataset-path} --focus train2012 -l ball person -lr 0.003
 ```
 
 ```bash
-usage: train_easy_voc.py [-h] [-r DATASET_ROOTDIR] [--focus FOCUS]
-                         [-l LABELS [LABELS ...]] [-igd] [-m {SSD300,SSD512}]
-                         [-n MODEL_NAME] [-bn] [-w WEIGHTS_PATH]
-                         [-bs BATCH_SIZE] [-nw NUM_WORKERS] [-d {cpu,cuda}]
-                         [-si START_ITERATION] [-na] [-optimizer {SGD,Adam}]
-                         [-lr LEARNING_RATE] [--momentum MOMENTUM]
-                         [-wd WEIGHT_DECAY] [--steplr_gamma STEPLR_GAMMA]
-                         [--steplr_milestones STEPLR_MILESTONES [STEPLR_MILESTONES ...]]
-                         [-mi MAX_ITERATION] [-ci CHECKPOINTS_INTERVAL]
-                         [--loss_alpha LOSS_ALPHA]
+usage: easy_train.py [-h] [-r DATASET_ROOTDIR [DATASET_ROOTDIR ...]]
+                     [--focus FOCUS [FOCUS ...]] [-l LABELS [LABELS ...]]
+                     [-ig [{difficult,truncated,occluded,iscrowd} [{difficult,truncated,occluded,iscrowd} ...]]]
+                     [-m {SSD300,SSD512}] [-n MODEL_NAME] [-bn]
+                     [-w WEIGHTS_PATH] [-bs BATCH_SIZE] [-nw NUM_WORKERS]
+                     [-d {cpu,cuda}] [-si START_ITERATION] [-na]
+                     [-optimizer {SGD,Adam}] [-lr LEARNING_RATE]
+                     [--momentum MOMENTUM] [-wd WEIGHT_DECAY]
+                     [--steplr_gamma STEPLR_GAMMA]
+                     [--steplr_milestones STEPLR_MILESTONES [STEPLR_MILESTONES ...]]
+                     [-mi MAX_ITERATION] [-ci CHECKPOINTS_INTERVAL]
+                     [--loss_alpha LOSS_ALPHA]
+                     {VOC,COCO}
 
-Easy training script for VOC style dataset
+Easy training script for VOC or COCO style dataset
+
+positional arguments:
+  {VOC,COCO}            Dataset type
 
 optional arguments:
   -h, --help            show this help message and exit
-  -r DATASET_ROOTDIR, --dataset_rootdir DATASET_ROOTDIR
-                        Dataset root directory path
-  --focus FOCUS         Image set name
+  -r DATASET_ROOTDIR [DATASET_ROOTDIR ...], --dataset_rootdir DATASET_ROOTDIR [DATASET_ROOTDIR ...]
+                        Dataset root directory path. If dataset type is 'VOC',
+                        Default is; '['/home/kado/data/voc/voc2007/trainval/VO
+                        Cdevkit/VOC2007']' If dataset type is 'COCO', Default
+                        is; '['/home/kado/data/coco/coco2014/trainval']'
+  --focus FOCUS [FOCUS ...]
+                        Image set name. If dataset type is 'VOC', Default is;
+                        '['trainval']' if dataset type is 'COCO', Default is;
+                        '['train2014']'
   -l LABELS [LABELS ...], --labels LABELS [LABELS ...]
-                        Dataset class labels
-  -igd, --ignore_difficult
-                        Whether to ignore difficult object
+                        Dataset class labels. If dataset type is 'VOC',
+                        Default is; '['aeroplane', 'bicycle', 'bird', 'boat',
+                        'bottle', 'bus', 'car', 'cat', 'chair', 'cow',
+                        'diningtable', 'dog', 'horse', 'motorbike', 'person',
+                        'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor']'
+                        If dataset type is 'COCO', Default is; '['person',
+                        'bicycle', 'car', 'motorcycle', 'airplane', 'bus',
+                        'train', 'truck', 'boat', 'traffic light', 'fire
+                        hydrant', 'stop sign', 'parking meter', 'bench',
+                        'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
+                        'elephant', 'bear', 'zebra', 'giraffe', 'backpack',
+                        'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee',
+                        'skis', 'snowboard', 'sports ball', 'kite', 'baseball
+                        bat', 'baseball glove', 'skateboard', 'surfboard',
+                        'tennis racket', 'bottle', 'wine glass', 'cup',
+                        'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple',
+                        'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog',
+                        'pizza', 'donut', 'cake', 'chair', 'couch', 'potted
+                        plant', 'bed', 'dining table', 'toilet', 'tv',
+                        'laptop', 'mouse', 'remote', 'keyboard', 'cell phone',
+                        'microwave', 'oven', 'toaster', 'sink',
+                        'refrigerator', 'book', 'clock', 'vase', 'scissors',
+                        'teddy bear', 'hair drier', 'toothbrush']'
+  -ig [{difficult,truncated,occluded,iscrowd} [{difficult,truncated,occluded,iscrowd} ...]], --ignore [{difficult,truncated,occluded,iscrowd} [{difficult,truncated,occluded,iscrowd} ...]]
+                        Whether to ignore object
   -m {SSD300,SSD512}, --model {SSD300,SSD512}
                         Trained model
   -n MODEL_NAME, --model_name MODEL_NAME
@@ -111,7 +167,6 @@ optional arguments:
                         Checkpoints interval
   --loss_alpha LOSS_ALPHA
                         Loss's alpha
-
 ```
 
 - Caution!!
@@ -258,21 +313,6 @@ Note that `None` is available to set these instances
 | VOC2007++         | [mAP: N/A](https://drive.google.com/file/d/17ehKZwH4C0fYM0xMYB79Pwa8UD0ZgLaD/view?usp=sharing) | mAP:                    |
 | VOC2007+2012      | [mAP: 0.7636](https://drive.google.com/file/d/19qEEozVLj33OXNV5zUsEoqkBkojziODw/view?usp=sharing) | mAP:                    |
 | VOC2007+2012+COCO | mAP:                                                         | mAP:                    |
-
-# TODO
-
-- [x] Implement SSD300
-- [x] Implement SSD300 with batch normalization
-- [x] Implement SSD512
-- [x] Implement SSD512 with batch normalization
-- [x] Visualize inference result
-- [x] Arg parse (easy training)
-- [ ] Share pre-trained weights
-  →SSD300's model has shared partially!
-- [x] Well-introduction?
-- [x] Support COCO Dataset
-- [x] Speed up
-- [x] mAP
 
 # About SSD
 

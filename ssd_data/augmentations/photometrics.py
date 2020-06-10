@@ -16,14 +16,14 @@ class RandomBrightness(object):
         assert abs(self.delta_max) >= 0 and abs(self.delta_max) < 256, "must be range between -255 and 255"
         assert self.delta_max >= self.delta_min, "must be more than delta min"
 
-    def __call__(self, img, bboxes, labels, flags):
+    def __call__(self, img, bboxes, labels, flags, *args):
         if decision(self.p):
             # get delta randomly between delta_min and delta_max
             delta = random.uniform(self.delta_min, self.delta_max)
             img += delta
             img = np.clip(img, a_min=0, a_max=255)
 
-        return img, bboxes, labels, flags
+        return img, bboxes, labels, flags, args
 
 class RandomContrast(object):
     def __init__(self, fmin=0.5, fmax=1.5, p=0.5):
@@ -34,14 +34,14 @@ class RandomContrast(object):
         assert self.factor_min >= 0, "must be more than 0"
         assert self.factor_max >= self.factor_min, "must be more than factor min"
 
-    def __call__(self, img, bboxes, labels, flags):
+    def __call__(self, img, bboxes, labels, flags, *args):
         if decision(self.p):
             # get delta randomly between delta_min and delta_max
             factor = random.uniform(self.factor_min, self.factor_max)
             img *= factor
             img = np.clip(img, a_min=0, a_max=255)
 
-        return img, bboxes, labels, flags
+        return img, bboxes, labels, flags, args
 
 class RandomHue(object):
     def __init__(self, dmin=-18, dmax=18, p=0.5):
@@ -53,7 +53,7 @@ class RandomHue(object):
         assert abs(self.delta_max) >= 0 and abs(self.delta_max) < 180, "must be range between -179 and 179"
         assert self.delta_max >= self.delta_min, "must be more than delta min"
 
-    def __call__(self, img, bboxes, labels, flags):
+    def __call__(self, img, bboxes, labels, flags, *args):
         if decision(self.p):
             # get delta randomly between delta_min and delta_max
             delta = random.uniform(self.delta_min, self.delta_max)
@@ -66,7 +66,7 @@ class RandomHue(object):
             under_mask = img[:, :, 0] < 0
             img[under_mask, 0] += 180
 
-        return img, bboxes, labels, flags
+        return img, bboxes, labels, flags, args
 
 class RandomSaturation(object):
     def __init__(self, fmin=0.5, fmax=1.5, p=0.5):
@@ -77,14 +77,14 @@ class RandomSaturation(object):
         assert self.factor_min >= 0, "must be more than 0"
         assert self.factor_max >= self.factor_min, "must be more than factor min"
 
-    def __call__(self, img, bboxes, labels, flags):
+    def __call__(self, img, bboxes, labels, flags, *args):
         if decision(self.p):
             # get delta randomly between delta_min and delta_max
             factor = random.uniform(self.factor_min, self.factor_max)
             img[:, :, 1] *= factor
             img = np.clip(img, a_min=0, a_max=255)
 
-        return img, bboxes, labels, flags
+        return img, bboxes, labels, flags, args
 
 class RandomLightingNoise(object):
     def __init__(self, perms=None, p=0.5):
@@ -94,21 +94,21 @@ class RandomLightingNoise(object):
         else:
             self.permutations = tuple(permutations([0, 1, 2]))
 
-    def __call__(self, img, bboxes, labels, flags):
+    def __call__(self, img, bboxes, labels, flags, *args):
         if decision(self.p):
             # get transposed indices randomly
             index = random.randint(0, len(self.permutations))
             t = SwapChannels(self.permutations[index])
-            img, bboxes, labels, flags = t(img, bboxes, labels, flags)
+            img, bboxes, labels, flags, args = t(img, bboxes, labels, flags, *args)
 
-        return img, bboxes, labels, flags
+        return img, bboxes, labels, flags, args
 
 class SwapChannels(object):
     def __init__(self, trans_indices):
         self.trans_indices = trans_indices
 
-    def __call__(self, img, bboxes, labels, flags):
-        return img[:, :, self.trans_indices], bboxes, labels, flags
+    def __call__(self, img, bboxes, labels, flags, *args):
+        return img[:, :, self.trans_indices], bboxes, labels, flags, args
 
 
 class ConvertImgOrder(object):
@@ -116,13 +116,13 @@ class ConvertImgOrder(object):
         self.src_order = src.upper()
         self.dst_order = dst.upper()
 
-    def __call__(self, img, bboxes, labels, flags):
+    def __call__(self, img, bboxes, labels, flags, *args):
         try:
             img = cv2.cvtColor(img, eval('cv2.COLOR_{}2{}'.format(self.src_order, self.dst_order)))
         except:
             raise ValueError('Invalid src:{} or dst:{}'.format(self.src_order, self.dst_order))
 
-        return img, bboxes, labels, flags
+        return img, bboxes, labels, flags, args
 
 
 class PhotometricDistortions(Compose):
@@ -141,17 +141,17 @@ class PhotometricDistortions(Compose):
         ]
         super().__init__(pmdists)
 
-    def __call__(self, img, bboxes, labels, flags):
-        img, bboxes, labels, flags = self.brigtness(img, bboxes, labels, flags)
+    def __call__(self, img, bboxes, labels, flags, *args):
+        img, bboxes, labels, flags, args = self.brigtness(img, bboxes, labels, flags, *args)
 
         if decision(self.p): # random contrast first
-            img, bboxes, labels, flags = self.cotrast(img, bboxes, labels, flags)
-            img, bboxes, labels, flags = super().__call__(img, bboxes, labels, flags)
+            img, bboxes, labels, flags, args = self.cotrast(img, bboxes, labels, flags, *args)
+            img, bboxes, labels, flags, args = super().__call__(img, bboxes, labels, flags, *args)
 
         else: # random contrast last
-            img, bboxes, labels, flags = super().__call__(img, bboxes, labels, flags)
-            img, bboxes, labels, flags = self.cotrast(img, bboxes, labels, flags)
+            img, bboxes, labels, flags, args = super().__call__(img, bboxes, labels, flags, *args)
+            img, bboxes, labels, flags, args = self.cotrast(img, bboxes, labels, flags, *args)
 
-        img, bboxes, labels, flags = self.lightingnoise(img, bboxes, labels, flags)
+        img, bboxes, labels, flags, args = self.lightingnoise(img, bboxes, labels, flags, *args)
 
-        return img, bboxes, labels, flags
+        return img, bboxes, labels, flags, args

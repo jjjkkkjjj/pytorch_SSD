@@ -78,9 +78,9 @@ class ObjectDetectionDatasetBase(_DatasetBase):
             = [cx, cy, w, h, label index(or relu_one-hotted label)]
         """
         img = self._get_image(index)
-        bboxes, linds, flags = self._get_target(index)
+        bboxes, linds, flags, args = self._get_target(index)
 
-        img, bboxes, linds, flags = self.apply_transform(img, bboxes, linds, flags)
+        img, bboxes, linds, flags, args = self.apply_transform(img, bboxes, linds, flags, *args)
 
         # concatenate bboxes and linds
         if isinstance(bboxes, torch.Tensor) and isinstance(linds, torch.Tensor):
@@ -94,7 +94,7 @@ class ObjectDetectionDatasetBase(_DatasetBase):
 
         return img, targets
 
-    def apply_transform(self, img, bboxes, linds, flags):
+    def apply_transform(self, img, bboxes, linds, flags, *args):
         """
         IMPORTATANT: apply transform function in order with ignore, augmentation, transform and target_transform
         :param img:
@@ -112,18 +112,18 @@ class ObjectDetectionDatasetBase(_DatasetBase):
         bboxes[:, 1::2] /= float(height)
 
         if self.ignore:
-            bboxes, linds, flags = self.ignore(bboxes, linds, flags)
+            bboxes, linds, flags, args = self.ignore(bboxes, linds, flags, *args)
 
         if self.augmentation:
-            img, bboxes, linds, flags = self.augmentation(img, bboxes, linds, flags)
+            img, bboxes, linds, flags, args = self.augmentation(img, bboxes, linds, flags, *args)
 
         if self.transform:
-            img, bboxes, linds, flags = self.transform(img, bboxes, linds, flags)
+            img, bboxes, linds, flag, argss = self.transform(img, bboxes, linds, flags, *args)
 
         if self.target_transform:
-            bboxes, linds, flags = self.target_transform(bboxes, linds, flags)
+            bboxes, linds, flags, args = self.target_transform(bboxes, linds, flags, *args)
 
-        return img, bboxes, linds, flags
+        return img, bboxes, linds, flags, args
 
     @abc.abstractmethod
     def __len__(self):

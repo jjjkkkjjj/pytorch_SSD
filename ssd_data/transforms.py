@@ -7,10 +7,10 @@ class Compose(object):
     def __init__(self, transforms):
         self.transforms = transforms
 
-    def __call__(self, img, bboxes, labels, flags):
+    def __call__(self, img, bboxes, labels, flags, *args):
         for t in self.transforms:
-            img, bboxes, labels, flags = t(img, bboxes, labels, flags)
-        return img, bboxes, labels, flags
+            img, bboxes, labels, flags, args = t(img, bboxes, labels, flags, *args)
+        return img, bboxes, labels, flags, args
 
     def __repr__(self):
         format_string = self.__class__.__name__ + '('

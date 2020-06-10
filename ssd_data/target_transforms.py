@@ -8,10 +8,10 @@ class Compose(object):
     def __init__(self, target_transforms):
         self.target_transforms = target_transforms
 
-    def __call__(self, bboxes, labels, flags):
+    def __call__(self, bboxes, labels, flags, *args):
         for t in self.target_transforms:
-            bboxes, labels, flags = t(bboxes, labels, flags)
-        return bboxes, labels, flags
+            bboxes, labels, flags, args = t(bboxes, labels, flags, *args)
+        return bboxes, labels, flags, args
 
     def __repr__(self):
         format_string = self.__class__.__name__ + '('
@@ -22,24 +22,24 @@ class Compose(object):
         return format_string
 
 class ToTensor(object):
-    def __call__(self, bboxes, labels, flags):
-        return torch.from_numpy(bboxes), torch.from_numpy(labels), flags
+    def __call__(self, bboxes, labels, flags, *args):
+        return torch.from_numpy(bboxes), torch.from_numpy(labels), flags, args
 
 class ToCentroids(object):
-    def __call__(self, bboxes, labels, flags):
+    def __call__(self, bboxes, labels, flags, *args):
         # bbox = [xmin, ymin, xmax, ymax]
         bboxes = np.concatenate(((bboxes[:, 2:] + bboxes[:, :2]) / 2,
                                  (bboxes[:, 2:] - bboxes[:, :2])), axis=1)
 
-        return bboxes, labels, flags
+        return bboxes, labels, flags, args
 
 class ToCorners(object):
-    def __call__(self, bboxes, labels, flags):
+    def __call__(self, bboxes, labels, flags, *args):
         # bbox = [cx, cy, w, h]
         bboxes = np.concatenate((bboxes[:, :2] - bboxes[:, 2:]/2,
                                  bboxes[:, :2] + bboxes[:, 2:]/2), axis=1)
 
-        return bboxes, labels, flags
+        return bboxes, labels, flags, args
 
 class Ignore(object):
     supported_key = ['difficult', 'truncated', 'occluded', 'iscrowd']
@@ -58,7 +58,7 @@ class Ignore(object):
             else:
                 logging.warning('Unsupported arguments: {}'.format(key))
 
-    def __call__(self, bboxes, labels, flags):
+    def __call__(self, bboxes, labels, flags, *args):
         ret_bboxes = []
         ret_labels = []
         ret_flags = []
@@ -88,7 +88,7 @@ class Ignore(object):
         ret_bboxes = np.array(ret_bboxes, dtype=np.float32)
         ret_labels = np.array(ret_labels, dtype=np.float32)
 
-        return ret_bboxes, ret_labels, ret_flags
+        return ret_bboxes, ret_labels, ret_flags, args
 
 class OneHot(object):
     def __init__(self, class_nums, add_background=True):
@@ -97,11 +97,11 @@ class OneHot(object):
         if add_background:
             self._class_nums += 1
 
-    def __call__(self, bboxes, labels, flags):
+    def __call__(self, bboxes, labels, flags, *args):
         if labels.ndim != 1:
             raise ValueError('labels might have been already relu_one-hotted or be invalid shape')
 
         labels = _one_hot_encode(labels.astype(np.int), self._class_nums)
         labels = np.array(labels, dtype=np.float32)
 
-        return bboxes, labels, flags
+        return bboxes, labels, flags, args

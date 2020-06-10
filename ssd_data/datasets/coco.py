@@ -101,7 +101,7 @@ class COCOSingleDatasetBase(ObjectDetectionDatasetBase):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         return img.astype(np.float32)
 
-    def _get_bbox_lind(self, index):
+    def _get_target(self, index):
         """
         :param index: int
         :return:

@@ -59,13 +59,13 @@ class ObjectDetectionDatasetBase(_DatasetBase):
         raise NotImplementedError('\'_get_image\' must be overridden')
 
     @abc.abstractmethod
-    def _get_bbox_lind(self, index):
+    def _get_target(self, index):
         """
         :param index: int
         :return:
             list of bboxes, list of bboxes' label index, list of flags([difficult, truncated])
         """
-        raise NotImplementedError('\'_get_bbox_lind\' must be overridden')
+        raise NotImplementedError('\'_get_target\' must be overridden')
 
     def __getitem__(self, index):
         """
@@ -78,7 +78,7 @@ class ObjectDetectionDatasetBase(_DatasetBase):
             = [cx, cy, w, h, label index(or relu_one-hotted label)]
         """
         img = self._get_image(index)
-        bboxes, linds, flags = self._get_bbox_lind(index)
+        bboxes, linds, flags = self._get_target(index)
 
         img, bboxes, linds, flags = self.apply_transform(img, bboxes, linds, flags)
 

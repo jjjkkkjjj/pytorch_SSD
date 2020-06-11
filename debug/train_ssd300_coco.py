@@ -23,7 +23,7 @@ if __name__ == '__main__':
          transforms.Normalize(rgb_means=(0.485, 0.456, 0.406), rgb_stds=(0.229, 0.224, 0.225))]
     )
     target_transform = target_transforms.Compose(
-        [target_transforms.ToCentroids(),
+        [target_transforms.Corners2Centroids(),
          target_transforms.OneHot(class_nums=datasets.COCO_class_nums, add_background=True),
          target_transforms.ToTensor()]
     )

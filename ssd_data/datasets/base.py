@@ -78,8 +78,12 @@ class ObjectDetectionDatasetBase(_DatasetBase):
             = [cx, cy, w, h, label index(or relu_one-hotted label)]
         """
         img = self._get_image(index)
-        bboxes, linds, flags, args = self._get_target(index)
-
+        targets = self._get_target(index)
+        if len(targets) >= 3:
+            bboxes, linds, flags = targets[:3]
+            args = targets[3:]
+        else:
+            raise ValueError('ValueError: not enough values to unpack (expected more than 3, got {})'.format(len(targets)))
         img, bboxes, linds, flags, args = self.apply_transform(img, bboxes, linds, flags, *args)
 
         # concatenate bboxes and linds
@@ -118,7 +122,7 @@ class ObjectDetectionDatasetBase(_DatasetBase):
             img, bboxes, linds, flags, args = self.augmentation(img, bboxes, linds, flags, *args)
 
         if self.transform:
-            img, bboxes, linds, flag, argss = self.transform(img, bboxes, linds, flags, *args)
+            img, bboxes, linds, flag, args = self.transform(img, bboxes, linds, flags, *args)
 
         if self.target_transform:
             bboxes, linds, flags, args = self.target_transform(bboxes, linds, flags, *args)

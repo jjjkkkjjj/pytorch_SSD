@@ -9,7 +9,9 @@ class Compose(object):
 
     def __call__(self, img, bboxes, labels, flags, *args):
         for t in self.transforms:
-            img, bboxes, labels, flags, args = t(img, bboxes, labels, flags, *args)
+            transformed = t(img, bboxes, labels, flags, *args)
+            img, bboxes, labels, flags = transformed[:4]
+            args = transformed[4:]
         return img, bboxes, labels, flags, args
 
     def __repr__(self):

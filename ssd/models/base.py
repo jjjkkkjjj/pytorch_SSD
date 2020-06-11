@@ -382,6 +382,24 @@ class SSDBase(ObjectDetectionModelBase):
             else:
                 return infers
 
+    def load_for_finetune(self, path):
+        """
+        load weights from input to extra features weights for fine tuning
+        :param path: str
+        :return: self
+        """
+        pretrained_state_dict = torch.load(path, map_location=lambda storage, loc: storage)
+        model_state_dict = self.state_dict()
+
+        # rename
+        pre_keys, mod_keys = list(pretrained_state_dict.keys()), list(model_state_dict.keys())
+        renamed = [(pre_key, pretrained_state_dict[pre_key]) for pre_key in pre_keys if not ('conf' in pre_key or 'loc' in pre_key)]
+
+        # set vgg layer's parameters
+        model_state_dict.update(OrderedDict(renamed))
+        self.load_state_dict(model_state_dict, strict=False)
+
+        logging.info("model loaded")
 
 class SSDvggBase(SSDBase):
 

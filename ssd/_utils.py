@@ -8,9 +8,9 @@ def weights_path(_file_, _root_num, dirname):
     return model_dir
 
 
-def _check_ins(name, val, cls, allow_none=False):
+def _check_ins(name, val, cls, allow_none=False, default=None):
     if allow_none and val is None:
-        return val
+        return default
 
     if not isinstance(val, cls):
         raise ValueError('Argument \'{}\' must be {}, but got {}'.format(name, cls.__name__, type(val).__name__))

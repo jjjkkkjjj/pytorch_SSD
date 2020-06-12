@@ -30,8 +30,8 @@ if __name__ == '__main__':
                              pin_memory=False)
 
     model = SSD300(class_labels=datasets.VOC_class_labels, batch_norm=False).cuda()
-    #model.load_weights('./weights/ssd300-voc2007/ssd300-voc2007_i-60000.pth')
-    model.load_for_finetune('./weights/ssd300-voc2007+12+coco/ssd300-COCO_i-240000.pth')
+    model.load_weights('./weights/ssd300-voc2007+12+coco/ssd300-voc2007+2012+coco_i-30000.pth')
+    #model.load_for_finetune('./weights/ssd300-voc2007+12+coco/ssd300-voc2007+2012+coco_i-30000.pth')
     model.eval()
     print(model)
 

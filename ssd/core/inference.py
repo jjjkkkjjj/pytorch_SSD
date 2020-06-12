@@ -7,13 +7,17 @@ import torch, cv2
 import math
 import numpy as np
 
-class InferenceBox(Module):
+class InferenceBoxBase(Module):
+    def __init__(self):
+        super().__init__()
+        self.device = torch.device('cpu')
+
+class InferenceBox(InferenceBoxBase):
     def __init__(self, conf_threshold=0.01, iou_threshold=0.45, topk=200):
         super().__init__()
         self.conf_threshold = conf_threshold
         self.iou_threshold = iou_threshold
         self.topk = topk
-        self.device = torch.device('cpu')
 
     def forward(self, inf_cand_loc, inf_cand_conf, conf_threshold=None):
         """

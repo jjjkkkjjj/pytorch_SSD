@@ -6,8 +6,9 @@ import torch
 from .._utils import _check_ins
 from ..core.boxes.dbox import *
 from ..core.layers import *
-from ..core.inference import InferenceBox
-from ..core.boxes.codec import Codec
+from ..core.predict import *
+from ..core.inference import *
+from ..core.boxes.codec import *
 from .._utils import weights_path, _check_norm
 from ..core.inference import InferenceBox, toVisualizeRGBImg
 from ..models.vgg_base import get_model_url
@@ -146,21 +147,29 @@ class SSDBase(ObjectDetectionModelBase):
     confidence_layers: nn.ModuleDict
     addon_layers: nn.ModuleDict
 
-    def __init__(self, train_config, val_config, defaultBox, **build_kwargs):
+    def __init__(self, train_config, val_config, defaultBox,
+                 codec=None, predictor=None, inferenceBox=None, **build_kwargs):
         """
         :param train_config: SSDTrainConfig
         :param val_config: SSDValConfig
         :param defaultBox: instance inheriting DefaultBoxBase
+        :param codec: Codec, if it's None, use default Codec
+        :param predictor: Predictor, if it's None, use default Predictor
+        :param inferenceBox: InferenceBox, if it's None, use default InferenceBox
         """
         self._train_config = _check_ins('train_config', train_config, SSDTrainConfig)
         self._val_config = _check_ins('val_config', val_config, SSDValConfig)
         super().__init__(train_config.class_labels, train_config.input_shape, train_config.batch_norm)
 
-        self.codec = Codec(norm_means=self.codec_means, norm_stds=self.codec_stds)
+        self.codec = _check_ins('codec', codec, CodecBase, allow_none=True,
+                                default=Codec(norm_means=self.codec_means, norm_stds=self.codec_stds))
         self.defaultBox = _check_ins('defaultBox', defaultBox, DefaultBoxBase)
 
-        self.predictor = Predictor(self.class_nums_with_background)
-        self.inferenceBox = InferenceBox(conf_threshold=self.val_conf_threshold, iou_threshold=self.iou_threshold, topk=self.topk)
+        self.predictor = _check_ins('predictor', predictor, PredictorBase, allow_none=True,
+                                    default=Predictor(self.class_nums_with_background))
+
+        self.inferenceBox = _check_ins('inferenceBox', inferenceBox, InferenceBoxBase, allow_none=True,
+                                       default=InferenceBox(conf_threshold=self.val_conf_threshold, iou_threshold=self.iou_threshold, topk=self.topk))
 
         self.build(**build_kwargs)
 

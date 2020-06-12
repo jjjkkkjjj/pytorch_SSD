@@ -2,17 +2,22 @@ from torch import nn
 import torch
 
 from .utils import matching_strategy
-from ..._utils import _check_norm
+from ..._utils import _check_norm, _check_ins
 import torchvision
-class Codec(nn.Module):
-    def __init__(self, norm_means=(0.0, 0.0, 0.0, 0.0), norm_stds=(0.1, 0.1, 0.2, 0.2)):
-        super().__init__()
-        # shape = (1, 1, 4=(cx, cy, w, h)) or (1, 1, 1)
-        self.norm_means = norm_means
-        self.norm_stds = norm_stds
 
-        self.encoder = Encoder(self.norm_means, self.norm_stds)
-        self.decoder = Decoder(self.norm_means, self.norm_stds)
+class EncoderBase(nn.Module):
+    pass
+
+class DecoderBase(nn.Module):
+    pass
+
+
+class CodecBase(nn.Module):
+    def __init__(self, encoder, decoder):
+        super().__init__()
+
+        self.encoder = _check_ins('encoder', encoder, EncoderBase)
+        self.decoder = _check_ins('decoder', decoder, DecoderBase)
 
     def to(self, *args, **kwargs):
         self.encoder = self.encoder.to(*args, **kwargs)
@@ -26,7 +31,17 @@ class Codec(nn.Module):
 
         return super().cuda(device)
 
-class Encoder(nn.Module):
+
+class Codec(CodecBase):
+    def __init__(self, norm_means=(0.0, 0.0, 0.0, 0.0), norm_stds=(0.1, 0.1, 0.2, 0.2)):
+        # shape = (1, 1, 4=(cx, cy, w, h)) or (1, 1, 1)
+        self.norm_means = norm_means
+        self.norm_stds = norm_stds
+
+        super().__init__(Encoder(self.norm_means, self.norm_stds), Decoder(self.norm_means, self.norm_stds))
+
+
+class Encoder(EncoderBase):
     def __init__(self, norm_means=(0.0, 0.0, 0.0, 0.0), norm_stds=(0.1, 0.1, 0.2, 0.2)):
         super().__init__()
 
@@ -89,7 +104,7 @@ class Encoder(nn.Module):
         return super().cuda(device)
 
 
-class Decoder(nn.Module):
+class Decoder(DecoderBase):
     def __init__(self, norm_means=(0.0, 0.0, 0.0, 0.0), norm_stds=(0.1, 0.1, 0.2, 0.2)):
         super().__init__()
 

@@ -412,15 +412,19 @@ class SSDBase(ObjectDetectionModelBase):
 
 class SSDvggBase(SSDBase):
 
-    def __init__(self, train_config, val_config, defaultBox, **build_kwargs):
+    def __init__(self, train_config, val_config, defaultBox, codec=None, predictor=None, inferenceBox=None, **build_kwargs):
         """
         :param train_config: SSDTrainConfig
         :param val_config: SSDValonfig
         :param defaultBox: instance inheriting DefaultBoxBase
+        :param codec: Codec, if it's None, use default Codec
+        :param predictor: Predictor, if it's None, use default Predictor
+        :param inferenceBox: InferenceBox, if it's None, use default InferenceBox
         """
         self._vgg_index = -1
 
-        super().__init__(train_config, val_config, defaultBox, **build_kwargs)
+        super().__init__(train_config, val_config, defaultBox,
+                         codec=codec, predictor=predictor, inferenceBox=inferenceBox, **build_kwargs)
 
     def build_feature(self, **kwargs):
         """

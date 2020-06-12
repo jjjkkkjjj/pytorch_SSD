@@ -320,7 +320,7 @@ Note that `None` is available to set these instances
 | VOC2007           | [mAP: 0.7572](https://drive.google.com/file/d/1N37Rn2pr_VPov6-Z5OXLkOWAxPgpzLSu/view?usp=sharing) | mAP:                    |
 | VOC2007++         | [mAP: N/A](https://drive.google.com/file/d/17ehKZwH4C0fYM0xMYB79Pwa8UD0ZgLaD/view?usp=sharing) | mAP:                    |
 | VOC2007+2012      | [mAP: 0.7636](https://drive.google.com/file/d/19qEEozVLj33OXNV5zUsEoqkBkojziODw/view?usp=sharing) | mAP:                    |
-| VOC2007+2012+COCO | mAP:                                                         | mAP:                    |
+| VOC2007+2012+COCO | [mAP: 0.7682](https://drive.google.com/file/d/1Ly7LeheHDToY4s8u_Ja0ltLCptsdUJ-x/view?usp=sharing) | mAP:                    |
 
 # About SSD
 

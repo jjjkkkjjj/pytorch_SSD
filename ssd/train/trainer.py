@@ -91,7 +91,8 @@ class TrainLogger(object):
 
                 # update train
                 self.log_manager.update_iteration(self.model, epoch, _iteration + 1, batch_num=len(images), data_num=len(train_loader.dataset),
-                                                  iter_per_epoch=len(train_loader), loclossval=locloss.item(), conflossval=confloss.item(), iter_time=end-start)
+                                                  iter_per_epoch=len(train_loader), loclossval=locloss.item(), conflossval=confloss.item(),
+                                                  lossval=loss.item(), iter_time=end-start)
                 """
                 too slow...
                 if evaluator and self.log_manager.now_iteration % evaluator.iteration_interval:

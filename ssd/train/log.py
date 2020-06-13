@@ -45,19 +45,19 @@ class LogManager(object):
         self._losses_manager.now_iteration = start_iteration
 
     def update_iteration(self, model, epoch, iteration, batch_num,
-                         data_num, iter_per_epoch, loclossval, conflossval, iter_time):
+                         data_num, iter_per_epoch, loclossval, conflossval, lossval, iter_time):
 
         if self.isFinish:
             return
 
-        self._losses_manager.update_iteration(totalval=loclossval+conflossval, locval=loclossval, confval=conflossval)
+        self._losses_manager.update_iteration(totalval=lossval, locval=loclossval, confval=conflossval)
 
         # template = 'Epoch {}, Loss: {:.5f}, Accuracy: {:.5f}, Test Loss: {:.5f}, Test Accuracy: {:.5f}, elapsed_time {:.5f}'
         iter_template = '\rTraining... Epoch: {}, Iter: {},\t [{}/{}\t ({:.0f}%)]\tLoss: {:.6f}, Loc Loss: {:.6f}, Conf Loss: {:.6f}\tIter time: {:.4f}'
 
         sys.stdout.write(iter_template.format(
             epoch, self.now_iteration, iteration * batch_num, data_num,
-                                         100. * iteration / iter_per_epoch, loclossval + conflossval, loclossval,
+                                         100. * iteration / iter_per_epoch, lossval, loclossval,
             conflossval, iter_time))
         sys.stdout.flush()
 

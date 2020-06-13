@@ -129,7 +129,7 @@ def toVisualizeRectangleRGBimg(img, locs, thickness=2, rgb=(255, 0, 0), verbose=
     #cv2.imshow('a', img)
     #cv2.waitKey()
     # print(locs)
-    locs_mm = centroids2corners(locs).detach().numpy()
+    locs_mm = centroids2corners(locs).cpu().numpy()
 
     h, w, c = img.shape
     locs_mm[:, 0::2] *= w
@@ -216,7 +216,10 @@ def toVisualizeRGBImg(img, locs, inf_labels, classe_labels, inf_confs=None, verb
             continue
         index = int(index)
 
-        text = classe_labels[index] + ':{:.2f}'.format(inf_confs[bnum])
+        if inf_confs is not None:
+            text = classe_labels[index] + ':{:.2f}'.format(inf_confs[bnum])
+        else:
+            text = classe_labels[index]
 
         labelSize = cv2.getTextSize(text, cv2.FONT_HERSHEY_COMPLEX, 0.4, 1)
 

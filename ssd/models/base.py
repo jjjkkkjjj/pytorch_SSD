@@ -169,7 +169,8 @@ class SSDBase(ObjectDetectionModelBase):
                                     default=Predictor(self.class_nums_with_background))
 
         self.inferenceBox = _check_ins('inferenceBox', inferenceBox, InferenceBoxBase, allow_none=True,
-                                       default=InferenceBox(conf_threshold=self.val_conf_threshold, iou_threshold=self.iou_threshold, topk=self.topk))
+                                       default=InferenceBox(class_nums_with_background=self.class_nums_with_background,
+                                                            filter_func=non_maximum_suppression, val_config=val_config))
 
         self.build(**build_kwargs)
 

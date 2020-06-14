@@ -29,7 +29,7 @@ if __name__ == '__main__':
                              num_workers=4,
                              pin_memory=False)
 
-    model = SSD300(class_labels=datasets.VOC_class_labels, batch_norm=False).cuda()
+    model = SSD300(class_labels=datasets.VOC_class_labels, batch_norm=False)
     model.load_weights('./weights/ssd300-voc2007+12+coco/ssd300-voc2007+2012+coco_i-0015000_checkpoints20200611.pth')
     #model.load_for_finetune('./weights/ssd300-voc2007+12+coco/ssd300-voc2007+2012+coco_i-30000.pth')
     model.eval()

@@ -1,4 +1,5 @@
 from .boxes import iou, centroids2corners
+from .._utils import _check_ins
 from ssd.core.boxes.codec import Decoder
 
 from torch.nn import Module
@@ -8,16 +9,23 @@ import math
 import numpy as np
 
 class InferenceBoxBase(Module):
-    def __init__(self):
+    def __init__(self, class_nums_with_background, filter_func, val_config):
         super().__init__()
+        self.class_nums_with_background = class_nums_with_background
+        self.filter_func = filter_func
+
+        from ..models.base import SSDValConfig
+        self.val_config = _check_ins('val_config', val_config, SSDValConfig)
+        
         self.device = torch.device('cpu')
 
 class InferenceBox(InferenceBoxBase):
-    def __init__(self, conf_threshold=0.01, iou_threshold=0.45, topk=200):
-        super().__init__()
-        self.conf_threshold = conf_threshold
-        self.iou_threshold = iou_threshold
-        self.topk = topk
+    def __init__(self, class_nums_with_background, filter_func, val_config):
+        super().__init__(class_nums_with_background, filter_func, val_config)
+
+    @property
+    def conf_threshold(self):
+        return self.val_config.conf_threshold
 
     def forward(self, predicts, conf_threshold=None):
         """
@@ -26,59 +34,65 @@ class InferenceBox(InferenceBoxBase):
         :return:
             ret_boxes: list of tensor, shape = (box num, 5=(class index, cx, cy, w, h))
         """
-        inf_cand_loc, inf_cand_conf = predicts[:, :, :4], F.softmax(predicts[:, :, 4:], dim=-1)
+        # alias
+        batch_num = predicts.shape[0]
+        class_num = self.class_nums_with_background
+        ret_num = predicts.shape[2] - class_num + 1 + 1 # loc num + 1=(class index) + 1=(conf)
 
-        batch_num = inf_cand_loc.shape[0]
-        class_num = inf_cand_conf.shape[2]
+        predicts[:, :, -class_num:] = F.softmax(predicts[:, :, -class_num:], dim=-1)
 
         conf_threshold = conf_threshold if conf_threshold else self.conf_threshold
 
         ret_boxes = []
         for b in range(batch_num):
             ret_box = []
-            inf_conf = inf_cand_conf[b] # shape = (default boxes number, class number)
-            inf_loc = inf_cand_loc[b]
+            pred = predicts[b] # shape = (default boxes number, *)
             for c in range(class_num - 1): # last index means background
                 # filter out less than threshold
-                indicator = inf_conf[:, c] > conf_threshold
-                conf = inf_conf[indicator, c] # shape = (filtered default boxes num)
-                if conf.nelement() == 0:
+                indicator = pred[:, -class_num+c] > conf_threshold
+                if indicator.sum().item() == 0:
                     continue
-                loc = inf_loc[indicator, :] # shape = (filtered default boxes num, 4)
 
-                # list of Tensor, shape = (1, 5=(confidence, cx, cy, w, h))
-                inferred_boxes = non_maximum_suppression(conf, loc, self.iou_threshold, self.topk)
-                if len(inferred_boxes) == 0:
+                # shape = (filtered default boxes num, *=loc+1=conf)
+                filtered_pred = torch.cat((pred[indicator, :-class_num], pred[indicator, -class_num+c].unsqueeze(1)), dim=1)
+
+                # inferred_indices: Tensor, shape = (inferred boxes num,)
+                # inferred_confs: Tensor, shape = (inferred boxes num,)
+                inferred_indices, inferred_confs, inferred_locs = self.filter_func(filtered_pred, self.val_config)
+                if inferred_indices.nelement() == 0:
                     continue
                 else:
-                    # shape = (inferred boxes num, 5)
-                    inferred_boxes = torch.cat(inferred_boxes, dim=0)
-
                     # append class flag
                     # shape = (inferred boxes num, 1)
-                    flag = np.broadcast_to([c], shape=(len(inferred_boxes), 1))
+                    flag = np.broadcast_to([c], shape=(inferred_indices.nelement(), 1))
                     flag = torch.from_numpy(flag).float().to(self.device)
 
-                    # shape = (inferred box num, 6=(class index, confidence, cx, cy, w, h))
-                    ret_box += [torch.cat((flag, inferred_boxes), dim=1)]
+                    # shape = (inferred box num, 2+loc=(class index, confidence, *))
+                    ret_box += [torch.cat((flag, inferred_confs.unsqueeze(1), inferred_locs), dim=1)]
 
             if len(ret_box) == 0:
-                ret_boxes += [torch.from_numpy(np.ones((1, 6))*np.nan)]
+                ret_boxes += [torch.from_numpy(np.ones((1, ret_num))*np.nan)]
             else:
                 ret_boxes += [torch.cat(ret_box, dim=0)]
 
-        # list of tensor, shape = (box num, 6=(class index, confidence, cx, cy, w, h))
+        # list of tensor, shape = (box num, ret_num=(class index, confidence, *=loc))
         return ret_boxes
 
 
-def non_maximum_suppression(conf, loc, iou_threshold=0.45, topk=200):
+def non_maximum_suppression(pred, val_config):
     """
-    :param conf: tensor, shape = (filtered default boxes num)
-    :param loc: tensor, shape = (filtered default boxes num, 4)
+    :param pred: tensor, shape = (filtered default boxes num, 4=loc + 1=conf)
     Note that filtered default boxes number must be more than 1
-    :param iou_threshold: int
-    :return: inferred_boxes: list of inferred boxes(Tensor). inferred boxes' Tensor shape = (inferred boxes number, 5=(conf, cx, cy, w, h))
+    :param val_config: SSDValConfig
+    :return:
+        inferred_indices: Tensor, shape = (inferred box num,)
+        inferred_confs: Tensor, shape = (inferred box num,)
+        inferred_locs: Tensor, shape = (inferred box num, 4)
     """
+    loc, conf = pred[:, :-1], pred[:, -1]
+    iou_threshold = val_config.iou_threshold
+    topk = val_config.topk
+
     # sort confidence and default boxes with descending order
     c, conf_des_inds = conf.sort(dim=0, descending=True)
     # get topk indices
@@ -86,14 +100,13 @@ def non_maximum_suppression(conf, loc, iou_threshold=0.45, topk=200):
     # converted into minmax coordinates
     loc_mm = centroids2corners(loc)
 
-    inferred_boxes = []
+    inferred_indices = []
     while conf_des_inds.nelement() > 0:
         largest_conf_index = conf_des_inds[0]
-        # conf[largest_conf_index]'s shape = []
-        largest_conf = conf[largest_conf_index].unsqueeze(0).unsqueeze(0) # shape = (1, 1)
+
         largest_conf_loc = loc[largest_conf_index, :].unsqueeze(0)  # shape = (1, 4=(xmin, ymin, xmax, ymax))
         # append to result
-        inferred_boxes.append(torch.cat((largest_conf, largest_conf_loc), dim=1)) # shape = (1, 5)
+        inferred_indices.append(largest_conf_index)
 
         # remove largest element
         conf_des_inds = conf_des_inds[1:]
@@ -108,7 +121,8 @@ def non_maximum_suppression(conf, loc, iou_threshold=0.45, topk=200):
 
         conf_des_inds = conf_des_inds[indicator]
 
-    return inferred_boxes
+    inferred_indices = torch.Tensor(inferred_indices).long()
+    return inferred_indices, conf[inferred_indices], loc[inferred_indices]
 
 def tensor2cvrgbimg(img, to8bit=True):
     if to8bit:

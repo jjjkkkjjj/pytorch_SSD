@@ -378,11 +378,10 @@ class SSDBase(ObjectDetectionModelBase):
             # predict
             predicts = self(normed_img)
 
-            pred_loc, pred_conf = predicts[:, :, :4], predicts[:, :, 4:]
-            inf_cand_loc, inf_cand_conf = self.decoder(pred_loc, self.dboxes), F.softmax(pred_conf, dim=-1)
+            predicts = self.decoder(predicts, self.dboxes)
 
             # list of tensor, shape = (box num, 6=(class index, confidence, cx, cy, w, h))
-            infers = self.inferenceBox(inf_cand_loc, inf_cand_conf, conf_threshold)
+            infers = self.inferenceBox(predicts, conf_threshold)
 
             img_num = normed_img.shape[0]
             if visualize:

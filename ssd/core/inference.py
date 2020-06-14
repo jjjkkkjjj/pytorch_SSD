@@ -19,14 +19,15 @@ class InferenceBox(InferenceBoxBase):
         self.iou_threshold = iou_threshold
         self.topk = topk
 
-    def forward(self, inf_cand_loc, inf_cand_conf, conf_threshold=None):
+    def forward(self, predicts, conf_threshold=None):
         """
-        :param inf_cand_loc: Tensor, shape = (batch number, default boxes number, 4)
-        :param inf_cand_conf: Tensor, shape = (batch number, default boxes number, class number)
+        :param predicts: Tensor, shape = (batch number, default boxes number, 4 + class_num)
         :param conf_threshold: float or None, if it's None, passed default value with 0.01
         :return:
             ret_boxes: list of tensor, shape = (box num, 5=(class index, cx, cy, w, h))
         """
+        inf_cand_loc, inf_cand_conf = predicts[:, :, :4], F.softmax(predicts[:, :, 4:], dim=-1)
+
         batch_num = inf_cand_loc.shape[0]
         class_num = inf_cand_conf.shape[2]
 

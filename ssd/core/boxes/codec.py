@@ -82,9 +82,9 @@ class Encoder(EncoderBase):
         gt_h = torch.log(targets_loc[:, :, 3] / dboxes[:, 3])
 
         encoded_boxes = torch.cat((gt_cx.unsqueeze(2),
-                          gt_cy.unsqueeze(2),
-                          gt_w.unsqueeze(2),
-                          gt_h.unsqueeze(2)), dim=2)
+                                   gt_cy.unsqueeze(2),
+                                   gt_w.unsqueeze(2),
+                                   gt_h.unsqueeze(2)), dim=2)
 
         # normalization
         targets[:, :, :4] = (encoded_boxes - self.norm_means) / self.norm_stds
@@ -115,10 +115,10 @@ class Decoder(DecoderBase):
         self.norm_means = norm_means.unsqueeze(0).unsqueeze(0)
         self.norm_stds = norm_stds.unsqueeze(0).unsqueeze(0)
 
-    def forward(self, pred_boxes, default_boxes):
+    def forward(self, predicts, default_boxes):
         """
         Opposite to above procession
-        :param pred_boxes: Tensor, shape = (batch, default boxes num, 4)
+        :param predicts: Tensor, shape = (batch, default boxes num, 4 + class_nums)
         :param default_boxes: Tensor, shape = (default boxes num, 4)
         Note that 4 means (cx, cy, w, h)
         :return:
@@ -127,21 +127,23 @@ class Decoder(DecoderBase):
                       inf_w = exp(pred_w) * dbox_w, inf_h = exp(pred_h) * dbox_h
                       shape = (batch, default boxes num, 4)
         """
-        assert pred_boxes.shape[1:] == default_boxes.shape, "pred_boxes and default_boxes must be same shape"
+        pred_locs = predicts[:, :, :4]
 
-        device = pred_boxes.device
+        assert pred_locs.shape[1:] == default_boxes.shape, "predicts and default_boxes must be same shape"
 
-        pred_unnormalized = pred_boxes * self.norm_stds + self.norm_means
+        pred_unnormalized = pred_locs * self.norm_stds + self.norm_means
 
         inf_cx = pred_unnormalized[:, :, 0] * default_boxes[:, 2] + default_boxes[:, 0]
         inf_cy = pred_unnormalized[:, :, 1] * default_boxes[:, 3] + default_boxes[:, 1]
         inf_w = torch.exp(pred_unnormalized[:, :, 2]) * default_boxes[:, 2]
         inf_h = torch.exp(pred_unnormalized[:, :, 3]) * default_boxes[:, 3]
 
-        return torch.cat((inf_cx.unsqueeze(2),
-                          inf_cy.unsqueeze(2),
-                          inf_w.unsqueeze(2),
-                          inf_h.unsqueeze(2)), dim=2)
+        predicts[:, :, :4] = torch.cat((inf_cx.unsqueeze(2),
+                                        inf_cy.unsqueeze(2),
+                                        inf_w.unsqueeze(2),
+                                        inf_h.unsqueeze(2)), dim=2)
+
+        return predicts
 
     def to(self, *args, **kwargs):
         self.norm_means = self.norm_means.to(*args, **kwargs)

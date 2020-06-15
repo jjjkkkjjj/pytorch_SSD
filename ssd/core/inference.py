@@ -129,7 +129,7 @@ def tensor2cvrgbimg(img, to8bit=True):
         img = img * 255.
     return img.cpu().numpy().transpose((1, 2, 0)).astype(np.uint8)
 
-def toVisualizeRectangleRGBimg(img, locs, thickness=2, rgb=(255, 0, 0), verbose=False):
+def toVisualizeRectangleRGBimg(img, locs, thickness=2, rgb=(255, 0, 0), tensor2cvimg=True, verbose=False):
     """
     :param img: Tensor, shape = (c, h, w)
     :param locs: Tensor, centered coordinates, shape = (box num, 4=(cx, cy, w, h)).
@@ -140,7 +140,12 @@ def toVisualizeRectangleRGBimg(img, locs, thickness=2, rgb=(255, 0, 0), verbose=
         img: RGB order
     """
     # convert (c, h, w) to (h, w, c)
-    img = tensor2cvrgbimg(img, to8bit=True).copy()
+    if tensor2cvimg:
+        img = tensor2cvrgbimg(img, to8bit=True).copy()
+    else:
+        if not isinstance(img, np.ndarray):
+            raise ValueError('img must be Tensor, but got {}. if you pass \'Tensor\' img, set tensor2cvimg=True'.format(type(img).__name__))
+
     #cv2.imshow('a', img)
     #cv2.waitKey()
     # print(locs)
@@ -166,7 +171,7 @@ def toVisualizeRectangleRGBimg(img, locs, thickness=2, rgb=(255, 0, 0), verbose=
 
     return img
 
-def toVisualizeRGBImg(img, locs, inf_labels, classe_labels, inf_confs=None, verbose=False):
+def toVisualizeRGBImg(img, locs, inf_labels, classe_labels, inf_confs=None, tensor2cvimg=True, verbose=False):
     """
     :param img: Tensor, shape = (c, h, w)
     :param locs: Tensor, centered coordinates, shape = (box num, 4=(cx, cy, w, h)).
@@ -177,7 +182,11 @@ def toVisualizeRGBImg(img, locs, inf_labels, classe_labels, inf_confs=None, verb
     :return:
     """
     # convert (c, h, w) to (h, w, c)
-    img = tensor2cvrgbimg(img)
+    if tensor2cvimg:
+        img = tensor2cvrgbimg(img)
+    else:
+        if not isinstance(img, np.ndarray):
+            raise ValueError('img must be Tensor, but got {}. if you pass \'Tensor\' img, set tensor2cvimg=True'.format(type(img).__name__))
 
     class_num = len(classe_labels)
     box_num = locs.shape[0]

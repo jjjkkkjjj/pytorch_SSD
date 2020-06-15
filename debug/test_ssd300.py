@@ -2,6 +2,7 @@ from ssd_data import datasets
 from ssd_data import transforms, target_transforms, augmentations, utils
 
 from ssd.models.ssd300 import SSD300
+from ssd.core.inference import toVisualizeRGBImg
 from ssd.train.eval import VOC2007Evaluator
 import torch
 from torch.utils.data import DataLoader
@@ -41,8 +42,10 @@ if __name__ == '__main__':
 
     image = cv2.cvtColor(cv2.imread('assets/coco_testimg.jpg'), cv2.COLOR_BGR2RGB)
     infers, imgs = model.infer(cv2.resize(image, (300, 300)), visualize=True, toNorm=True)
-    for img in imgs:
-        cv2.imshow('result', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+    for i, img in enumerate(imgs):
+        image = toVisualizeRGBImg(image, locs=infers[i][:, 2:], inf_labels=infers[i][:, 0], inf_confs=infers[i][:, 1],
+                                  tensor2cvimg=False, classe_labels=model.class_labels, verbose=False)
+        cv2.imshow('result', cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
         cv2.waitKey()
 
     images = [test_dataset[i][0] for i in range(20)]

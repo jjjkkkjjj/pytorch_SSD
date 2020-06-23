@@ -288,15 +288,30 @@ class SSDBase(ObjectDetectionModelBase):
 
         return self
 
-    def forward(self, x):
+    def forward(self, x, targets=None):
         """
         :param x: Tensor, input Tensor whose shape is (batch, c, h, w)
+        :param targets: list of Tensor, represents ground truth. if it's None, calculate as inference mode.
         :return:
-            predicts: localization and confidence Tensor, shape is (batch, total_dbox_num, 4+class_labels)
+            if training:
+                pos_indicator: Bool Tensor, shape = (batch, default box num). this represents whether each default box is object or background.
+                predicts: localization and confidence Tensor, shape is (batch, total_dbox_num, 4+class_labels)
+                targets: Tensor, matched targets. shape = (batch num, dbox num, 4 + class num)
+            else:
+                predicts: localization and confidence Tensor, shape is (batch, total_dbox_num, 4+class_labels)
         """
         if not self.isBuilt:
             raise NotImplementedError(
                 "Not initialized, implement \'build_feature\', \'build_classifier\', \'build_addon\'")
+
+        if self.training and targets is None:
+            raise ValueError("pass \'targets\' for training mode")
+
+        elif not self.training and targets is not None:
+            logging.warning("forward as eval mode, but passed \'targets\'")
+
+
+        batch_num = x.shape[0]
 
         # feature
         sources = []
@@ -322,10 +337,17 @@ class SSDBase(ObjectDetectionModelBase):
             confs += [self.confidence_layers[conf_name](source)]
 
         predicts = self.predictor(locs, confs)
-        return predicts
+
+        if self.training:
+            pos_indicator, targets = self.encoder(targets, self.dboxes, batch_num)
+            return pos_indicator, predicts, targets
+        else:
+            predicts = self.decoder(predicts, self.dboxes)
+            return predicts
 
     def learn(self, x, targets):
         """
+        Alias as self(x, targets)
         :param x: Tensor, input Tensor whose shape is (batch, c, h, w)
         :param targets: Tensor, list of Tensor, whose shape = (object num, 4 + class num) including background
         :return:
@@ -333,18 +355,7 @@ class SSDBase(ObjectDetectionModelBase):
             predicts: localization and confidence Tensor, shape is (batch, total_dbox_num, 4+class_labels)
             targets: Tensor, matched targets. shape = (batch num, dbox num, 4 + class num)
         """
-        if not self.isBuilt:
-            raise NotImplementedError(
-                "Not initialized, implement \'build_feature\', \'build_classifier\', \'build_addon\'")
-        if not self.training:
-            raise NotImplementedError("call \'train()\' first")
-
-        batch_num = x.shape[0]
-
-        pos_indicator, targets = self.encoder(targets, self.dboxes, batch_num)
-        predicts = self(x)
-
-        return pos_indicator, predicts, targets
+        return self(x, targets)
 
     def infer(self, image, conf_threshold=None, toNorm=False, visualize=False):
         """
@@ -355,6 +366,13 @@ class SSDBase(ObjectDetectionModelBase):
         :param toNorm: bool, whether to normalize passed image
         :param visualize: bool,
         :return:
+            if visualize:
+                infers: list of tensor, shape = (box num, 5=(class index, cx, cy, w, h))
+                visualized_imgs: list of ndarray, whose order is rgb
+                orig_imgs: list of ndarray, whose order is rgb
+            else:
+                infers: list of tensor, shape = (box num, 5=(class index, cx, cy, w, h))
+                orig_imgs: list of ndarray, whose order is rgb
         """
         if not self.isBuilt:
             raise NotImplementedError("Not initialized, implement \'build_feature\', \'build_classifier\', \'build_addon\'")
@@ -365,7 +383,7 @@ class SSDBase(ObjectDetectionModelBase):
         img = check_image(image, self.device)
 
         # normed_img, orig_img: Tensor, shape = (b, c, h, w)
-        normed_img, orig_img = get_normed_and_origin_img(img, self.rgb_means, self.rgb_stds, toNorm, self.device)
+        normed_imgs, orig_imgs = get_normed_and_origin_img(img, self.rgb_means, self.rgb_stds, toNorm, self.device)
 
         if list(img.shape[1:]) != [self.input_channel, self.input_height, self.input_width]:
             raise ValueError('image shape was not same as input shape: {}, but got {}'.format([self.input_channel, self.input_height, self.input_width], list(img.shape[1:])))
@@ -377,19 +395,18 @@ class SSDBase(ObjectDetectionModelBase):
         with torch.no_grad():
 
             # predict
-            predicts = self(normed_img)
-
-            predicts = self.decoder(predicts, self.dboxes)
+            predicts = self(normed_imgs)
 
             # list of tensor, shape = (box num, 6=(class index, confidence, cx, cy, w, h))
             infers = self.inferenceBox(predicts, conf_threshold)
 
-            img_num = normed_img.shape[0]
+            img_num = normed_imgs.shape[0]
             if visualize:
-                return infers, [toVisualizeRGBImg(orig_img[i], locs=infers[i][:, 2:], inf_labels=infers[i][:, 0],
-                                                  inf_confs=infers[i][:, 1], classe_labels=self.class_labels, verbose=False) for i in range(img_num)]
+                visualized_imgs = [toVisualizeRGBImg(orig_imgs[i], locs=infers[i][:, 2:], inf_labels=infers[i][:, 0],
+                                                     inf_confs=infers[i][:, 1], classe_labels=self.class_labels, verbose=False) for i in range(img_num)]
+                return infers, visualized_imgs, orig_imgs
             else:
-                return infers
+                return infers, orig_imgs
 
     def load_for_finetune(self, path):
         """

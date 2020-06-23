@@ -1,5 +1,6 @@
 import math
 import torch
+from torch import nn
 import time, logging
 
 from .log import LogManager
@@ -14,13 +15,13 @@ class TrainLogger(object):
 
     def __init__(self, model, loss_func, optimizer, log_manager, scheduler=None):
 
+        self._model = _check_ins('model', model, (SSDBase, nn.DataParallel))
 
-        self.model = _check_ins('model', model, SSDBase)
         if torch.cuda.is_available():
-            if not 'cuda' in model.device.type:
+            if not 'cuda' in self.model.device.type:
                 logging.warning('You can use CUDA device but you didn\'t set CUDA device.'
                                 'To use CUDA, call \"model.cuda()\"')
-        self.device = model.device
+        self.device = self.model.device
         torch.set_default_tensor_type(torch.FloatTensor)
 
         # convert to float
@@ -37,11 +38,14 @@ class TrainLogger(object):
         else:
             raise ValueError('logmanager must be \'Logmanager\' instance')
 
-    """
+
     @property
-    def model_name(self):
-        return self.model.__class__.__name__.lower()
-    """
+    def model(self):
+        if isinstance(self._model, nn.DataParallel):
+            return self._model.module
+        else:
+            return self._model
+
 
     def train(self, max_iterations, train_loader, start_iteration=0):#, evaluator=None):
         """
@@ -76,7 +80,7 @@ class TrainLogger(object):
                 # set variable
                 # images.requires_grad = True
                 # targets.requires_grad = True
-                pos_indicator, predicts, gts = self.model.learn(images, targets)
+                pos_indicator, predicts, gts = self.model(images, targets)
 
                 confloss, locloss = self.loss_func(pos_indicator, predicts, gts)
                 loss = confloss + self.loss_func.alpha * locloss

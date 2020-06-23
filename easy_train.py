@@ -97,6 +97,7 @@ args = parser.parse_args()
 import torch
 import logging
 logging.basicConfig(level=logging.INFO)
+from torch import nn
 from torch.utils.data import DataLoader
 from torch.optim.adam import Adam
 from torch.optim.sgd import SGD
@@ -197,6 +198,9 @@ if args.weights_path is None:
     model.load_vgg_weights()
 else:
     model.load_weights(args.weights_path)
+
+if args.device == 'cuda':
+    model = nn.DataParallel(model)
 
 logging.info(model)
 

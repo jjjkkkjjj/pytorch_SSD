@@ -281,7 +281,7 @@ class SSDBase(ObjectDetectionModelBase):
         self.build_classifier(**kwargs)
 
         ### default box ###
-        self.defaultBox = self.defaultBox.build(self.feature_layers, self._train_config.classifier_source_names,
+        self.defaultBox = self.defaultBox.build(self.feature_layers, self.classifier_source_names,
                                                 self.localization_layers)
 
         self.init_weights()
@@ -321,13 +321,13 @@ class SSDBase(ObjectDetectionModelBase):
 
             source = x
             if name in self.addon_source_names:
-                if name not in self._train_config.classifier_source_names:
+                if name not in self.classifier_source_names:
                     logging.warning("No meaning addon: {}".format(name))
                 source = self.addon_layers['addon_{}'.format(addon_i)](source)
                 addon_i += 1
 
             # get features by feature map convolution
-            if name in self._train_config.classifier_source_names:
+            if name in self.classifier_source_names:
                 sources += [source]
 
         # classifier
